@@ -1,6 +1,16 @@
+mod grid_test;
+
+use grid_test::*;
+
+
+use array2d::*;
+
 use egui::{epaint::Shadow, Color32, Frame, Label, Margin, Rect};
 use macroquad::prelude::*;
 
+const LEVEL_SIZE: usize = 500;
+const SHIFT_FACTOR: f32 = 250.0;
+const ZOOM_FACTOR: f32 = 1.1;
 
 fn window_frame() -> Frame {
     Frame {
@@ -21,12 +31,17 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-
     let mut main_rect: Rect = Rect::EVERYTHING;
 
-    dbg!(Rect::NOTHING);
-    dbg!(Rect::NAN);
-    dbg!(Rect::EVERYTHING);
+    let mut display_factor: f32 = 1.0;
+    let mut display_shift: Vec2 = vec2(10.0, 10.0);
+
+    let mut grid: Array2D<BlockType> =
+        Array2D::filled_with(BlockType::Empty, LEVEL_SIZE, LEVEL_SIZE);
+    for _ in 1..5500 {
+        let point = Vec2D::random_pos();
+        grid.set(point.x, point.y, BlockType::Filled).unwrap();
+    }
 
     loop {
         clear_background(WHITE);
@@ -35,6 +50,15 @@ async fn main() {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
                 ui.label("hello world");
                 ui.separator();
+
+                if ui.button("YEET").clicked() {
+                    grid = Array2D::filled_with(BlockType::Empty, LEVEL_SIZE, LEVEL_SIZE);
+                    for _ in 1..5500 {
+                        let point = Vec2D::random_pos();
+                        grid.set(point.x, point.y, BlockType::Filled).unwrap();
+                    }
+                };
+
             });
 
             egui::Window::new("yeah").frame(window_frame()).show(egui_ctx, |ui| {
@@ -45,17 +69,12 @@ async fn main() {
             main_rect = egui_ctx.available_rect();
         });
 
-        // set_camera(&Camera2D {
-        //     zoom: vec2(1., -screen_width() / screen_height()),
-        //     ..Default::default()
-        // });
-        
+        if main_rect.contains(mouse_position().into()) {
+            handle_mouse_inputs(&mut display_factor, &mut display_shift);
+        }
 
-
-        let rect = main_rect.shrink(50.0);
-
-        draw_rectangle(rect.min.x, rect.min.y, rect.width(), rect.height(), GREEN);
-
+        draw_grid_blocks(&grid, display_factor, display_shift);
+        macroquad::models::draw_grid(10, 10.0, BLACK, GREEN);
 
         egui_macroquad::draw();
         next_frame().await
