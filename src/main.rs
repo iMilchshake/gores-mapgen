@@ -2,15 +2,12 @@ mod grid_test;
 
 use grid_test::*;
 
-
-use array2d::*;
+use ndarray::Array2;
 
 use egui::{epaint::Shadow, Color32, Frame, Label, Margin, Rect};
 use macroquad::prelude::*;
 
 const LEVEL_SIZE: usize = 500;
-const SHIFT_FACTOR: f32 = 250.0;
-const ZOOM_FACTOR: f32 = 1.1;
 
 fn window_frame() -> Frame {
     Frame {
@@ -36,11 +33,11 @@ async fn main() {
     let mut display_factor: f32 = 1.0;
     let mut display_shift: Vec2 = vec2(10.0, 10.0);
 
-    let mut grid: Array2D<BlockType> =
-        Array2D::filled_with(BlockType::Empty, LEVEL_SIZE, LEVEL_SIZE);
+    let mut grid = Array2::from_elem((LEVEL_SIZE, LEVEL_SIZE), BlockType::Empty);
+
     for _ in 1..5500 {
         let point = Vec2D::random_pos();
-        grid.set(point.x, point.y, BlockType::Filled).unwrap();
+        grid[[point.x, point.y]] =  BlockType::Filled;
     }
 
     loop {
@@ -50,15 +47,6 @@ async fn main() {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
                 ui.label("hello world");
                 ui.separator();
-
-                if ui.button("YEET").clicked() {
-                    grid = Array2D::filled_with(BlockType::Empty, LEVEL_SIZE, LEVEL_SIZE);
-                    for _ in 1..5500 {
-                        let point = Vec2D::random_pos();
-                        grid.set(point.x, point.y, BlockType::Filled).unwrap();
-                    }
-                };
-
             });
 
             egui::Window::new("yeah").frame(window_frame()).show(egui_ctx, |ui| {

@@ -2,8 +2,8 @@ use std::fmt::{self, Display};
 use std::fmt::Formatter;
 use std::ops::Mul;
 
-use array2d::Array2D;
 use macroquad::prelude::*;
+use ndarray::{prelude, Array, Array2};
 
 const LEVEL_SIZE: usize = 100;
 const SHIFT_FACTOR: f32 = 250.0;
@@ -55,48 +55,19 @@ pub fn handle_mouse_inputs(display_factor: &mut f32, display_shift: &mut Vec2) {
     }
 }
 
-
-
-pub fn draw_grid_blocks(grid: &Array2D<BlockType>, display_factor: f32, display_shift: Vec2) {
+pub fn draw_grid_blocks(grid: &Array2<BlockType>, display_factor: f32, display_shift: Vec2) {
     for x in 0..LEVEL_SIZE {
         for y in 0..LEVEL_SIZE {
-            if let Some(value) = grid.get(x, y) {
-                draw_rectangle(
-                    (x as f32) * display_factor + display_shift.x,
-                    (y as f32) * display_factor + display_shift.y,
-                    display_factor,
-                    display_factor,
-                    match value {
-                        BlockType::Filled => LIME,
-                        _ => DARKGRAY,
-                    },
-                );
-            }
+            draw_rectangle(
+                (x as f32) * display_factor + display_shift.x,
+                (y as f32) * display_factor + display_shift.y,
+                display_factor,
+                display_factor,
+                match grid[[x, y]] {
+                    BlockType::Filled => LIME,
+                    _ => DARKGRAY,
+                },
+            );
         }
-    }
-}
-
-#[macroquad::main("testing")]
-async fn main() {
-    let mut display_factor: f32 = 1.0;
-    let mut display_shift: Vec2 = vec2(10.0, 10.0);
-
-    let mut grid: Array2D<BlockType> =
-        Array2D::filled_with(BlockType::Empty, LEVEL_SIZE, LEVEL_SIZE);
-
-    for _ in 1..5500 {
-        let point = Vec2D::random_pos();
-        grid.set(point.x, point.y, BlockType::Filled).unwrap();
-    }
-
-    loop {
-        clear_background(LIGHTGRAY);
-
-        handle_mouse_inputs(&mut display_factor, &mut display_shift);
-        draw_grid_blocks(&grid, display_factor, display_shift);
-        macroquad::models::draw_grid(10, 10.0, BLACK, GREEN);
-
-        draw_text(&get_fps().to_string(), 60.0, 20.0, 30.0, RED);
-        next_frame().await;
     }
 }
