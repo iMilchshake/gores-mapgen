@@ -25,23 +25,17 @@ fn window_conf() -> Conf {
     }
 }
 
-fn min(x: f32, y: f32) -> f32 {
-    if x < y {
-        return x;
-    } else {
-        return y;
-    }
+// this walker is indeed very cute
+#[derive(Default, Debug, Clone, Copy)]
+struct CuteWalker {
+    pos: UVec2,
 }
 
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut main_rect: Rect = Rect::EVERYTHING;
     let mut grid = Array2::from_elem((LEVEL_SIZE, LEVEL_SIZE), BlockType::Empty);
-
-    for _ in 1..500 {
-        let point = Vec2D::random_pos(LEVEL_SIZE);
-        grid[[point.x, point.y]] = BlockType::Filled;
-    }
+    let mut walker = CuteWalker::default();
 
     loop {
         clear_background(WHITE);
@@ -67,7 +61,16 @@ async fn main() {
         //     handle_mouse_inputs(&mut display_factor, &mut display_shift);
         // }
 
-        let available_length = min(main_rect.width(), main_rect.height()); // TODO: assumes square
+        if is_key_released(KeyCode::Enter) {
+            grid[[walker.pos.x as usize, walker.pos.y as usize]] = BlockType::Filled;
+            walker.pos.x = walker.pos.x + 1;
+            dbg!(walker);
+        }
+
+        dbg!(walker);
+
+        let available_length = f32::min(main_rect.width(), main_rect.height()); // TODO: assumes square
+
         let display_factor = available_length / LEVEL_SIZE as f32;
 
         draw_grid_blocks(&grid, display_factor, vec2(0.0, 0.0));
