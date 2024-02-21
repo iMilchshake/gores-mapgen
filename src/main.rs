@@ -1,12 +1,13 @@
 mod grid_test;
+use core::panic;
 use std::isize;
 
 use grid_test::*;
 
 use ndarray::Array2;
 
-use egui::{epaint::Shadow, Color32, Frame, Label, Margin, Rect};
-use macroquad::prelude::*;
+use egui::{epaint::Shadow, widgets, Color32, Frame, Label, Margin, Rect};
+use macroquad::{miniquad::native::egl::EGL_HEIGHT, prelude::*};
 
 const LEVEL_SIZE: usize = 100;
 
@@ -28,10 +29,10 @@ fn window_conf() -> Conf {
 
 #[derive(Debug)]
 enum ShiftDirection {
-    UP,
-    RIGHT,
-    DOWN,
-    LEFT,
+    Up,
+    Right,
+    Down,
+    Left,
 }
 
 // using my own position vector to meet ndarray's indexing standard using usize
@@ -48,15 +49,6 @@ impl Position {
         [self.x, self.y]
     }
 
-    fn shift(&mut self, shift: ShiftDirection) {
-        match shift {
-            ShiftDirection::UP => self.y -= 1,
-            ShiftDirection::RIGHT => self.x += 1,
-            ShiftDirection::DOWN => self.y += 1,
-            ShiftDirection::LEFT => self.x -= 1,
-        }
-    }
-
     fn get_greedy_dir(&self, goal: &Position) -> ShiftDirection {
         let x_diff = goal.x as isize - self.x as isize;
         let x_abs_diff = x_diff.abs();
@@ -66,61 +58,97 @@ impl Position {
         // check whether x or y is dominant
         if x_abs_diff > y_abs_diff {
             if x_diff.is_positive() {
-                return ShiftDirection::RIGHT;
+                return ShiftDirection::Right;
             } else {
-                return ShiftDirection::LEFT;
+                return ShiftDirection::Left;
             }
         } else {
             if y_diff.is_positive() {
-                return ShiftDirection::DOWN;
+                return ShiftDirection::Down;
             } else {
-                return ShiftDirection::UP;
+                return ShiftDirection::Up;
             }
         }
     }
 }
 
+#[derive(Debug)]
+struct Map {
+    grid: Array2<BlockType>,
+    height: usize,
+    width: usize,
+}
+
+impl Map {
+    fn new(width: usize, height: usize) -> Map {
+        Map {
+            grid: Array2::from_elem((LEVEL_SIZE, LEVEL_SIZE), BlockType::Empty),
+            width,
+            height,
+        }
+    }
+
+    fn is_pos_in_bounds(&self, pos: Position) -> bool {
+        // we dont have to check for lower bound, because of usize
+        pos.x < self.width && pos.y < self.height
+    }
+}
+
 // this walker is indeed very cute
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct CuteWalker {
     pos: Position,
 }
 
-impl From<Position> for CuteWalker {
-    fn from(pos: Position) -> Self {
-        CuteWalker { pos }
-    }
-}
-
 impl CuteWalker {
-    pub fn new(x: usize, y: usize) -> Self {
-        Self::from(Position { x, y })
-    }
-
     pub fn cuddle(&self) {
         println!("Cute walker was cuddled!");
+    }
+
+    fn shift_pos(&mut self, shift: ShiftDirection) {
+        match shift {
+            ShiftDirection::Up => self.pos.y -= 1,
+            ShiftDirection::Right => self.pos.x += 1,
+            ShiftDirection::Down => self.pos.y += 1,
+            ShiftDirection::Left => self.pos.x -= 1,
+        }
+    }
+
+    fn is_shift_valid(&self, shift: &ShiftDirection, map: &Map) -> bool {
+        match shift {
+            ShiftDirection::Up => self.pos.y > 0,
+            ShiftDirection::Right => self.pos.x < map.width - 1,
+            ShiftDirection::Down => self.pos.y < map.height - 1,
+            ShiftDirection::Left => self.pos.x > 0,
+        }
     }
 }
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut main_rect: Rect = Rect::EVERYTHING;
-    let mut grid = Array2::from_elem((LEVEL_SIZE, LEVEL_SIZE), BlockType::Empty);
-    let mut walker = CuteWalker::default();
+    // this Rect will hold the available space left after drawing egui
+    let mut canvas: Rect = Rect::EVERYTHING;
 
-    let goal: Position = Position { x: 90, y: 90 };
+    let mut map = Map::new(LEVEL_SIZE, LEVEL_SIZE);
+
+    let mut walker = CuteWalker {
+        pos: Position { x: 0, y: 0 },
+    };
+
+    let goal: Position = Position { x: 101, y: 5 };
 
     loop {
         clear_background(WHITE);
 
-        // TODO: add proper mouse input xd
-        // if main_rect.contains(mouse_position().into()) {
-        //     handle_mouse_inputs(&mut display_factor, &mut display_shift);
-        // }
-
         if walker.pos.ne(&goal) {
-            walker.pos.shift(walker.pos.get_greedy_dir(&goal));
-            grid[walker.pos.as_index()] = BlockType::Filled;
+            let shift = walker.pos.get_greedy_dir(&goal);
+            if walker.is_shift_valid(&shift, &map) {
+                walker.shift_pos(shift);
+                map.grid[walker.pos.as_index()] = BlockType::Filled;
+            } else {
+                eprintln!("Error: Shift out of bounds!");
+                std::process::exit(1)
+            }
         }
 
         egui_macroquad::ui(|egui_ctx| {
@@ -136,13 +164,13 @@ async fn main() {
                     ui.add(Label::new(format!("{:?}", walker)));
                 });
 
-            main_rect = egui_ctx.available_rect();
+            canvas = egui_ctx.available_rect();
         });
 
         // draw grid
-        let available_length = f32::min(main_rect.width(), main_rect.height()); // TODO: assumes square
+        let available_length = f32::min(canvas.width(), canvas.height()); // TODO: assumes square
         let display_factor = available_length / LEVEL_SIZE as f32;
-        draw_grid_blocks(&grid, display_factor, vec2(0.0, 0.0));
+        draw_grid_blocks(&mut map.grid, display_factor, vec2(0.0, 0.0));
 
         // draw GUI
         egui_macroquad::draw();
