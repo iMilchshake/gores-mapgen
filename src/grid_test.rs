@@ -1,9 +1,8 @@
-use std::fmt::Formatter;
-use std::fmt::{self, Display};
+use std::fmt::{self, Formatter};
 use std::ops::Mul;
 
 use macroquad::prelude::*;
-use ndarray::{prelude, Array, Array2};
+use ndarray::prelude::*;
 
 const SHIFT_FACTOR: f32 = 250.0;
 const ZOOM_FACTOR: f32 = 1.1;
@@ -65,7 +64,7 @@ pub fn draw_grid_blocks(grid: &Array2<BlockType>, display_factor: f32, display_s
                 display_factor,
                 match grid[[x, y]] {
                     BlockType::Filled => LIME,
-                    _ => DARKGRAY,
+                    BlockType::Empty => DARKGRAY,
                 },
             );
         }

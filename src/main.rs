@@ -28,10 +28,10 @@ fn window_conf() -> Conf {
 
 #[derive(Debug)]
 enum ShiftDirection {
-    UP,
-    RIGHT,
-    DOWN,
-    LEFT,
+    Up,
+    Right,
+    Down,
+    Left,
 }
 
 // using my own position vector to meet ndarray's indexing standard using usize
@@ -48,12 +48,12 @@ impl Position {
         [self.x, self.y]
     }
 
-    fn shift(&mut self, shift: ShiftDirection) {
+    fn shift(&mut self, shift: &ShiftDirection) {
         match shift {
-            ShiftDirection::UP => self.y -= 1,
-            ShiftDirection::RIGHT => self.x += 1,
-            ShiftDirection::DOWN => self.y += 1,
-            ShiftDirection::LEFT => self.x -= 1,
+            ShiftDirection::Up => self.y -= 1,
+            ShiftDirection::Right => self.x += 1,
+            ShiftDirection::Down => self.y += 1,
+            ShiftDirection::Left => self.x -= 1,
         }
     }
 
@@ -66,16 +66,14 @@ impl Position {
         // check whether x or y is dominant
         if x_abs_diff > y_abs_diff {
             if x_diff.is_positive() {
-                return ShiftDirection::RIGHT;
+                ShiftDirection::Right
             } else {
-                return ShiftDirection::LEFT;
+                ShiftDirection::Left
             }
+        } else if y_diff.is_positive() {
+            ShiftDirection::Down
         } else {
-            if y_diff.is_positive() {
-                return ShiftDirection::DOWN;
-            } else {
-                return ShiftDirection::UP;
-            }
+            ShiftDirection::Up
         }
     }
 }
@@ -119,7 +117,7 @@ async fn main() {
         // }
 
         if walker.pos.ne(&goal) {
-            walker.pos.shift(walker.pos.get_greedy_dir(&goal));
+            walker.pos.shift(&walker.pos.get_greedy_dir(&goal));
             grid[walker.pos.as_index()] = BlockType::Filled;
         }
 
@@ -133,7 +131,7 @@ async fn main() {
                 .frame(window_frame())
                 .show(egui_ctx, |ui| {
                     ui.add(Label::new(get_fps().to_string()));
-                    ui.add(Label::new(format!("{:?}", walker)));
+                    ui.add(Label::new(format!("{walker:?}")));
                 });
 
             main_rect = egui_ctx.available_rect();
@@ -147,6 +145,6 @@ async fn main() {
         // draw GUI
         egui_macroquad::draw();
 
-        next_frame().await
+        next_frame().await;
     }
 }
