@@ -31,7 +31,7 @@ enum ShiftDirection {
     UP,
     RIGHT,
     DOWN,
-    LEFT
+    LEFT,
 }
 
 // using my own position vector to meet ndarray's indexing standard using usize
@@ -39,21 +39,21 @@ enum ShiftDirection {
 // on the position vector will be very limited, so this should be fine..
 #[derive(Debug, Default, PartialEq)]
 struct Position {
-    x: usize, 
-    y: usize
+    x: usize,
+    y: usize,
 }
 
 impl Position {
-    fn as_index(&self) -> [usize;2] {
+    fn as_index(&self) -> [usize; 2] {
         [self.x, self.y]
-    }  
+    }
 
     fn shift(&mut self, shift: ShiftDirection) {
         match shift {
-            ShiftDirection::UP => {self.y -= 1},
-            ShiftDirection::RIGHT => {self.x += 1},
-            ShiftDirection::DOWN => {self.y += 1},
-            ShiftDirection::LEFT => {self.x -= 1}
+            ShiftDirection::UP => self.y -= 1,
+            ShiftDirection::RIGHT => self.x += 1,
+            ShiftDirection::DOWN => self.y += 1,
+            ShiftDirection::LEFT => self.x -= 1,
         }
     }
 
@@ -62,7 +62,7 @@ impl Position {
         let x_abs_diff = x_diff.abs();
         let y_diff = goal.y as isize - self.y as isize;
         let y_abs_diff = y_diff.abs();
-        
+
         // check whether x or y is dominant
         if x_abs_diff > y_abs_diff {
             if x_diff.is_positive() {
@@ -77,7 +77,6 @@ impl Position {
                 return ShiftDirection::UP;
             }
         }
-
     }
 }
 
@@ -87,13 +86,29 @@ struct CuteWalker {
     pos: Position,
 }
 
+impl From<Position> for CuteWalker {
+    fn from(pos: Position) -> Self {
+        CuteWalker { pos }
+    }
+}
+
+impl CuteWalker {
+    pub fn new(x: usize, y: usize) -> Self {
+        Self::from(Position { x, y })
+    }
+
+    pub fn cuddle(&self) {
+        println!("Cute walker was cuddled!");
+    }
+}
+
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut main_rect: Rect = Rect::EVERYTHING;
     let mut grid = Array2::from_elem((LEVEL_SIZE, LEVEL_SIZE), BlockType::Empty);
     let mut walker = CuteWalker::default();
 
-    let goal: Position = Position {x: 90, y: 90};
+    let goal: Position = Position { x: 90, y: 90 };
 
     loop {
         clear_background(WHITE);
