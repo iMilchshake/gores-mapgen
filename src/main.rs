@@ -1,5 +1,4 @@
 mod grid_test;
-
 use grid_test::*;
 
 use ndarray::Array2;
@@ -25,10 +24,41 @@ fn window_conf() -> Conf {
     }
 }
 
+enum ShiftDirection {
+    UP,
+    RIGHT,
+    DOWN,
+    LEFT
+}
+
+// using my own position vector to meet ndarray's indexing standard using usize
+// while glam has nice performance benefits, the amount of expensive operations
+// on the position vector will be very limited, so this should be fine..
+#[derive(Debug, Default)]
+struct WalkerPos {
+    x: usize, 
+    y: usize
+}
+
+impl WalkerPos {
+    fn as_index(&self) -> [usize;2] {
+        [self.x, self.y]
+    }  
+
+    fn shift(&mut self, shift: ShiftDirection) {
+        match shift {
+            ShiftDirection::UP => {self.y -= 1},
+            ShiftDirection::RIGHT => {self.x += 1},
+            ShiftDirection::DOWN => {self.y -= 1},
+            ShiftDirection::LEFT => {self.x -= 1}
+        }
+    }
+}
+
 // this walker is indeed very cute
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug)]
 struct CuteWalker {
-    pos: UVec2,
+    pos: WalkerPos,
 }
 
 #[macroquad::main(window_conf)]
@@ -62,12 +92,10 @@ async fn main() {
         // }
 
         if is_key_released(KeyCode::Enter) {
-            grid[[walker.pos.x as usize, walker.pos.y as usize]] = BlockType::Filled;
-            walker.pos.x = walker.pos.x + 1;
-            dbg!(walker);
+            grid[walker.pos.as_index()] = BlockType::Filled;
+            walker.pos.shift(ShiftDirection::RIGHT);
+            dbg!(&walker);
         }
-
-        dbg!(walker);
 
         let available_length = f32::min(main_rect.width(), main_rect.height()); // TODO: assumes square
 
