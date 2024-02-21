@@ -15,9 +15,9 @@ impl CuteWalker {
         println!("Cute walker was cuddled!");
     }
 
-    pub fn shift_pos(&mut self, shift: ShiftDirection, map: &Map) {
+    pub fn shift_pos(&mut self, shift: ShiftDirection, map: &Map) -> Result<(), &str> {
         if !self.is_shift_valid(&shift, map) {
-            panic!("Tried to perform invalid shift");
+            return Err("invalid shift");
         }
 
         match shift {
@@ -26,6 +26,8 @@ impl CuteWalker {
             ShiftDirection::Down => self.pos.y += 1,
             ShiftDirection::Left => self.pos.x -= 1,
         }
+
+        Ok(())
     }
 
     pub fn is_shift_valid(&self, shift: &ShiftDirection, map: &Map) -> bool {

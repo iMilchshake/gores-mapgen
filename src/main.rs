@@ -60,7 +60,9 @@ async fn main() {
             // if walker.is_shift_valid(&shift, &map) {}
 
             // lets see if it crashes the way we want it to...
-            walker.shift_pos(shift, &map);
+            walker
+                .shift_pos(shift, &map)
+                .expect("Expecting valid shift here, but");
             map.grid[walker.pos.as_index()] = BlockType::Filled;
         }
 
