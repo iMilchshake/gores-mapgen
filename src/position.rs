@@ -1,6 +1,7 @@
 use crate::ShiftDirection;
 
 // using my own position vector to meet ndarray's indexing standard using usize
+//
 // while glam has nice performance benefits, the amount of expensive operations
 // on the position vector will be very limited, so this should be fine..
 #[derive(Debug, Default, PartialEq)]

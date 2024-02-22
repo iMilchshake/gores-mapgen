@@ -3,6 +3,8 @@ mod map;
 mod position;
 mod walker;
 
+use std::usize;
+
 use grid_test::*;
 use map::*;
 use position::*;
@@ -41,6 +43,9 @@ pub enum ShiftDirection {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    let kernel = Kernel::new(3, 1.0);
+    dbg!(kernel);
+
     let mut canvas: Rect = Rect::EVERYTHING;
     let mut map = Map::new(LEVEL_SIZE, LEVEL_SIZE, BlockType::Empty);
     let mut walker = CuteWalker::new(Position::new(0, 0));
