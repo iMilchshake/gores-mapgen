@@ -1,16 +1,19 @@
-mod grid_test;
+mod grid_render;
 mod map;
 mod position;
 mod walker;
 
-use std::usize;
+use std::{borrow::Borrow, usize};
 
-use grid_test::*;
+use grid_render::*;
 use map::*;
 use position::*;
 use walker::*;
 
-use egui::{epaint::Shadow, Color32, Frame, Label, Margin, Rect};
+use egui::{
+    epaint::{ahash::random_state, Shadow},
+    Color32, Frame, Label, Margin, Rect,
+};
 use macroquad::prelude::*;
 
 const LEVEL_SIZE: usize = 100;
@@ -43,20 +46,19 @@ pub enum ShiftDirection {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let kernel = Kernel::new(3, 1.0);
-    dbg!(kernel);
-
     let mut canvas: Rect = Rect::EVERYTHING;
     let mut map = Map::new(LEVEL_SIZE, LEVEL_SIZE, BlockType::Empty);
-    let mut walker = CuteWalker::new(Position::new(0, 0));
+    let mut walker = CuteWalker::new(Position::new(50, 50));
+
+    let kernel = Kernel::new(9, 1.0);
 
     // setup waypoints
     let goals: Vec<Position> = vec![
-        Position::new(5, 5),
-        Position::new(95, 5),
-        Position::new(95, 95),
-        Position::new(5, 95),
+        Position::new(99, 50),
+        Position::new(0, 50),
         Position::new(50, 50),
+        Position::new(50, 99),
+        Position::new(50, 0),
     ];
     let mut goals_iter = goals.iter();
     let mut curr_goal = goals_iter.next().unwrap();
@@ -73,7 +75,10 @@ async fn main() {
             walker
                 .shift_pos(shift, &map)
                 .expect("Expecting valid shift here");
-            map.grid[walker.pos.as_index()] = BlockType::Filled;
+            map.update(&walker.pos, &kernel, BlockType::Filled)
+                .unwrap_or_else(|_| {
+                    println!("bounds exceeded :))");
+                });
         } else if let Some(next_goal) = goals_iter.next() {
             curr_goal = next_goal;
         }
@@ -90,6 +95,7 @@ async fn main() {
                 .show(egui_ctx, |ui| {
                     ui.add(Label::new(get_fps().to_string()));
                     ui.add(Label::new(format!("{:?}", walker)));
+                    ui.add(Label::new(format!("{:?}", curr_goal)));
                 });
 
             // store remaining space for macroquad drawing
@@ -99,6 +105,7 @@ async fn main() {
         // draw grid
         let display_factor = (f32::min(canvas.width(), canvas.height())) / LEVEL_SIZE as f32; // TODO: assumes square
         draw_grid_blocks(&mut map.grid, display_factor, vec2(0.0, 0.0));
+        draw_walker(&walker, display_factor, vec2(0.0, 0.0));
 
         // draw egui on top of macroquad
         egui_macroquad::draw();

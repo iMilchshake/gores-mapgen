@@ -1,3 +1,4 @@
+use crate::rand;
 use crate::ShiftDirection;
 
 // using my own position vector to meet ndarray's indexing standard using usize

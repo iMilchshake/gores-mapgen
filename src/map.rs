@@ -1,3 +1,4 @@
+use crate::rand;
 use crate::BlockType;
 use crate::Position;
 use ndarray::Array2;
@@ -57,6 +58,39 @@ impl Map {
             width,
             height,
         }
+    }
+
+    pub fn update(
+        &mut self,
+        pos: &Position,
+        kernel: &Kernel,
+        value: BlockType,
+    ) -> Result<(), &str> {
+        let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
+        let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
+
+        if pos.x < offset                   // exceeds left bound
+            || pos.y < offset               // exceeds upper bound
+            || pos.x + extend > self.width  // exceeds right bound
+            || pos.y + extend > self.height
+        // exceeds bottom bound
+        {
+            return Err("kernel out of bounds");
+        }
+
+        let root_pos = Position::new(pos.x - offset, pos.y - offset);
+        for ((x, y), kernel_active) in kernel.vector.indexed_iter() {
+            if *kernel_active {
+                self.grid[[root_pos.x + x, root_pos.y + y]] = value;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn random_pos(&self) -> Position {
+        let x = rand::gen_range(0, self.width);
+        let y = rand::gen_range(0, self.height);
+        Position::new(x, y)
     }
 
     fn is_pos_in_bounds(&self, pos: Position) -> bool {
