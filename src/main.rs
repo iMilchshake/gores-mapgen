@@ -44,7 +44,17 @@ async fn main() {
     let mut canvas: Rect = Rect::EVERYTHING;
     let mut map = Map::new(LEVEL_SIZE, LEVEL_SIZE, BlockType::Empty);
     let mut walker = CuteWalker::new(Position::new(0, 0));
-    let goal: Position = Position::new(100, 25);
+
+    // setup waypoints
+    let goals: Vec<Position> = vec![
+        Position::new(5, 5),
+        Position::new(95, 5),
+        Position::new(95, 95),
+        Position::new(5, 95),
+        Position::new(50, 50),
+    ];
+    let mut goals_iter = goals.iter();
+    let mut curr_goal = goals_iter.next().unwrap();
 
     // very important
     walker.cuddle();
@@ -53,17 +63,14 @@ async fn main() {
         clear_background(WHITE);
 
         // walker logic
-        if walker.pos.ne(&goal) {
-            let shift = walker.pos.get_greedy_dir(&goal);
-
-            // here, you should perform manual error handling:
-            // if walker.is_shift_valid(&shift, &map) {}
-
-            // lets see if it crashes the way we want it to...
+        if walker.pos.ne(&curr_goal) {
+            let shift = walker.pos.get_greedy_dir(&curr_goal);
             walker
                 .shift_pos(shift, &map)
-                .expect("Expecting valid shift here, but");
+                .expect("Expecting valid shift here");
             map.grid[walker.pos.as_index()] = BlockType::Filled;
+        } else if let Some(next_goal) = goals_iter.next() {
+            curr_goal = next_goal;
         }
 
         // define egui
