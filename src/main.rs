@@ -122,8 +122,11 @@ async fn main() {
             egui::Window::new("DEBUG")
                 .frame(window_frame())
                 .show(egui_ctx, |ui| {
-                    ui.add(Label::new("fps: {get_fps().to_string()}"));
-                    ui.add(Label::new("allowed_step: {allowed_step.to_string()}"));
+                    ui.add(Label::new(format!("fps: {:}", get_fps().to_string())));
+                    ui.add(Label::new(format!(
+                        "allowed_step: {:}",
+                        allowed_step.to_string()
+                    )));
                     ui.add(Label::new(format!("{:?}", walker)));
                     ui.add(Label::new(format!("{:?}", curr_goal)));
                 });
