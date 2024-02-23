@@ -46,10 +46,18 @@ pub fn draw_grid_blocks(grid: &Array2<BlockType>, display_factor: f32, display_s
 }
 
 pub fn draw_walker(walker: &CuteWalker, display_factor: f32, display_shift: Vec2) {
+    draw_rectangle_lines(
+        (walker.pos.x as f32) * display_factor + display_shift.x,
+        (walker.pos.y as f32) * display_factor + display_shift.y,
+        display_factor,
+        display_factor,
+        2.0,
+        YELLOW,
+    );
     draw_circle(
         walker.pos.x as f32 * display_factor + (display_factor / 2.),
         walker.pos.y as f32 * display_factor + (display_factor / 2.),
-        display_factor,
+        display_factor * 0.25,
         BLUE,
     )
 }

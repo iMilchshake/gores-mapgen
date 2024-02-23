@@ -48,15 +48,17 @@ pub enum ShiftDirection {
 async fn main() {
     let mut canvas: Rect = Rect::EVERYTHING;
     let mut map = Map::new(LEVEL_SIZE, LEVEL_SIZE, BlockType::Empty);
-    let mut walker = CuteWalker::new(Position::new(50, 50));
+    let mut walker = CuteWalker::new(Position::new(50, 33));
+    let mut pause: bool = false;
 
-    let kernel = Kernel::new(9, 1.0);
+    let kernel = Kernel::new(8, 0.9);
+    dbg!(&kernel);
 
     // setup waypoints
     let goals: Vec<Position> = vec![
-        Position::new(99, 50),
-        Position::new(0, 50),
-        Position::new(50, 50),
+        Position::new(99, 33),
+        Position::new(0, 33),
+        Position::new(50, 33),
         Position::new(50, 99),
         Position::new(50, 0),
     ];
@@ -69,24 +71,30 @@ async fn main() {
     loop {
         clear_background(WHITE);
 
-        // walker logic
-        if walker.pos.ne(&curr_goal) {
-            let shift = walker.pos.get_greedy_dir(&curr_goal);
-            walker
-                .shift_pos(shift, &map)
-                .expect("Expecting valid shift here");
-            map.update(&walker.pos, &kernel, BlockType::Filled)
-                .unwrap_or_else(|_| {
-                    println!("bounds exceeded :))");
-                });
-        } else if let Some(next_goal) = goals_iter.next() {
-            curr_goal = next_goal;
+        if !pause {
+            // walker logic
+            if walker.pos.ne(&curr_goal) {
+                let shift = walker.pos.get_greedy_dir(&curr_goal);
+                walker
+                    .shift_pos(shift, &map)
+                    .expect("Expecting valid shift here");
+                map.update(&walker.pos, &kernel, BlockType::Filled)
+                    .unwrap_or_else(|_| {
+                        println!("bounds exceeded :))");
+                    });
+            } else if let Some(next_goal) = goals_iter.next() {
+                curr_goal = next_goal;
+            }
         }
 
         // define egui
         egui_macroquad::ui(|egui_ctx| {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
                 ui.label("hello world");
+                if ui.button("pause").clicked() {
+                    pause = !pause;
+                    dbg!(&pause);
+                }
                 ui.separator();
             });
 

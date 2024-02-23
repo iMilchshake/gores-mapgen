@@ -29,8 +29,6 @@ impl Kernel {
     fn get_kernel(size: usize, circularity: f32) -> Array2<bool> {
         let mut kernel = Array2::from_elem((size, size), false);
         let center = (size - 1) as f32 / 2.0;
-        dbg!(&kernel);
-        dbg!(&center);
 
         // calculate radii based on the size and circularity
         let min_radius = (size - 1) as f32 / 2.0; // min radius is from center to border
