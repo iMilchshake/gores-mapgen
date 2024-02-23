@@ -16,8 +16,6 @@ use egui::{
 };
 use macroquad::prelude::*;
 
-const LEVEL_SIZE: usize = 100;
-
 fn window_frame() -> Frame {
     Frame {
         fill: Color32::from_gray(0),
@@ -47,20 +45,20 @@ pub enum ShiftDirection {
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut canvas: Rect = Rect::EVERYTHING;
-    let mut map = Map::new(LEVEL_SIZE, LEVEL_SIZE, BlockType::Empty);
+    let mut map = Map::new(100, 100, BlockType::Empty);
     let mut walker = CuteWalker::new(Position::new(50, 33));
-    let mut pause: bool = false;
-
     let kernel = Kernel::new(8, 0.9);
-    dbg!(&kernel);
+
+    // pause/single-step state
+    let mut pause: bool = true;
+    let mut allowed_step = 0;
 
     // setup waypoints
     let goals: Vec<Position> = vec![
         Position::new(99, 33),
         Position::new(0, 33),
         Position::new(50, 33),
-        Position::new(50, 99),
-        Position::new(50, 0),
+        Position::new(50, 100),
     ];
     let mut goals_iter = goals.iter();
     let mut curr_goal = goals_iter.next().unwrap();
@@ -71,29 +69,52 @@ async fn main() {
     loop {
         clear_background(WHITE);
 
-        if !pause {
-            // walker logic
-            if walker.pos.ne(&curr_goal) {
-                let shift = walker.pos.get_greedy_dir(&curr_goal);
-                walker
-                    .shift_pos(shift, &map)
-                    .expect("Expecting valid shift here");
-                map.update(&walker.pos, &kernel, BlockType::Filled)
-                    .unwrap_or_else(|_| {
-                        println!("bounds exceeded :))");
-                    });
-            } else if let Some(next_goal) = goals_iter.next() {
+        // if goal is reached
+        if walker.pos.eq(&curr_goal) {
+            if let Some(next_goal) = goals_iter.next() {
                 curr_goal = next_goal;
+            } else {
+                println!("pause due to reaching last checkpoint");
+                pause = true;
             }
+        }
+
+        if !pause {
+            allowed_step += 1;
+        }
+
+        if walker.steps < allowed_step {
+            // get greedy shift towards goal
+            let shift = walker.pos.get_greedy_dir(&curr_goal);
+
+            // apply that shift
+            walker.shift_pos(shift, &map).unwrap_or_else(|_| {
+                println!("walker exceeded bounds, pausing...");
+                pause = true;
+                allowed_step -= 1;
+            });
+
+            // remove blocks using a kernel at current position
+            map.update(&walker.pos, &kernel, BlockType::Filled).ok();
+            // .unwrap_or_else(|_| {
+            //     println!("kernel exceeded bounds");
+            // });
         }
 
         // define egui
         egui_macroquad::ui(|egui_ctx| {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
                 ui.label("hello world");
-                if ui.button("pause").clicked() {
+
+                // toggle pause
+                if ui.button("toggle").clicked() {
                     pause = !pause;
-                    dbg!(&pause);
+                }
+
+                // pause, allow single step
+                if ui.button("single").clicked() {
+                    pause = true;
+                    allowed_step += 1;
                 }
                 ui.separator();
             });
@@ -101,7 +122,8 @@ async fn main() {
             egui::Window::new("DEBUG")
                 .frame(window_frame())
                 .show(egui_ctx, |ui| {
-                    ui.add(Label::new(get_fps().to_string()));
+                    ui.add(Label::new("fps: {get_fps().to_string()}"));
+                    ui.add(Label::new("allowed_step: {allowed_step.to_string()}"));
                     ui.add(Label::new(format!("{:?}", walker)));
                     ui.add(Label::new(format!("{:?}", curr_goal)));
                 });
@@ -110,8 +132,11 @@ async fn main() {
             canvas = egui_ctx.available_rect();
         });
 
-        // draw grid
-        let display_factor = (f32::min(canvas.width(), canvas.height())) / LEVEL_SIZE as f32; // TODO: assumes square
+        let display_factor = f32::min(
+            canvas.width() / map.width as f32,
+            canvas.height() / map.height as f32,
+        );
+
         draw_grid_blocks(&mut map.grid, display_factor, vec2(0.0, 0.0));
         draw_walker(&walker, display_factor, vec2(0.0, 0.0));
 

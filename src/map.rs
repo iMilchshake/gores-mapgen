@@ -67,12 +67,12 @@ impl Map {
         let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
 
-        if pos.x < offset                   // exceeds left bound
-            || pos.y < offset               // exceeds upper bound
-            || pos.x + extend > self.width  // exceeds right bound
-            || pos.y + extend > self.height
-        // exceeds bottom bound
-        {
+        let exceeds_left_bound = pos.x < offset;
+        let exceeds_upper_bound = pos.y < offset;
+        let exceeds_right_bound = (pos.x + extend) > self.width;
+        let exceeds_lower_bound = (pos.y + extend) > self.height;
+
+        if exceeds_left_bound || exceeds_upper_bound || exceeds_right_bound || exceeds_lower_bound {
             return Err("kernel out of bounds");
         }
 

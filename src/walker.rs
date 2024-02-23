@@ -4,11 +4,15 @@ use crate::{Map, Position, ShiftDirection};
 #[derive(Debug)]
 pub struct CuteWalker {
     pub pos: Position,
+    pub steps: usize,
 }
 
 impl CuteWalker {
     pub fn new(initial_pos: Position) -> CuteWalker {
-        CuteWalker { pos: initial_pos }
+        CuteWalker {
+            pos: initial_pos,
+            steps: 0,
+        }
     }
 
     pub fn cuddle(&self) {
@@ -26,6 +30,8 @@ impl CuteWalker {
             ShiftDirection::Down => self.pos.y += 1,
             ShiftDirection::Left => self.pos.x -= 1,
         }
+
+        self.steps += 1;
 
         Ok(())
     }
