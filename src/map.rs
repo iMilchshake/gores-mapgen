@@ -1,4 +1,3 @@
-use crate::rand;
 use crate::BlockType;
 use crate::Position;
 use ndarray::Array2;
@@ -85,11 +84,11 @@ impl Map {
         Ok(())
     }
 
-    pub fn random_pos(&self) -> Position {
-        let x = rand::gen_range(0, self.width);
-        let y = rand::gen_range(0, self.height);
-        Position::new(x, y)
-    }
+    // pub fn random_pos(&self) -> Position {
+    //     let x = rand::gen_range(0, self.width);
+    //     let y = rand::gen_range(0, self.height);
+    //     Position::new(x, y)
+    // }
 
     fn is_pos_in_bounds(&self, pos: Position) -> bool {
         // we dont have to check for lower bound, because of usize
