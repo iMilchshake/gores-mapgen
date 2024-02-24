@@ -59,7 +59,7 @@ impl Default for State {
 
 #[notan_main]
 fn main() -> Result<(), String> {
-    let win_config = WindowConfig::new().set_vsync(true);
+    let win_config = WindowConfig::new().set_vsync(true).set_resizable(true);
 
     // .set_size(WIDTH, HEIGHT)
     // .set_multisampling(8)
@@ -83,19 +83,16 @@ fn draw(gfx: &mut Graphics, plugins: &mut Plugins, state: &mut State) {
         draw_egui_widget(ctx, state);
     });
 
-    // let display_factor = f32::min(
-    //     canvas.width() / map.width as f32,
-    //     canvas.height() / map.height as f32,
-    // );
-
-    let display_factor = 1.0;
+    let display_factor = f32::min(
+        state.canvas.width() / state.map.width as f32,
+        state.canvas.height() / state.map.height as f32,
+    );
 
     // draw_walker(&walker, display_factor, vec2(0.0, 0.0));
 
     // Draw shape
     let mut draw = gfx.create_draw();
     draw.clear(Color::WHITE);
-    draw_shape(&mut draw, state);
     draw_grid_blocks(
         &mut draw,
         &state.map.grid,
@@ -107,8 +104,6 @@ fn draw(gfx: &mut Graphics, plugins: &mut Plugins, state: &mut State) {
     // Draw the context to the screen or to a RenderTexture
     gfx.render(&egui_output);
 }
-
-fn draw_shape(draw: &mut Draw, state: &mut State) {}
 
 fn draw_egui_widget(ctx: &egui::Context, state: &mut State) {
     egui::SidePanel::right("right_panel").show(ctx, |ui| {
@@ -139,8 +134,7 @@ fn draw_egui_widget(ctx: &egui::Context, state: &mut State) {
     //         ui.add(Label::new(format!("{:?}", curr_goal)));
     //     });
 
-    // TODO: store remaining space for macroquad drawing
-    // canvas = egui_ctx.available_rect();
+    state.canvas = ctx.available_rect()
 }
 
 fn update(app: &mut App, state: &mut State) {
