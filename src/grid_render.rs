@@ -16,6 +16,7 @@ pub fn draw_grid_blocks(
     display_factor: f32,
     display_shift: Vec2,
 ) {
+    // TODO: use Map struct here?
     let width = grid.dim().0;
     let height = grid.dim().1;
 
@@ -36,19 +37,21 @@ pub fn draw_grid_blocks(
     }
 }
 
-// pub fn draw_walker(walker: &CuteWalker, display_factor: f32, display_shift: Vec2) {
-//     draw_rectangle_lines(
-//         (walker.pos.x as f32) * display_factor + display_shift.x,
-//         (walker.pos.y as f32) * display_factor + display_shift.y,
-//         display_factor,
-//         display_factor,
-//         2.0,
-//         YELLOW,
-//     );
-//     draw_circle(
-//         walker.pos.x as f32 * display_factor + (display_factor / 2.),
-//         walker.pos.y as f32 * display_factor + (display_factor / 2.),
-//         display_factor * 0.25,
-//         BLUE,
-//     )
-// }
+pub fn draw_walker(draw: &mut Draw, walker: &CuteWalker, display_factor: f32, display_shift: Vec2) {
+    draw.rect(
+        (
+            (walker.pos.x as f32) * display_factor + display_shift.x,
+            (walker.pos.y as f32) * display_factor + display_shift.y,
+        ),
+        (display_factor, display_factor),
+    )
+    .stroke_color(Color::YELLOW)
+    .stroke(f32::max(1.0, display_factor / 5.));
+
+    // draw_circle(
+    //     walker.pos.x as f32 * display_factor + (display_factor / 2.),
+    //     walker.pos.y as f32 * display_factor + (display_factor / 2.),
+    //     display_factor * 0.25,
+    //     BLUE,
+    // )
+}

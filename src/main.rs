@@ -41,7 +41,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             canvas: Rect::EVERYTHING,
-            map: Map::new(100, 100, BlockType::Empty),
+            map: Map::new(500, 500, BlockType::Empty),
             walker: CuteWalker::new(Position::new(50, 33)),
             pause: false,
             allowed_step: 0,
@@ -59,7 +59,7 @@ impl Default for State {
 
 #[notan_main]
 fn main() -> Result<(), String> {
-    let win_config = WindowConfig::new().set_vsync(true).set_resizable(true);
+    let win_config = WindowConfig::new().set_vsync(false).set_resizable(true);
 
     // .set_size(WIDTH, HEIGHT)
     // .set_multisampling(8)
@@ -88,17 +88,11 @@ fn draw(gfx: &mut Graphics, plugins: &mut Plugins, state: &mut State) {
         state.canvas.height() / state.map.height as f32,
     );
 
-    // draw_walker(&walker, display_factor, vec2(0.0, 0.0));
-
     // Draw shape
     let mut draw = gfx.create_draw();
     draw.clear(Color::WHITE);
-    draw_grid_blocks(
-        &mut draw,
-        &state.map.grid,
-        display_factor,
-        Vec2::new(0.0, 0.0),
-    );
+    draw_grid_blocks(&mut draw, &state.map.grid, display_factor, Vec2::ZERO);
+    draw_walker(&mut draw, &state.walker, display_factor, Vec2::ZERO);
     gfx.render(&draw);
 
     // Draw the context to the screen or to a RenderTexture
@@ -138,6 +132,9 @@ fn draw_egui_widget(ctx: &egui::Context, state: &mut State) {
 }
 
 fn update(app: &mut App, state: &mut State) {
+    let fps = app.timer.fps();
+    println!("{fps}");
+
     let mut curr_goal = state.goals.get(state.goal_index).unwrap();
 
     // if goal is reached
