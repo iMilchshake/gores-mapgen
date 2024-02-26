@@ -2,19 +2,18 @@ mod grid_render;
 mod map;
 mod position;
 mod walker;
-
-use std::{borrow::Borrow, usize};
-
 use grid_render::*;
 use map::*;
 use position::*;
 use walker::*;
 
-use egui::{
-    epaint::{ahash::random_state, Shadow},
-    Color32, Frame, Label, Margin, Rect,
-};
+use egui::{epaint::Shadow, Color32, Frame, Label, Margin, Rect};
 use macroquad::prelude::*;
+use miniquad::conf::Platform;
+use std::time::{self, Duration, Instant};
+
+const TARGET_FPS: usize = 60;
+const DISABLE_VSYNC: bool = true;
 
 fn window_frame() -> Frame {
     Frame {
@@ -28,6 +27,13 @@ fn window_frame() -> Frame {
 fn window_conf() -> Conf {
     Conf {
         window_title: "egui with macroquad".to_owned(),
+        platform: Platform {
+            swap_interval: match DISABLE_VSYNC {
+                true => Some(0), // set swap_interval to 0 to disable vsync
+                false => None,
+            },
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
@@ -40,6 +46,21 @@ pub enum ShiftDirection {
     Right,
     Down,
     Left,
+}
+
+async fn wait_for_next_frame(frame_start: Instant, minimum_frame_time: Duration) {
+    next_frame().await; // submit our render calls to our screen
+
+    // wait for frametime to be at least minimum_frame_time which
+    // results in a upper limit for the FPS
+    let frame_finish = time::Instant::now();
+    let frame_time = frame_finish.duration_since(frame_start);
+    if frame_time < minimum_frame_time {
+        let time_to_sleep = minimum_frame_time
+            .checked_sub(frame_time)
+            .expect("time subtraction failed");
+        std::thread::sleep(time_to_sleep);
+    }
 }
 
 #[macroquad::main(window_conf)]
@@ -66,7 +87,12 @@ async fn main() {
     // very important
     walker.cuddle();
 
+    // fps control
+    let minimum_frame_time = time::Duration::from_secs_f32(1. / TARGET_FPS as f32);
+
     loop {
+        let frame_start = time::Instant::now();
+
         clear_background(WHITE);
 
         // if goal is reached
@@ -96,9 +122,6 @@ async fn main() {
 
             // remove blocks using a kernel at current position
             map.update(&walker.pos, &kernel, BlockType::Filled).ok();
-            // .unwrap_or_else(|_| {
-            //     println!("kernel exceeded bounds");
-            // });
         }
 
         // define egui
@@ -146,6 +169,6 @@ async fn main() {
         // draw egui on top of macroquad
         egui_macroquad::draw();
 
-        next_frame().await
+        wait_for_next_frame(frame_start, minimum_frame_time).await;
     }
 }
