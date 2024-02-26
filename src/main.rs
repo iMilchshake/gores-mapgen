@@ -10,7 +10,10 @@ use walker::*;
 use egui::{epaint::Shadow, Color32, Frame, Label, Margin, Rect};
 use macroquad::prelude::*;
 use miniquad::conf::Platform;
-use std::time::{self, Duration, Instant};
+use std::{
+    default,
+    time::{self, Duration, Instant},
+};
 
 const TARGET_FPS: usize = 60;
 const DISABLE_VSYNC: bool = true;
@@ -65,16 +68,88 @@ async fn wait_for_next_frame(frame_start: Instant, minimum_frame_time: Duration)
     }
 }
 
+struct State {
+    map_gen_state: MapGenState,
+    editor_state: EditorState,
+}
+
+struct MapGenState {
+    walker: CuteWalker,
+}
+
+struct EditorState {
+    pause: bool,
+    allowed_step: usize,
+    canvas: Option<Rect>,
+    average_fps: f32,
+}
+
+impl EditorState {
+    fn new(initial_pause: bool) -> EditorState {
+        EditorState {
+            pause: initial_pause,
+            allowed_step: 0,
+            canvas: None,
+            average_fps: TARGET_FPS as f32,
+        }
+    }
+}
+
+impl MapGenState {
+    fn new(initial_walker_pos: Position) -> MapGenState {
+        MapGenState {
+            walker: CuteWalker::new(initial_walker_pos),
+        }
+    }
+}
+
+fn define_egui(editor_state: &mut EditorState, map_gen_state: &MapGenState) {
+    // define egui
+    egui_macroquad::ui(|egui_ctx| {
+        egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
+            ui.label("hello world");
+
+            // toggle pause
+            if ui.button("toggle").clicked() {
+                editor_state.pause = !editor_state.pause;
+            }
+
+            // pause, allow single step
+            if ui.button("single").clicked() {
+                editor_state.pause = true;
+                editor_state.allowed_step += 1;
+            }
+            ui.separator();
+        });
+
+        egui::Window::new("DEBUG")
+            .frame(window_frame())
+            .show(egui_ctx, |ui| {
+                ui.add(Label::new(format!("fps: {:}", get_fps().to_string())));
+                ui.add(Label::new(format!(
+                    "avg: {:}",
+                    editor_state.average_fps.round() as usize
+                )));
+                ui.add(Label::new(format!(
+                    "allowed_step: {:}",
+                    editor_state.allowed_step.to_string()
+                )));
+                ui.add(Label::new(format!("{:?}", map_gen_state.walker)));
+                // ui.add(Label::new(format!("{:?}", editor_state.curr_goal)));
+            });
+
+        // store remaining space for macroquad drawing TODO: i could set this to None before this
+        editor_state.canvas = Some(egui_ctx.available_rect());
+    });
+}
+
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut canvas: Rect = Rect::EVERYTHING;
     let mut map = Map::new(100, 100, BlockType::Empty);
-    let mut walker = CuteWalker::new(Position::new(50, 33));
     let kernel = Kernel::new(8, 0.9);
 
-    // pause/single-step state
-    let mut pause: bool = true;
-    let mut allowed_step = 0;
+    let mut editor_state = EditorState::new(false);
+    let mut map_gen_state = MapGenState::new(Position::new(50, 25));
 
     // setup waypoints
     let goals: Vec<Position> = vec![
@@ -86,93 +161,57 @@ async fn main() {
     let mut goals_iter = goals.iter();
     let mut curr_goal = goals_iter.next().unwrap();
 
-    // very important
-    walker.cuddle();
-
     // fps control
     let minimum_frame_time = time::Duration::from_secs_f32(1. / TARGET_FPS as f32);
-    let mut average_fps: f32 = TARGET_FPS as f32;
 
     loop {
         let frame_start = time::Instant::now();
-        average_fps = (average_fps * (1. - AVG_FPS_FACTOR)) + (get_fps() as f32 * AVG_FPS_FACTOR);
-
-        clear_background(WHITE);
+        editor_state.average_fps = (editor_state.average_fps * (1. - AVG_FPS_FACTOR))
+            + (get_fps() as f32 * AVG_FPS_FACTOR);
 
         // if goal is reached
-        if walker.pos.eq(&curr_goal) {
+        if map_gen_state.walker.pos.eq(&curr_goal) {
             if let Some(next_goal) = goals_iter.next() {
                 curr_goal = next_goal;
             } else {
                 println!("pause due to reaching last checkpoint");
-                pause = true;
+                editor_state.pause = true;
             }
         }
 
-        if !pause {
-            allowed_step += 1;
+        if !editor_state.pause {
+            editor_state.allowed_step += 1;
         }
 
-        if walker.steps < allowed_step {
+        if map_gen_state.walker.steps < editor_state.allowed_step {
             // get greedy shift towards goal
-            let shift = walker.pos.get_greedy_dir(&curr_goal);
+            let shift = map_gen_state.walker.pos.get_greedy_dir(&curr_goal);
 
             // apply that shift
-            walker.shift_pos(shift, &map).unwrap_or_else(|_| {
-                println!("walker exceeded bounds, pausing...");
-                pause = true;
-                allowed_step -= 1;
-            });
-
-            // remove blocks using a kernel at current position
-            map.update(&walker.pos, &kernel, BlockType::Filled).ok();
-        }
-
-        // define egui
-        egui_macroquad::ui(|egui_ctx| {
-            egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
-                ui.label("hello world");
-
-                // toggle pause
-                if ui.button("toggle").clicked() {
-                    pause = !pause;
-                }
-
-                // pause, allow single step
-                if ui.button("single").clicked() {
-                    pause = true;
-                    allowed_step += 1;
-                }
-                ui.separator();
-            });
-
-            egui::Window::new("DEBUG")
-                .frame(window_frame())
-                .show(egui_ctx, |ui| {
-                    ui.add(Label::new(format!("fps: {:}", get_fps().to_string())));
-                    ui.add(Label::new(format!(
-                        "avg: {:}",
-                        average_fps.round() as usize
-                    )));
-                    ui.add(Label::new(format!(
-                        "allowed_step: {:}",
-                        allowed_step.to_string()
-                    )));
-                    ui.add(Label::new(format!("{:?}", walker)));
-                    ui.add(Label::new(format!("{:?}", curr_goal)));
+            map_gen_state
+                .walker
+                .shift_pos(shift, &map)
+                .unwrap_or_else(|_| {
+                    println!("walker exceeded bounds, pausing...");
+                    editor_state.pause = true;
+                    editor_state.allowed_step -= 1;
                 });
 
-            // store remaining space for macroquad drawing
-            canvas = egui_ctx.available_rect();
-        });
+            // remove blocks using a kernel at current position
+            map.update(&map_gen_state.walker.pos, &kernel, BlockType::Filled)
+                .ok();
+        }
+
+        define_egui(&mut editor_state, &map_gen_state);
 
         let display_factor = f32::min(
-            canvas.width() / map.width as f32,
-            canvas.height() / map.height as f32,
+            editor_state.canvas.unwrap().width() / map.width as f32,
+            editor_state.canvas.unwrap().height() / map.height as f32,
         );
 
+        clear_background(WHITE);
         draw_grid_blocks(&mut map.grid, display_factor, vec2(0.0, 0.0));
-        draw_walker(&walker, display_factor, vec2(0.0, 0.0));
+        draw_walker(&map_gen_state.walker, display_factor, vec2(0.0, 0.0));
 
         // draw egui on top of macroquad
         egui_macroquad::draw();
