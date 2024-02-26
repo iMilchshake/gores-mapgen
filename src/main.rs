@@ -14,6 +14,7 @@ use std::time::{self, Duration, Instant};
 
 const TARGET_FPS: usize = 60;
 const DISABLE_VSYNC: bool = true;
+const AVG_FPS_FACTOR: f32 = 0.25; // how much current fps is weighted into the rolling average
 
 fn window_frame() -> Frame {
     Frame {
@@ -55,6 +56,7 @@ async fn wait_for_next_frame(frame_start: Instant, minimum_frame_time: Duration)
     // results in a upper limit for the FPS
     let frame_finish = time::Instant::now();
     let frame_time = frame_finish.duration_since(frame_start);
+
     if frame_time < minimum_frame_time {
         let time_to_sleep = minimum_frame_time
             .checked_sub(frame_time)
@@ -89,9 +91,11 @@ async fn main() {
 
     // fps control
     let minimum_frame_time = time::Duration::from_secs_f32(1. / TARGET_FPS as f32);
+    let mut average_fps: f32 = TARGET_FPS as f32;
 
     loop {
         let frame_start = time::Instant::now();
+        average_fps = (average_fps * (1. - AVG_FPS_FACTOR)) + (get_fps() as f32 * AVG_FPS_FACTOR);
 
         clear_background(WHITE);
 
@@ -146,6 +150,10 @@ async fn main() {
                 .frame(window_frame())
                 .show(egui_ctx, |ui| {
                     ui.add(Label::new(format!("fps: {:}", get_fps().to_string())));
+                    ui.add(Label::new(format!(
+                        "avg: {:}",
+                        average_fps.round() as usize
+                    )));
                     ui.add(Label::new(format!(
                         "allowed_step: {:}",
                         allowed_step.to_string()
