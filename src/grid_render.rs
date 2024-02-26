@@ -16,24 +16,18 @@ pub fn draw_grid_blocks(
     display_factor: f32,
     display_shift: Vec2,
 ) {
-    // TODO: use Map struct here?
-    let width = grid.dim().0;
-    let height = grid.dim().1;
-
-    for x in 0..width {
-        for y in 0..height {
-            draw.rect(
-                (
-                    (x as f32) * display_factor + display_shift.x,
-                    (y as f32) * display_factor + display_shift.y,
-                ),
-                (display_factor, display_factor),
-            )
-            .fill_color(match grid[[x, y]] {
-                BlockType::Filled => Color::GREEN,
-                _ => Color::GRAY,
-            });
-        }
+    for ((x, y), value) in grid.indexed_iter() {
+        draw.rect(
+            (
+                (x as f32) * display_factor + display_shift.x,
+                (y as f32) * display_factor + display_shift.y,
+            ),
+            (display_factor, display_factor),
+        )
+        .fill_color(match value {
+            BlockType::Filled => Color::GREEN,
+            _ => Color::GRAY,
+        });
     }
 }
 

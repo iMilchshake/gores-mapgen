@@ -7,6 +7,7 @@ use std::usize;
 
 use grid_render::*;
 use map::*;
+use notan::random::rand::thread_rng;
 use position::*;
 
 use notan::draw::*;
@@ -41,15 +42,22 @@ impl Default for State {
     fn default() -> Self {
         Self {
             canvas: Rect::EVERYTHING,
-            map: Map::new(500, 500, BlockType::Empty),
-            walker: CuteWalker::new(Position::new(50, 33)),
+            map: Map::new(300, 300, BlockType::Empty),
+            walker: CuteWalker::new(Position::new(25, 25)),
             pause: false,
             allowed_step: 0,
             goals: vec![
-                Position::new(99, 33),
-                Position::new(0, 33),
-                Position::new(50, 33),
-                Position::new(50, 100),
+                Position::new(275, 25),
+                Position::new(275, 75),
+                Position::new(25, 75),
+                Position::new(25, 125),
+                Position::new(275, 125),
+                Position::new(275, 175),
+                Position::new(25, 175),
+                Position::new(25, 225),
+                Position::new(275, 225),
+                Position::new(275, 275),
+                Position::new(25, 275),
             ],
             goal_index: 0,
             kernel: Kernel::new(5, 1.0),
@@ -132,13 +140,10 @@ fn draw_egui_widget(ctx: &egui::Context, state: &mut State) {
 }
 
 fn update(app: &mut App, state: &mut State) {
-    let fps = app.timer.fps();
-    println!("{fps}");
-
     let mut curr_goal = state.goals.get(state.goal_index).unwrap();
 
     // if goal is reached
-    if state.walker.pos.eq(curr_goal) {
+    if state.walker.pos.eq(curr_goal) && state.goal_index < (state.goals.len() - 1) {
         state.goal_index += 1;
         curr_goal = state.goals.get(state.goal_index).unwrap();
     }
@@ -150,6 +155,12 @@ fn update(app: &mut App, state: &mut State) {
     if state.walker.steps < state.allowed_step {
         // get greedy shift towards goal
         let shift = state.walker.pos.get_greedy_dir(curr_goal);
+
+        let mut rng = notan::random::rand::thread_rng();
+
+        // Exclusive range
+        let kernel = Kernel::new(rng.gen_range(3..=15), rng.gen_range(0.5..=1.0));
+        state.kernel = kernel;
 
         // apply that shift
         state
