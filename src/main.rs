@@ -11,6 +11,7 @@ use egui::{epaint::Shadow, Color32, Frame, Label, Margin, Rect};
 use macroquad::prelude::*;
 use miniquad::conf::Platform;
 use std::{
+    borrow::Borrow,
     default,
     time::{self, Duration, Instant},
 };
@@ -68,6 +69,29 @@ async fn wait_for_next_frame(frame_start: Instant, minimum_frame_time: Duration)
     }
 }
 
+#[derive(PartialEq, Debug)]
+enum EditorPlayback {
+    Paused,
+    SingleStep,
+    Playing,
+}
+
+impl EditorPlayback {
+    fn not_paused(&self) -> bool {
+        match self {
+            EditorPlayback::Paused => false,
+            EditorPlayback::Playing | EditorPlayback::SingleStep => true,
+        }
+    }
+
+    fn toggle(&mut self) {
+        *self = match self {
+            EditorPlayback::Paused => EditorPlayback::Playing,
+            EditorPlayback::Playing | EditorPlayback::SingleStep => EditorPlayback::Paused,
+        };
+    }
+}
+
 struct State {
     map_gen_state: MapGenState,
     editor_state: EditorState,
@@ -78,17 +102,15 @@ struct MapGenState {
 }
 
 struct EditorState {
-    pause: bool,
-    allowed_step: usize,
+    playback: EditorPlayback,
     canvas: Option<Rect>,
     average_fps: f32,
 }
 
 impl EditorState {
-    fn new(initial_pause: bool) -> EditorState {
+    fn new(initial_playback: EditorPlayback) -> EditorState {
         EditorState {
-            pause: initial_pause,
-            allowed_step: 0,
+            playback: initial_playback,
             canvas: None,
             average_fps: TARGET_FPS as f32,
         }
@@ -111,13 +133,12 @@ fn define_egui(editor_state: &mut EditorState, map_gen_state: &MapGenState) {
 
             // toggle pause
             if ui.button("toggle").clicked() {
-                editor_state.pause = !editor_state.pause;
+                editor_state.playback.toggle();
             }
 
             // pause, allow single step
             if ui.button("single").clicked() {
-                editor_state.pause = true;
-                editor_state.allowed_step += 1;
+                editor_state.playback = EditorPlayback::SingleStep;
             }
             ui.separator();
         });
@@ -130,11 +151,8 @@ fn define_egui(editor_state: &mut EditorState, map_gen_state: &MapGenState) {
                     "avg: {:}",
                     editor_state.average_fps.round() as usize
                 )));
-                ui.add(Label::new(format!(
-                    "allowed_step: {:}",
-                    editor_state.allowed_step.to_string()
-                )));
                 ui.add(Label::new(format!("{:?}", map_gen_state.walker)));
+                ui.add(Label::new(format!("{:?}", editor_state.playback)));
                 // ui.add(Label::new(format!("{:?}", editor_state.curr_goal)));
             });
 
@@ -148,7 +166,7 @@ async fn main() {
     let mut map = Map::new(100, 100, BlockType::Empty);
     let kernel = Kernel::new(8, 0.9);
 
-    let mut editor_state = EditorState::new(false);
+    let mut editor_state = EditorState::new(EditorPlayback::Paused);
     let mut map_gen_state = MapGenState::new(Position::new(50, 25));
 
     // setup waypoints
@@ -165,9 +183,13 @@ async fn main() {
     let minimum_frame_time = time::Duration::from_secs_f32(1. / TARGET_FPS as f32);
 
     loop {
+        // framerate control
         let frame_start = time::Instant::now();
         editor_state.average_fps = (editor_state.average_fps * (1. - AVG_FPS_FACTOR))
             + (get_fps() as f32 * AVG_FPS_FACTOR);
+
+        // this value is only valid after calling define_egui()
+        editor_state.canvas = None;
 
         // if goal is reached
         if map_gen_state.walker.pos.eq(&curr_goal) {
@@ -175,15 +197,11 @@ async fn main() {
                 curr_goal = next_goal;
             } else {
                 println!("pause due to reaching last checkpoint");
-                editor_state.pause = true;
+                editor_state.playback = EditorPlayback::Paused;
             }
         }
 
-        if !editor_state.pause {
-            editor_state.allowed_step += 1;
-        }
-
-        if map_gen_state.walker.steps < editor_state.allowed_step {
+        if editor_state.playback.not_paused() {
             // get greedy shift towards goal
             let shift = map_gen_state.walker.pos.get_greedy_dir(&curr_goal);
 
@@ -193,13 +211,17 @@ async fn main() {
                 .shift_pos(shift, &map)
                 .unwrap_or_else(|_| {
                     println!("walker exceeded bounds, pausing...");
-                    editor_state.pause = true;
-                    editor_state.allowed_step -= 1;
+                    editor_state.playback = EditorPlayback::Paused;
                 });
 
             // remove blocks using a kernel at current position
             map.update(&map_gen_state.walker.pos, &kernel, BlockType::Filled)
                 .ok();
+
+            // walker did a step using SingleStep -> now pause
+            if editor_state.playback == EditorPlayback::SingleStep {
+                editor_state.playback = EditorPlayback::Paused;
+            }
         }
 
         define_egui(&mut editor_state, &map_gen_state);
