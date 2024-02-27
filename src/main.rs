@@ -93,23 +93,23 @@ impl EditorPlayback {
 }
 
 struct State {
-    map_gen_state: MapGenState,
-    editor_state: EditorState,
+    mapgen: MapGeneration,
+    editor: Editor,
 }
 
-struct MapGenState {
+struct MapGeneration {
     walker: CuteWalker,
 }
 
-struct EditorState {
+struct Editor {
     playback: EditorPlayback,
     canvas: Option<Rect>,
     average_fps: f32,
 }
 
-impl EditorState {
-    fn new(initial_playback: EditorPlayback) -> EditorState {
-        EditorState {
+impl Editor {
+    fn new(initial_playback: EditorPlayback) -> Editor {
+        Editor {
             playback: initial_playback,
             canvas: None,
             average_fps: TARGET_FPS as f32,
@@ -117,15 +117,16 @@ impl EditorState {
     }
 }
 
-impl MapGenState {
-    fn new(initial_walker_pos: Position) -> MapGenState {
-        MapGenState {
-            walker: CuteWalker::new(initial_walker_pos),
-        }
+// TODO: if i keep adding everting to the walker, it might
+// make more sense to just use one struct lol, but i believe
+// all the generation config parameters will end up in here
+impl MapGeneration {
+    fn new(walker: CuteWalker) -> MapGeneration {
+        MapGeneration { walker }
     }
 }
 
-fn define_egui(editor_state: &mut EditorState, map_gen_state: &MapGenState) {
+fn define_egui(editor: &mut Editor, mapgen: &MapGeneration) {
     // define egui
     egui_macroquad::ui(|egui_ctx| {
         egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
@@ -133,12 +134,12 @@ fn define_egui(editor_state: &mut EditorState, map_gen_state: &MapGenState) {
 
             // toggle pause
             if ui.button("toggle").clicked() {
-                editor_state.playback.toggle();
+                editor.playback.toggle();
             }
 
             // pause, allow single step
             if ui.button("single").clicked() {
-                editor_state.playback = EditorPlayback::SingleStep;
+                editor.playback = EditorPlayback::SingleStep;
             }
             ui.separator();
         });
@@ -149,15 +150,15 @@ fn define_egui(editor_state: &mut EditorState, map_gen_state: &MapGenState) {
                 ui.add(Label::new(format!("fps: {:}", get_fps().to_string())));
                 ui.add(Label::new(format!(
                     "avg: {:}",
-                    editor_state.average_fps.round() as usize
+                    editor.average_fps.round() as usize
                 )));
-                ui.add(Label::new(format!("{:?}", map_gen_state.walker)));
-                ui.add(Label::new(format!("{:?}", editor_state.playback)));
-                // ui.add(Label::new(format!("{:?}", editor_state.curr_goal)));
+                ui.add(Label::new(format!("{:?}", mapgen.walker)));
+                ui.add(Label::new(format!("{:?}", editor.playback)));
+                // ui.add(Label::new(format!("{:?}", editor.curr_goal)));
             });
 
         // store remaining space for macroquad drawing TODO: i could set this to None before this
-        editor_state.canvas = Some(egui_ctx.available_rect());
+        editor.canvas = Some(egui_ctx.available_rect());
     });
 }
 
@@ -166,18 +167,15 @@ async fn main() {
     let mut map = Map::new(100, 100, BlockType::Empty);
     let kernel = Kernel::new(8, 0.9);
 
-    let mut editor_state = EditorState::new(EditorPlayback::Paused);
-    let mut map_gen_state = MapGenState::new(Position::new(50, 25));
-
-    // setup waypoints
-    let goals: Vec<Position> = vec![
-        Position::new(99, 33),
-        Position::new(0, 33),
-        Position::new(50, 33),
-        Position::new(50, 100),
+    // setup waypoints TODO: lol these are now reversed cuz im using .pop()
+    let waypoints: Vec<Position> = vec![
+        Position::new(10, 95),
+        Position::new(95, 95),
+        Position::new(95, 10),
     ];
-    let mut goals_iter = goals.iter();
-    let mut curr_goal = goals_iter.next().unwrap();
+
+    let mut editor = Editor::new(EditorPlayback::Playing);
+    let mut mapgen = MapGeneration::new(CuteWalker::new(Position::new(10, 10), waypoints, kernel));
 
     // fps control
     let minimum_frame_time = time::Duration::from_secs_f32(1. / TARGET_FPS as f32);
@@ -185,56 +183,53 @@ async fn main() {
     loop {
         // framerate control
         let frame_start = time::Instant::now();
-        editor_state.average_fps = (editor_state.average_fps * (1. - AVG_FPS_FACTOR))
-            + (get_fps() as f32 * AVG_FPS_FACTOR);
+        editor.average_fps =
+            (editor.average_fps * (1. - AVG_FPS_FACTOR)) + (get_fps() as f32 * AVG_FPS_FACTOR);
 
         // this value is only valid after calling define_egui()
-        editor_state.canvas = None;
+        editor.canvas = None;
 
         // if goal is reached
-        if map_gen_state.walker.pos.eq(&curr_goal) {
-            if let Some(next_goal) = goals_iter.next() {
-                curr_goal = next_goal;
-            } else {
+        if mapgen.walker.pos.eq(&mapgen.walker.curr_goal) {
+            mapgen.walker.next_waypoint().unwrap_or_else(|_| {
                 println!("pause due to reaching last checkpoint");
-                editor_state.playback = EditorPlayback::Paused;
-            }
+                editor.playback = EditorPlayback::Paused;
+            });
         }
 
-        if editor_state.playback.not_paused() {
-            // get greedy shift towards goal
-            let shift = map_gen_state.walker.pos.get_greedy_dir(&curr_goal);
-
-            // apply that shift
-            map_gen_state
-                .walker
-                .shift_pos(shift, &map)
-                .unwrap_or_else(|_| {
-                    println!("walker exceeded bounds, pausing...");
-                    editor_state.playback = EditorPlayback::Paused;
-                });
+        if editor.playback.not_paused() {
+            // perform one greedy step
+            mapgen.walker.greedy_step(&mut map).unwrap_or_else(|err| {
+                println!("greedy step failed: '{:}' - pausing...", err);
+                editor.playback = EditorPlayback::Paused;
+            });
 
             // remove blocks using a kernel at current position
-            map.update(&map_gen_state.walker.pos, &kernel, BlockType::Filled)
-                .ok();
+            map.update(&mapgen.walker, BlockType::Filled)
+                .unwrap_or_else(|err| {
+                    println!("greedy step failed: '{:}' - pausing...", err);
+                    editor.playback = EditorPlayback::Paused;
+                });
 
             // walker did a step using SingleStep -> now pause
-            if editor_state.playback == EditorPlayback::SingleStep {
-                editor_state.playback = EditorPlayback::Paused;
+            if editor.playback == EditorPlayback::SingleStep {
+                editor.playback = EditorPlayback::Paused;
             }
         }
 
-        define_egui(&mut editor_state, &map_gen_state);
+        define_egui(&mut editor, &mapgen);
 
         let display_factor = f32::min(
-            editor_state.canvas.unwrap().width() / map.width as f32,
-            editor_state.canvas.unwrap().height() / map.height as f32,
+            editor.canvas.unwrap().width() / map.width as f32,
+            editor.canvas.unwrap().height() / map.height as f32,
         );
 
         clear_background(WHITE);
-        draw_grid_blocks(&mut map.grid, display_factor, vec2(0.0, 0.0));
-        draw_walker(&map_gen_state.walker, display_factor, vec2(0.0, 0.0));
+        {
+            draw_grid_blocks(&mut map.grid, display_factor, vec2(0.0, 0.0));
+        }
 
+        // draw_walker(&mapgen.walker, display_factor, vec2(0.0, 0.0));
         // draw egui on top of macroquad
         egui_macroquad::draw();
 

@@ -1,5 +1,6 @@
 use crate::rand;
 use crate::BlockType;
+use crate::CuteWalker;
 use crate::Position;
 use ndarray::Array2;
 
@@ -58,26 +59,21 @@ impl Map {
         }
     }
 
-    pub fn update(
-        &mut self,
-        pos: &Position,
-        kernel: &Kernel,
-        value: BlockType,
-    ) -> Result<(), &str> {
-        let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
-        let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
+    pub fn update(&mut self, walker: &CuteWalker, value: BlockType) -> Result<(), &str> {
+        let offset: usize = walker.kernel.size / 2; // offset of kernel wrt. position (top/left)
+        let extend: usize = walker.kernel.size - offset; // how much kernel extends position (bot/right)
 
-        let exceeds_left_bound = pos.x < offset;
-        let exceeds_upper_bound = pos.y < offset;
-        let exceeds_right_bound = (pos.x + extend) > self.width;
-        let exceeds_lower_bound = (pos.y + extend) > self.height;
+        let exceeds_left_bound = walker.pos.x < offset;
+        let exceeds_upper_bound = walker.pos.y < offset;
+        let exceeds_right_bound = (walker.pos.x + extend) > self.width;
+        let exceeds_lower_bound = (walker.pos.y + extend) > self.height;
 
         if exceeds_left_bound || exceeds_upper_bound || exceeds_right_bound || exceeds_lower_bound {
             return Err("kernel out of bounds");
         }
 
-        let root_pos = Position::new(pos.x - offset, pos.y - offset);
-        for ((x, y), kernel_active) in kernel.vector.indexed_iter() {
+        let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
+        for ((x, y), kernel_active) in walker.kernel.vector.indexed_iter() {
             if *kernel_active {
                 self.grid[[root_pos.x + x, root_pos.y + y]] = value;
             }
