@@ -172,6 +172,7 @@ async fn main() {
         Position::new(10, 95),
         Position::new(95, 95),
         Position::new(95, 10),
+        Position::new(100, 10),
     ];
 
     let mut editor = Editor::new(EditorPlayback::Playing);
@@ -199,17 +200,10 @@ async fn main() {
 
         if editor.playback.not_paused() {
             // perform one greedy step
-            mapgen.walker.greedy_step(&mut map).unwrap_or_else(|err| {
+            if let Err(err) = mapgen.walker.greedy_step(&mut map) {
                 println!("greedy step failed: '{:}' - pausing...", err);
                 editor.playback = EditorPlayback::Paused;
-            });
-
-            // remove blocks using a kernel at current position
-            map.update(&mapgen.walker, BlockType::Filled)
-                .unwrap_or_else(|err| {
-                    println!("greedy step failed: '{:}' - pausing...", err);
-                    editor.playback = EditorPlayback::Paused;
-                });
+            }
 
             // walker did a step using SingleStep -> now pause
             if editor.playback == EditorPlayback::SingleStep {

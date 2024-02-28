@@ -33,12 +33,15 @@ impl CuteWalker {
     }
 
     // TODO: why the fuck does Map now require a lifetime??
-    pub fn greedy_step(&mut self, map: &mut Map) -> Result<(), &str> {
+    pub fn greedy_step(&mut self, map: &mut Map) -> Result<(), &'static str> {
         // get greedy shift towards goal
         let shift = self.pos.get_greedy_dir(&self.curr_goal);
 
         // apply that shift
         self.shift_pos(shift, &map)?;
+
+        // remove blocks using a kernel at current position
+        map.update(self, BlockType::Filled)?;
 
         Ok(())
     }
@@ -47,7 +50,7 @@ impl CuteWalker {
         println!("Cute walker was cuddled!");
     }
 
-    pub fn shift_pos(&mut self, shift: ShiftDirection, map: &Map) -> Result<(), &str> {
+    pub fn shift_pos(&mut self, shift: ShiftDirection, map: &Map) -> Result<(), &'static str> {
         if !self.is_shift_valid(&shift, map) {
             return Err("invalid shift");
         }

@@ -59,7 +59,7 @@ impl Map {
         }
     }
 
-    pub fn update(&mut self, walker: &CuteWalker, value: BlockType) -> Result<(), &str> {
+    pub fn update(&mut self, walker: &CuteWalker, value: BlockType) -> Result<(), &'static str> {
         let offset: usize = walker.kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = walker.kernel.size - offset; // how much kernel extends position (bot/right)
 
@@ -78,6 +78,7 @@ impl Map {
                 self.grid[[root_pos.x + x, root_pos.y + y]] = value;
             }
         }
+
         Ok(())
     }
 
