@@ -115,6 +115,51 @@ impl Editor {
             average_fps: TARGET_FPS as f32,
         }
     }
+
+    fn get_display_factor(&self, map: &Map) -> Option<f32> {
+        self.canvas.map(|canvas| {
+            f32::min(
+                canvas.width() / map.width as f32,
+                canvas.height() / map.height as f32,
+            )
+        })
+    }
+
+    fn define_egui(&mut self, mapgen: &MapGeneration) {
+        // define egui
+        egui_macroquad::ui(|egui_ctx| {
+            egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
+                ui.label("hello world");
+
+                // toggle pause
+                if ui.button("toggle").clicked() {
+                    self.playback.toggle();
+                }
+
+                // pause, allow single step
+                if ui.button("single").clicked() {
+                    self.playback = EditorPlayback::SingleStep;
+                }
+                ui.separator();
+            });
+
+            egui::Window::new("DEBUG")
+                .frame(window_frame())
+                .show(egui_ctx, |ui| {
+                    ui.add(Label::new(format!("fps: {:}", get_fps().to_string())));
+                    ui.add(Label::new(format!(
+                        "avg: {:}",
+                        self.average_fps.round() as usize
+                    )));
+                    ui.add(Label::new(format!("{:?}", mapgen.walker)));
+                    ui.add(Label::new(format!("{:?}", self.playback)));
+                    // ui.add(Label::new(format!("{:?}", editor.curr_goal)));
+                });
+
+            // store remaining space for macroquad drawing
+            self.canvas = Some(egui_ctx.available_rect());
+        });
+    }
 }
 
 // TODO: if i keep adding everting to the walker, it might
@@ -126,42 +171,6 @@ impl MapGeneration {
     }
 }
 
-fn define_egui(editor: &mut Editor, mapgen: &MapGeneration) {
-    // define egui
-    egui_macroquad::ui(|egui_ctx| {
-        egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
-            ui.label("hello world");
-
-            // toggle pause
-            if ui.button("toggle").clicked() {
-                editor.playback.toggle();
-            }
-
-            // pause, allow single step
-            if ui.button("single").clicked() {
-                editor.playback = EditorPlayback::SingleStep;
-            }
-            ui.separator();
-        });
-
-        egui::Window::new("DEBUG")
-            .frame(window_frame())
-            .show(egui_ctx, |ui| {
-                ui.add(Label::new(format!("fps: {:}", get_fps().to_string())));
-                ui.add(Label::new(format!(
-                    "avg: {:}",
-                    editor.average_fps.round() as usize
-                )));
-                ui.add(Label::new(format!("{:?}", mapgen.walker)));
-                ui.add(Label::new(format!("{:?}", editor.playback)));
-                // ui.add(Label::new(format!("{:?}", editor.curr_goal)));
-            });
-
-        // store remaining space for macroquad drawing TODO: i could set this to None before this
-        editor.canvas = Some(egui_ctx.available_rect());
-    });
-}
-
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut map = Map::new(100, 100, BlockType::Empty);
@@ -169,10 +178,10 @@ async fn main() {
 
     // setup waypoints TODO: lol these are now reversed cuz im using .pop()
     let waypoints: Vec<Position> = vec![
+        Position::new(100, 10),
         Position::new(10, 95),
         Position::new(95, 95),
         Position::new(95, 10),
-        Position::new(100, 10),
     ];
 
     let mut editor = Editor::new(EditorPlayback::Playing);
@@ -211,20 +220,15 @@ async fn main() {
             }
         }
 
-        define_egui(&mut editor, &mapgen);
-
-        let display_factor = f32::min(
-            editor.canvas.unwrap().width() / map.width as f32,
-            editor.canvas.unwrap().height() / map.height as f32,
-        );
+        editor.define_egui(&mapgen);
 
         clear_background(WHITE);
-        {
-            draw_grid_blocks(&mut map.grid, display_factor, vec2(0.0, 0.0));
-        }
+        let display_factor = editor
+            .get_display_factor(&map)
+            .expect("should be set after define_egui call");
+        draw_grid_blocks(&mut map.grid, display_factor, vec2(0.0, 0.0));
 
-        // draw_walker(&mapgen.walker, display_factor, vec2(0.0, 0.0));
-        // draw egui on top of macroquad
+        draw_walker(&mapgen.walker, display_factor, vec2(0.0, 0.0));
         egui_macroquad::draw();
 
         wait_for_next_frame(frame_start, minimum_frame_time).await;
