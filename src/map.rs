@@ -1,4 +1,3 @@
-use crate::rand;
 use crate::BlockType;
 use crate::CuteWalker;
 use crate::Position;
@@ -80,12 +79,6 @@ impl Map {
         }
 
         Ok(())
-    }
-
-    pub fn random_pos(&self) -> Position {
-        let x = rand::gen_range(0, self.width);
-        let y = rand::gen_range(0, self.height);
-        Position::new(x, y)
     }
 
     fn is_pos_in_bounds(&self, pos: Position) -> bool {

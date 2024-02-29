@@ -1,7 +1,6 @@
-use std::fmt::Formatter;
-
-use crate::CuteWalker;
-use macroquad::prelude::*;
+use crate::{CuteWalker, Vec2};
+use macroquad::color::*;
+use macroquad::shapes::*;
 use ndarray::Array2;
 
 #[derive(Debug, Clone, Copy)]
@@ -10,7 +9,7 @@ pub enum BlockType {
     Filled,
 }
 
-pub fn handle_mouse_inputs(display_factor: &mut f32, display_shift: &mut Vec2) {
+pub fn handle_mouse_inputs(_display_factor: &mut f32, _display_shift: &mut Vec2) {
     /* let mouse_wheel_y = mouse_wheel().1;
 
     if mouse_wheel_y > 0.0 {

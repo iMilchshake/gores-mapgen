@@ -32,13 +32,12 @@ impl CuteWalker {
         }
     }
 
-    // TODO: why the fuck does Map now require a lifetime??
     pub fn greedy_step(&mut self, map: &mut Map) -> Result<(), &'static str> {
         // get greedy shift towards goal
         let shift = self.pos.get_greedy_dir(&self.curr_goal);
 
         // apply that shift
-        self.shift_pos(shift, &map)?;
+        self.shift_pos(shift, map)?;
 
         // remove blocks using a kernel at current position
         map.update(self, BlockType::Filled)?;

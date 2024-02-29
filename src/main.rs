@@ -8,15 +8,21 @@ use position::*;
 use walker::*;
 
 use egui::{epaint::Shadow, Color32, Frame, Label, Margin, Rect};
-use macroquad::prelude::*;
-use miniquad::conf::Platform;
-use std::{
-    borrow::Borrow,
-    default,
-    time::{self, Duration, Instant},
+use macroquad::{
+    color::*,
+    math::{vec2, Vec2},
+    miniquad,
+    time::get_fps,
+    window::*,
 };
+use miniquad::conf::{Conf, Platform};
+use std::time::{self, Duration, Instant};
 
-const TARGET_FPS: usize = 60;
+use rand::{rngs::SmallRng, RngCore};
+use rand::{Rng, SeedableRng};
+use seahash::hash;
+
+const TARGET_FPS: usize = 9999;
 const DISABLE_VSYNC: bool = true;
 const AVG_FPS_FACTOR: f32 = 0.25; // how much current fps is weighted into the rolling average
 
@@ -146,7 +152,7 @@ impl Editor {
             egui::Window::new("DEBUG")
                 .frame(window_frame())
                 .show(egui_ctx, |ui| {
-                    ui.add(Label::new(format!("fps: {:}", get_fps().to_string())));
+                    ui.add(Label::new(format!("fps: {:}", get_fps())));
                     ui.add(Label::new(format!(
                         "avg: {:}",
                         self.average_fps.round() as usize
@@ -171,20 +177,36 @@ impl MapGeneration {
     }
 }
 
+struct Random {
+    seed: String,
+    seed_u64: u64,
+    gen: SmallRng,
+}
+
+impl Random {
+    fn new(seed: String) -> Random {
+        let seed_u64 = hash(seed.as_bytes());
+        Random {
+            seed,
+            seed_u64,
+            gen: SmallRng::seed_from_u64(seed_u64),
+        }
+    }
+}
+
 #[macroquad::main(window_conf)]
 async fn main() {
+    let mut rnd = Random::new("iMilchshake".to_string());
+    let mut editor = Editor::new(EditorPlayback::Playing);
+
     let mut map = Map::new(100, 100, BlockType::Empty);
     let kernel = Kernel::new(8, 0.9);
-
-    // setup waypoints TODO: lol these are now reversed cuz im using .pop()
     let waypoints: Vec<Position> = vec![
         Position::new(100, 10),
         Position::new(10, 95),
         Position::new(95, 95),
         Position::new(95, 10),
     ];
-
-    let mut editor = Editor::new(EditorPlayback::Playing);
     let mut mapgen = MapGeneration::new(CuteWalker::new(Position::new(10, 10), waypoints, kernel));
 
     // fps control
@@ -208,6 +230,11 @@ async fn main() {
         }
 
         if editor.playback.not_paused() {
+            // randomly mutate kernel
+            let size = rnd.gen.gen_range(1..10);
+            let circularity = rnd.gen.gen_range(0.0..=1.0);
+            mapgen.walker.kernel = Kernel::new(size, circularity);
+
             // perform one greedy step
             if let Err(err) = mapgen.walker.greedy_step(&mut map) {
                 println!("greedy step failed: '{:}' - pausing...", err);
@@ -226,7 +253,7 @@ async fn main() {
         let display_factor = editor
             .get_display_factor(&map)
             .expect("should be set after define_egui call");
-        draw_grid_blocks(&mut map.grid, display_factor, vec2(0.0, 0.0));
+        draw_grid_blocks(&map.grid, display_factor, vec2(0.0, 0.0));
 
         draw_walker(&mapgen.walker, display_factor, vec2(0.0, 0.0));
         egui_macroquad::draw();

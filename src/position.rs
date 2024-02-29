@@ -1,4 +1,4 @@
-use crate::rand;
+
 use crate::ShiftDirection;
 
 // using my own position vector to meet ndarray's indexing standard using usize
@@ -29,16 +29,14 @@ impl Position {
         // check whether x or y is dominant
         if x_abs_diff > y_abs_diff {
             if x_diff.is_positive() {
-                return ShiftDirection::Right;
+                ShiftDirection::Right
             } else {
-                return ShiftDirection::Left;
+                ShiftDirection::Left
             }
+        } else if y_diff.is_positive() {
+            ShiftDirection::Down
         } else {
-            if y_diff.is_positive() {
-                return ShiftDirection::Down;
-            } else {
-                return ShiftDirection::Up;
-            }
+            ShiftDirection::Up
         }
     }
 }
