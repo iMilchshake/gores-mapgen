@@ -169,34 +169,35 @@ struct Random {
     seed: String,
     seed_u64: u64,
     gen: SmallRng,
+    weighted_dist: WeightedAliasIndex<i32>,
 }
 
 impl Random {
-    fn new(seed: String) -> Random {
+    fn new(seed: String, weights: Vec<i32>) -> Random {
+        // sadly WeightedAliasIndex is initialized using a Vec manually checking
+        // for the correct size. I feel like there must be a better way
+        assert_eq!(weights.len(), 4);
+
         let seed_u64 = hash(seed.as_bytes());
+
         Random {
             seed,
             seed_u64,
             gen: SmallRng::seed_from_u64(seed_u64),
+            weighted_dist: WeightedAliasIndex::new(weights).unwrap(),
         }
     }
 
-    /// shifts is an array of shifts, ordered by how good they are
-    fn sample_move(&mut self, shifts: Vec<ShiftDirection>) -> ShiftDirection {
-        // TODO: according to doc this has O(1) sampling but
-        // more expensive initialization, so i should only
-        // do this once and then store it in the struct
-        let weights = vec![9, 1, 1, 1];
-        let dist = WeightedAliasIndex::new(weights).unwrap();
-
-        // sample a shift based on the weights
-        shifts[dist.sample(&mut self.gen)]
+    /// sample a shift based on weight distribution
+    fn sample_move(&mut self, shifts: [ShiftDirection; 4]) -> ShiftDirection {
+        let index = self.weighted_dist.sample(&mut self.gen);
+        *shifts.get(index).expect("out of bounds")
     }
 }
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut rnd = Random::new("iMilchshake".to_string());
+    let mut rnd = Random::new("iMilchshake".to_string(), vec![9, 1, 1, 1]);
 
     let mut editor = Editor::new(EditorPlayback::Playing);
 

@@ -67,8 +67,8 @@ impl Position {
 
     /// returns a Vec with all possible shifts, sorted by how close they get
     /// towards the goal position
-    pub fn get_rated_shifts(&self, goal: &Position, map: &Map) -> Vec<ShiftDirection> {
-        let mut shifts = vec![
+    pub fn get_rated_shifts(&self, goal: &Position, map: &Map) -> [ShiftDirection; 4] {
+        let mut shifts = [
             ShiftDirection::Left,
             ShiftDirection::Up,
             ShiftDirection::Right,
@@ -78,14 +78,16 @@ impl Position {
         // TODO: make this safe XD
         shifts.sort_by_cached_key(|shift| {
             let mut shifted_pos = self.clone();
-            shifted_pos.shift(*shift, map).unwrap();
 
-            let x_diff = shifted_pos.x.abs_diff(goal.x);
-            let y_diff = shifted_pos.y.abs_diff(goal.y);
-
-            let squared_dist = usize::mul(x_diff, x_diff) + usize::mul(y_diff, y_diff);
-
-            return squared_dist;
+            if let Ok(()) = shifted_pos.shift(*shift, map) {
+                let x_diff = shifted_pos.x.abs_diff(goal.x);
+                let y_diff = shifted_pos.y.abs_diff(goal.y);
+                let squared_dist =
+                    usize::saturating_mul(x_diff, x_diff) + usize::saturating_mul(y_diff, y_diff);
+                squared_dist
+            } else {
+                usize::MAX
+            }
         });
 
         shifts
