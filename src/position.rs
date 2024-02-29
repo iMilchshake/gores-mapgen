@@ -65,6 +65,11 @@ impl Position {
         }
     }
 
+    /// squared euclidean distance between two Positions
+    pub fn distance_squared(&self, rhs: &Position) -> usize {
+        self.x.abs_diff(rhs.x).saturating_pow(2) + self.y.abs_diff(rhs.y).saturating_pow(2)
+    }
+
     /// returns a Vec with all possible shifts, sorted by how close they get
     /// towards the goal position
     pub fn get_rated_shifts(&self, goal: &Position, map: &Map) -> [ShiftDirection; 4] {
@@ -75,17 +80,13 @@ impl Position {
             ShiftDirection::Down,
         ];
 
-        // TODO: make this safe XD
         shifts.sort_by_cached_key(|shift| {
             let mut shifted_pos = self.clone();
-
             if let Ok(()) = shifted_pos.shift(*shift, map) {
-                let x_diff = shifted_pos.x.abs_diff(goal.x);
-                let y_diff = shifted_pos.y.abs_diff(goal.y);
-                let squared_dist =
-                    usize::saturating_mul(x_diff, x_diff) + usize::saturating_mul(y_diff, y_diff);
-                squared_dist
+                shifted_pos.distance_squared(goal)
             } else {
+                // assign maximum distance to invalid shifts
+                // TODO: i could also return a vec and completly remove invalid moves?
                 usize::MAX
             }
         });

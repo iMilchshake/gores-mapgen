@@ -24,7 +24,7 @@ use rand_distr::WeightedAliasIndex;
 
 use seahash::hash;
 
-const TARGET_FPS: usize = 60;
+const TARGET_FPS: usize = 9999;
 const DISABLE_VSYNC: bool = true;
 const AVG_FPS_FACTOR: f32 = 0.25; // how much current fps is weighted into the rolling average
 
@@ -197,19 +197,19 @@ impl Random {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut rnd = Random::new("iMilchshake".to_string(), vec![9, 1, 1, 1]);
+    let mut rnd = Random::new("iMilchshake".to_string(), vec![4, 3, 2, 1]);
 
     let mut editor = Editor::new(EditorPlayback::Playing);
 
-    let mut map = Map::new(100, 100, BlockType::Empty);
+    let mut map = Map::new(300, 300, BlockType::Empty);
     let kernel = Kernel::new(8, 0.9);
     let waypoints: Vec<Position> = vec![
-        Position::new(100, 10),
-        Position::new(10, 95),
-        Position::new(95, 95),
-        Position::new(95, 10),
+        Position::new(50, 50),
+        Position::new(50, 250),
+        Position::new(250, 250),
+        Position::new(250, 50),
     ];
-    let mut walker = CuteWalker::new(Position::new(10, 10), waypoints, kernel);
+    let mut walker = CuteWalker::new(Position::new(50, 50), waypoints, kernel);
 
     // fps control
     let minimum_frame_time = time::Duration::from_secs_f32(1. / TARGET_FPS as f32);
@@ -223,19 +223,21 @@ async fn main() {
         // this value is only valid after calling define_egui()
         editor.canvas = None;
 
-        // if goal is reached
-        if walker.pos.eq(&walker.curr_goal) {
-            walker.next_waypoint().unwrap_or_else(|_| {
-                println!("pause due to reaching last checkpoint");
-                editor.playback.pause();
-            });
-        }
-
         if editor.playback.is_not_paused() {
+            // if goal is reached
+            if walker.pos.eq(&walker.curr_goal) {
+                walker.next_waypoint().unwrap_or_else(|_| {
+                    println!("pause due to reaching last checkpoint");
+                    editor.playback.pause();
+                });
+            }
+
             // randomly mutate kernel
-            let size = rnd.gen.gen_range(1..=1);
-            let circularity = rnd.gen.gen_range(0.0..=1.0);
-            walker.kernel = Kernel::new(size, circularity);
+            if rnd.gen.gen_bool(0.1) {
+                let size = rnd.gen.gen_range(3..=7);
+                let circularity = rnd.gen.gen_range(0.0..=1.0);
+                walker.kernel = Kernel::new(size, circularity);
+            }
 
             // perform one greedy step
             if let Err(err) = walker.probabilistic_step(&mut map, &mut rnd) {
