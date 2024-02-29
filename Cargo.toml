@@ -13,6 +13,7 @@ macroquad = { version="0.3.25", default-features=false }
 ndarray = "0.15.6"
 rand = {version="0.8.5", features=['small_rng']}
 seahash = "4.1.0"
+rand_distr = "0.4.3"
 
 [features]
 default = ["audio"]

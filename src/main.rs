@@ -18,11 +18,13 @@ use macroquad::{
 use miniquad::conf::{Conf, Platform};
 use std::time::{self, Duration, Instant};
 
-use rand::{rngs::SmallRng, RngCore};
-use rand::{Rng, SeedableRng};
+use rand::prelude::*;
+use rand::rngs::SmallRng;
+use rand_distr::WeightedAliasIndex;
+
 use seahash::hash;
 
-const TARGET_FPS: usize = 9999;
+const TARGET_FPS: usize = 60;
 const DISABLE_VSYNC: bool = true;
 const AVG_FPS_FACTOR: f32 = 0.25; // how much current fps is weighted into the rolling average
 
@@ -51,7 +53,7 @@ fn window_conf() -> Conf {
 
 // TODO: not quite sure where to put this, this doesnt
 // have any functionality, so a seperate file feels overkill
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ShiftDirection {
     Up,
     Right,
@@ -83,7 +85,7 @@ enum EditorPlayback {
 }
 
 impl EditorPlayback {
-    fn not_paused(&self) -> bool {
+    fn is_not_paused(&self) -> bool {
         match self {
             EditorPlayback::Paused => false,
             EditorPlayback::Playing | EditorPlayback::SingleStep => true,
@@ -96,15 +98,10 @@ impl EditorPlayback {
             EditorPlayback::Playing | EditorPlayback::SingleStep => EditorPlayback::Paused,
         };
     }
-}
 
-struct State {
-    mapgen: MapGeneration,
-    editor: Editor,
-}
-
-struct MapGeneration {
-    walker: CuteWalker,
+    fn pause(&mut self) {
+        *self = EditorPlayback::Paused;
+    }
 }
 
 struct Editor {
@@ -131,7 +128,7 @@ impl Editor {
         })
     }
 
-    fn define_egui(&mut self, mapgen: &MapGeneration) {
+    fn define_egui(&mut self, walker: &CuteWalker) {
         // define egui
         egui_macroquad::ui(|egui_ctx| {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
@@ -157,7 +154,7 @@ impl Editor {
                         "avg: {:}",
                         self.average_fps.round() as usize
                     )));
-                    ui.add(Label::new(format!("{:?}", mapgen.walker)));
+                    ui.add(Label::new(format!("{:?}", walker)));
                     ui.add(Label::new(format!("{:?}", self.playback)));
                     // ui.add(Label::new(format!("{:?}", editor.curr_goal)));
                 });
@@ -165,15 +162,6 @@ impl Editor {
             // store remaining space for macroquad drawing
             self.canvas = Some(egui_ctx.available_rect());
         });
-    }
-}
-
-// TODO: if i keep adding everting to the walker, it might
-// make more sense to just use one struct lol, but i believe
-// all the generation config parameters will end up in here
-impl MapGeneration {
-    fn new(walker: CuteWalker) -> MapGeneration {
-        MapGeneration { walker }
     }
 }
 
@@ -192,11 +180,24 @@ impl Random {
             gen: SmallRng::seed_from_u64(seed_u64),
         }
     }
+
+    /// shifts is an array of shifts, ordered by how good they are
+    fn sample_move(&mut self, shifts: Vec<ShiftDirection>) -> ShiftDirection {
+        // TODO: according to doc this has O(1) sampling but
+        // more expensive initialization, so i should only
+        // do this once and then store it in the struct
+        let weights = vec![9, 1, 1, 1];
+        let dist = WeightedAliasIndex::new(weights).unwrap();
+
+        // sample a shift based on the weights
+        shifts[dist.sample(&mut self.gen)]
+    }
 }
 
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut rnd = Random::new("iMilchshake".to_string());
+
     let mut editor = Editor::new(EditorPlayback::Playing);
 
     let mut map = Map::new(100, 100, BlockType::Empty);
@@ -207,7 +208,7 @@ async fn main() {
         Position::new(95, 95),
         Position::new(95, 10),
     ];
-    let mut mapgen = MapGeneration::new(CuteWalker::new(Position::new(10, 10), waypoints, kernel));
+    let mut walker = CuteWalker::new(Position::new(10, 10), waypoints, kernel);
 
     // fps control
     let minimum_frame_time = time::Duration::from_secs_f32(1. / TARGET_FPS as f32);
@@ -222,32 +223,32 @@ async fn main() {
         editor.canvas = None;
 
         // if goal is reached
-        if mapgen.walker.pos.eq(&mapgen.walker.curr_goal) {
-            mapgen.walker.next_waypoint().unwrap_or_else(|_| {
+        if walker.pos.eq(&walker.curr_goal) {
+            walker.next_waypoint().unwrap_or_else(|_| {
                 println!("pause due to reaching last checkpoint");
-                editor.playback = EditorPlayback::Paused;
+                editor.playback.pause();
             });
         }
 
-        if editor.playback.not_paused() {
+        if editor.playback.is_not_paused() {
             // randomly mutate kernel
-            let size = rnd.gen.gen_range(1..10);
+            let size = rnd.gen.gen_range(1..=1);
             let circularity = rnd.gen.gen_range(0.0..=1.0);
-            mapgen.walker.kernel = Kernel::new(size, circularity);
+            walker.kernel = Kernel::new(size, circularity);
 
             // perform one greedy step
-            if let Err(err) = mapgen.walker.greedy_step(&mut map) {
+            if let Err(err) = walker.probabilistic_step(&mut map, &mut rnd) {
                 println!("greedy step failed: '{:}' - pausing...", err);
-                editor.playback = EditorPlayback::Paused;
+                editor.playback.pause();
             }
 
             // walker did a step using SingleStep -> now pause
             if editor.playback == EditorPlayback::SingleStep {
-                editor.playback = EditorPlayback::Paused;
+                editor.playback.pause();
             }
         }
 
-        editor.define_egui(&mapgen);
+        editor.define_egui(&walker);
 
         clear_background(WHITE);
         let display_factor = editor
@@ -255,7 +256,7 @@ async fn main() {
             .expect("should be set after define_egui call");
         draw_grid_blocks(&map.grid, display_factor, vec2(0.0, 0.0));
 
-        draw_walker(&mapgen.walker, display_factor, vec2(0.0, 0.0));
+        draw_walker(&walker, display_factor, vec2(0.0, 0.0));
         egui_macroquad::draw();
 
         wait_for_next_frame(frame_start, minimum_frame_time).await;

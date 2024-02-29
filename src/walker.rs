@@ -1,4 +1,4 @@
-use crate::{BlockType, Kernel, Map, Position, ShiftDirection};
+use crate::{BlockType, Kernel, Map, Position, Random, ShiftDirection};
 
 // this walker is indeed very cute
 #[derive(Debug)]
@@ -33,11 +33,29 @@ impl CuteWalker {
     }
 
     pub fn greedy_step(&mut self, map: &mut Map) -> Result<(), &'static str> {
-        // get greedy shift towards goal
-        let shift = self.pos.get_greedy_dir(&self.curr_goal);
+        let greedy_shift = self.pos.get_greedy_shift(&self.curr_goal);
 
         // apply that shift
-        self.shift_pos(shift, map)?;
+        self.pos.shift(greedy_shift, map)?;
+        self.steps += 1;
+
+        // remove blocks using a kernel at current position
+        map.update(self, BlockType::Filled)?;
+
+        Ok(())
+    }
+
+    pub fn probabilistic_step(
+        &mut self,
+        map: &mut Map,
+        rnd: &mut Random,
+    ) -> Result<(), &'static str> {
+        let shifts = self.pos.get_rated_shifts(&self.curr_goal, map);
+        let sampled_shift = rnd.sample_move(shifts);
+
+        // apply that shift
+        self.pos.shift(sampled_shift, map)?;
+        self.steps += 1;
 
         // remove blocks using a kernel at current position
         map.update(self, BlockType::Filled)?;
@@ -47,31 +65,5 @@ impl CuteWalker {
 
     pub fn cuddle(&self) {
         println!("Cute walker was cuddled!");
-    }
-
-    pub fn shift_pos(&mut self, shift: ShiftDirection, map: &Map) -> Result<(), &'static str> {
-        if !self.is_shift_valid(&shift, map) {
-            return Err("invalid shift");
-        }
-
-        match shift {
-            ShiftDirection::Up => self.pos.y -= 1,
-            ShiftDirection::Right => self.pos.x += 1,
-            ShiftDirection::Down => self.pos.y += 1,
-            ShiftDirection::Left => self.pos.x -= 1,
-        }
-
-        self.steps += 1;
-
-        Ok(())
-    }
-
-    pub fn is_shift_valid(&self, shift: &ShiftDirection, map: &Map) -> bool {
-        match shift {
-            ShiftDirection::Up => self.pos.y > 0,
-            ShiftDirection::Right => self.pos.x < map.width - 1,
-            ShiftDirection::Down => self.pos.y < map.height - 1,
-            ShiftDirection::Left => self.pos.x > 0,
-        }
     }
 }

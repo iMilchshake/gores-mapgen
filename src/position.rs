@@ -1,11 +1,12 @@
+use std::{ops::Mul, usize};
 
-use crate::ShiftDirection;
+use crate::{Map, ShiftDirection};
 
 // using my own position vector to meet ndarray's indexing standard using usize
 //
 // while glam has nice performance benefits, the amount of expensive operations
 // on the position vector will be very limited, so this should be fine..
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -20,7 +21,31 @@ impl Position {
         [self.x, self.y]
     }
 
-    pub fn get_greedy_dir(&self, goal: &Position) -> ShiftDirection {
+    pub fn shift(&mut self, shift: ShiftDirection, map: &Map) -> Result<(), &'static str> {
+        if !self.is_shift_valid(&shift, map) {
+            return Err("invalid shift");
+        }
+
+        match shift {
+            ShiftDirection::Up => self.y -= 1,
+            ShiftDirection::Right => self.x += 1,
+            ShiftDirection::Down => self.y += 1,
+            ShiftDirection::Left => self.x -= 1,
+        }
+
+        Ok(())
+    }
+
+    pub fn is_shift_valid(&self, shift: &ShiftDirection, map: &Map) -> bool {
+        match shift {
+            ShiftDirection::Up => self.y > 0,
+            ShiftDirection::Right => self.x < map.width - 1,
+            ShiftDirection::Down => self.y < map.height - 1,
+            ShiftDirection::Left => self.x > 0,
+        }
+    }
+
+    pub fn get_greedy_shift(&self, goal: &Position) -> ShiftDirection {
         let x_diff = goal.x as isize - self.x as isize;
         let x_abs_diff = x_diff.abs();
         let y_diff = goal.y as isize - self.y as isize;
@@ -38,5 +63,31 @@ impl Position {
         } else {
             ShiftDirection::Up
         }
+    }
+
+    /// returns a Vec with all possible shifts, sorted by how close they get
+    /// towards the goal position
+    pub fn get_rated_shifts(&self, goal: &Position, map: &Map) -> Vec<ShiftDirection> {
+        let mut shifts = vec![
+            ShiftDirection::Left,
+            ShiftDirection::Up,
+            ShiftDirection::Right,
+            ShiftDirection::Down,
+        ];
+
+        // TODO: make this safe XD
+        shifts.sort_by_cached_key(|shift| {
+            let mut shifted_pos = self.clone();
+            shifted_pos.shift(*shift, map).unwrap();
+
+            let x_diff = shifted_pos.x.abs_diff(goal.x);
+            let y_diff = shifted_pos.y.abs_diff(goal.y);
+
+            let squared_dist = usize::mul(x_diff, x_diff) + usize::mul(y_diff, y_diff);
+
+            return squared_dist;
+        });
+
+        shifts
     }
 }
