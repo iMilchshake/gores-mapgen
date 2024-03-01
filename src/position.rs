@@ -1,4 +1,4 @@
-use std::{ops::Mul, usize};
+use std::{usize};
 
 use crate::{Map, ShiftDirection};
 

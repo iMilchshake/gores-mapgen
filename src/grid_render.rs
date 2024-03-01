@@ -1,4 +1,4 @@
-use crate::{CuteWalker, Vec2};
+use crate::{CuteWalker, Position, Vec2};
 use macroquad::color::*;
 use macroquad::shapes::*;
 use ndarray::Array2;
@@ -28,6 +28,7 @@ pub fn draw_grid_blocks(grid: &Array2<BlockType>, display_factor: f32, display_s
     let width = grid.dim().0;
     let height = grid.dim().1;
 
+    // TODO: replace this with iterator
     for x in 0..width {
         for y in 0..height {
             draw_rectangle(
@@ -59,4 +60,15 @@ pub fn draw_walker(walker: &CuteWalker, display_factor: f32, display_shift: Vec2
         display_factor * 0.25,
         BLUE,
     )
+}
+
+pub fn draw_waypoints(waypoints: &Vec<Position>, display_factor: f32) {
+    for pos in waypoints.iter() {
+        draw_circle(
+            pos.x as f32 * display_factor + (display_factor / 2.),
+            pos.y as f32 * display_factor + (display_factor / 2.),
+            display_factor,
+            RED,
+        )
+    }
 }

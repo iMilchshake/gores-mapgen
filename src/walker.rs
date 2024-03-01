@@ -1,31 +1,37 @@
-use crate::{BlockType, Kernel, Map, Position, Random, ShiftDirection};
+use crate::{BlockType, Kernel, Map, Position, Random};
 
 // this walker is indeed very cute
 #[derive(Debug)]
 pub struct CuteWalker {
     pub pos: Position,
     pub steps: usize,
-    pub curr_goal: Position,
-    pub waypoints: Vec<Position>,
     pub kernel: Kernel,
+
+    pub goal: Option<Position>,
+    pub goal_index: usize,
+    pub waypoints: Vec<Position>,
 }
 
 impl CuteWalker {
-    pub fn new(initial_pos: Position, mut waypoints: Vec<Position>, kernel: Kernel) -> CuteWalker {
+    pub fn new(initial_pos: Position, waypoints: Vec<Position>, kernel: Kernel) -> CuteWalker {
         CuteWalker {
             pos: initial_pos,
             steps: 0,
-            curr_goal: waypoints
-                .pop()
-                .expect("expect at least one waypoint on initialization"),
-            waypoints,
             kernel,
+            goal: Some(waypoints.first().unwrap().clone()),
+            goal_index: 0,
+            waypoints,
         }
     }
 
+    pub fn is_goal_reached(&self) -> Option<bool> {
+        self.goal.as_ref().map(|goal| self.pos.eq(goal))
+    }
+
     pub fn next_waypoint(&mut self) -> Result<(), ()> {
-        if let Some(next_goal) = self.waypoints.pop() {
-            self.curr_goal = next_goal;
+        if let Some(next_goal) = self.waypoints.get(self.goal_index + 1) {
+            self.goal_index += 1;
+            self.goal = Some(next_goal.clone());
             Ok(())
         } else {
             Err(())
@@ -33,7 +39,8 @@ impl CuteWalker {
     }
 
     pub fn greedy_step(&mut self, map: &mut Map) -> Result<(), &'static str> {
-        let greedy_shift = self.pos.get_greedy_shift(&self.curr_goal);
+        let goal = self.goal.as_ref().ok_or("Error: Goal is None")?;
+        let greedy_shift = self.pos.get_greedy_shift(goal);
 
         // apply that shift
         self.pos.shift(greedy_shift, map)?;
@@ -50,7 +57,8 @@ impl CuteWalker {
         map: &mut Map,
         rnd: &mut Random,
     ) -> Result<(), &'static str> {
-        let shifts = self.pos.get_rated_shifts(&self.curr_goal, map);
+        let goal = self.goal.as_ref().ok_or("Error: Goal is None")?;
+        let shifts = self.pos.get_rated_shifts(goal, map);
         let sampled_shift = rnd.sample_move(shifts);
 
         // apply that shift

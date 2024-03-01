@@ -7,10 +7,11 @@ use map::*;
 use position::*;
 use walker::*;
 
-use egui::{epaint::Shadow, Color32, Frame, Label, Margin, Rect};
+use egui::{epaint::Shadow, Color32, Frame, Label, Margin};
 use macroquad::{
+    camera::{Camera2D},
     color::*,
-    math::{vec2, Vec2},
+    math::{vec2, Rect, Vec2},
     miniquad,
     time::get_fps,
     window::*,
@@ -24,9 +25,11 @@ use rand_distr::WeightedAliasIndex;
 
 use seahash::hash;
 
-const TARGET_FPS: usize = 9999;
+const TARGET_FPS: usize = 60;
 const DISABLE_VSYNC: bool = true;
 const AVG_FPS_FACTOR: f32 = 0.25; // how much current fps is weighted into the rolling average
+
+const STEPS_PER_FRAME: usize = 50;
 
 fn window_frame() -> Frame {
     Frame {
@@ -106,7 +109,7 @@ impl EditorPlayback {
 
 struct Editor {
     playback: EditorPlayback,
-    canvas: Option<Rect>,
+    canvas: Option<egui::Rect>,
     average_fps: f32,
 }
 
@@ -199,20 +202,23 @@ impl Random {
 async fn main() {
     let mut rnd = Random::new("iMilchshake".to_string(), vec![4, 3, 2, 1]);
 
-    let mut editor = Editor::new(EditorPlayback::Playing);
+    let mut editor = Editor::new(EditorPlayback::Paused);
 
     let mut map = Map::new(300, 300, BlockType::Empty);
     let kernel = Kernel::new(8, 0.9);
     let waypoints: Vec<Position> = vec![
-        Position::new(50, 50),
-        Position::new(50, 250),
-        Position::new(250, 250),
         Position::new(250, 50),
+        Position::new(250, 250),
+        Position::new(50, 250),
+        Position::new(50, 50),
     ];
     let mut walker = CuteWalker::new(Position::new(50, 50), waypoints, kernel);
 
     // fps control
     let minimum_frame_time = time::Duration::from_secs_f32(1. / TARGET_FPS as f32);
+
+    let _cam = Camera2D::from_display_rect(Rect::new(0.0, 0.0, screen_width(), screen_height()));
+    // set_camera(&cam);
 
     loop {
         // framerate control
@@ -224,30 +230,33 @@ async fn main() {
         editor.canvas = None;
 
         if editor.playback.is_not_paused() {
-            // if goal is reached
-            if walker.pos.eq(&walker.curr_goal) {
-                walker.next_waypoint().unwrap_or_else(|_| {
-                    println!("pause due to reaching last checkpoint");
+            for _ in 0..STEPS_PER_FRAME {
+                // check if walker has reached goal position
+                if walker.is_goal_reached() == Some(true) {
+                    walker.next_waypoint().unwrap_or_else(|_| {
+                        println!("pause due to reaching last checkpoint");
+                        editor.playback.pause();
+                    });
+                }
+
+                // randomly mutate kernel
+                if rnd.gen.gen_bool(0.1) {
+                    let size = rnd.gen.gen_range(3..=7);
+                    let circularity = rnd.gen.gen_range(0.0..=1.0);
+                    walker.kernel = Kernel::new(size, circularity);
+                }
+
+                // perform one greedy step
+                if let Err(err) = walker.probabilistic_step(&mut map, &mut rnd) {
+                    println!("greedy step failed: '{:}' - pausing...", err);
                     editor.playback.pause();
-                });
-            }
+                }
 
-            // randomly mutate kernel
-            if rnd.gen.gen_bool(0.1) {
-                let size = rnd.gen.gen_range(3..=7);
-                let circularity = rnd.gen.gen_range(0.0..=1.0);
-                walker.kernel = Kernel::new(size, circularity);
-            }
-
-            // perform one greedy step
-            if let Err(err) = walker.probabilistic_step(&mut map, &mut rnd) {
-                println!("greedy step failed: '{:}' - pausing...", err);
-                editor.playback.pause();
-            }
-
-            // walker did a step using SingleStep -> now pause
-            if editor.playback == EditorPlayback::SingleStep {
-                editor.playback.pause();
+                // walker did a step using SingleStep -> now pause
+                if editor.playback == EditorPlayback::SingleStep {
+                    editor.playback.pause();
+                    break; // skip following steps for this frame!
+                }
             }
         }
 
@@ -259,7 +268,16 @@ async fn main() {
             .expect("should be set after define_egui call");
         draw_grid_blocks(&map.grid, display_factor, vec2(0.0, 0.0));
 
+        // cam = Camera2D::from_display_rect(Rect::new(
+        //     0.0,
+        //     0.0,
+        //     editor.canvas.unwrap().width(),
+        //     editor.canvas.unwrap().height(),
+        // ));
+        // set_camera(&cam);
+
         draw_walker(&walker, display_factor, vec2(0.0, 0.0));
+        draw_waypoints(&walker.waypoints, display_factor);
         egui_macroquad::draw();
 
         wait_for_next_frame(frame_start, minimum_frame_time).await;
