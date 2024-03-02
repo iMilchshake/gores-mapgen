@@ -16,67 +16,93 @@ const ASPECT_RATIO: f32 = MAP_WIDTH / MAP_HEIGHT;
 const ZOOM_FACTOR: f32 = 0.5;
 const SHIFT_FACTOR: f32 = 0.1;
 
-fn get_display_factor() -> f32 {
-    f32::min(screen_width() / MAP_WIDTH, screen_height() / MAP_HEIGHT)
+struct Editor {
+    zoom: f32,
+    offset: Vec2,
 }
 
-fn set_cam(zoom: f32, x_offset: f32) -> Camera2D {
-    dbg!(ASPECT_RATIO);
-    let display_factor = get_display_factor();
-    let x_view = display_factor * MAP_WIDTH;
-    let y_view = display_factor * MAP_HEIGHT;
+impl Editor {
+    fn get_display_factor() -> f32 {
+        f32::min(screen_width() / MAP_WIDTH, screen_height() / MAP_HEIGHT)
+    }
 
-    dbg!((screen_width(), screen_height()));
-    dbg!((&x_view, &y_view, &display_factor));
-
-    let y_shift = screen_height() - y_view;
-    let mut cam = Camera2D::from_display_rect(Rect::new(0.0, MAP_HEIGHT, MAP_WIDTH, -MAP_HEIGHT));
-
-    cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
-
-    cam.offset.x = x_offset;
-    cam.zoom.x *= zoom;
-    cam.zoom.y *= zoom;
-
-    set_camera(&cam);
-
-    cam
-}
-
-#[macroquad::main("Camera")]
-async fn main() {
-    let mut zoom = 1.0;
-    let mut x_offset = 0.0;
-
-    loop {
-        if is_key_released(KeyCode::W) {
-            zoom *= ZOOM_FACTOR;
-        } else if is_key_released(KeyCode::S) {
-            zoom /= ZOOM_FACTOR;
-        } else if is_key_released(KeyCode::R) {
-            zoom = 1.0;
-            x_offset = 0.0;
-        } else if is_key_released(KeyCode::D) {
-            x_offset += SHIFT_FACTOR;
-        } else if is_key_released(KeyCode::A) {
-            x_offset -= SHIFT_FACTOR;
-        }
-        let cam = set_cam(zoom, x_offset);
-
-        clear_background(LIGHTGRAY);
-
-        draw_line(0.0, 0.0, MAP_WIDTH, MAP_HEIGHT, 1.0, BLUE);
-        draw_circle(0.0, 0.0, 5.0, RED);
-        draw_circle(MAP_WIDTH / 2., MAP_HEIGHT / 2., 5.0, RED);
-        draw_circle(MAP_WIDTH, MAP_HEIGHT, 5.0, YELLOW);
-        draw_rectangle_lines(0.0, 0.0, MAP_WIDTH, MAP_HEIGHT, 5.0, BLACK);
-
+    /// this should result in the exact same behaviour as if not using a camera at all
+    fn reset_camera() {
         set_camera(&Camera2D::from_display_rect(Rect::new(
             0.0,
             screen_height(),
             screen_width(),
             -screen_height(),
         )));
+    }
+
+    fn handle_user_inputs(&mut self) {
+        if is_key_released(KeyCode::E) {
+            self.zoom *= ZOOM_FACTOR;
+        } else if is_key_released(KeyCode::Q) {
+            self.zoom /= ZOOM_FACTOR;
+        } else if is_key_released(KeyCode::R) {
+            *self = Editor::default();
+        } else if is_key_released(KeyCode::D) {
+            self.offset.x += SHIFT_FACTOR;
+        } else if is_key_released(KeyCode::A) {
+            self.offset.x -= SHIFT_FACTOR;
+        } else if is_key_released(KeyCode::W) {
+            self.offset.y += SHIFT_FACTOR;
+        } else if is_key_released(KeyCode::S) {
+            self.offset.y -= SHIFT_FACTOR;
+        }
+    }
+
+    fn set_cam(&self) -> Camera2D {
+        let display_factor = Editor::get_display_factor();
+        let x_view = display_factor * MAP_WIDTH;
+        let y_view = display_factor * MAP_HEIGHT;
+
+        let y_shift = screen_height() - y_view;
+        let mut cam =
+            Camera2D::from_display_rect(Rect::new(0.0, MAP_HEIGHT, MAP_WIDTH, -MAP_HEIGHT));
+
+        cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
+
+        cam.offset = self.offset;
+        cam.zoom *= self.zoom;
+
+        set_camera(&cam);
+
+        cam
+    }
+}
+
+impl Default for Editor {
+    fn default() -> Editor {
+        Editor {
+            zoom: 1.0,
+            offset: Vec2::ZERO,
+        }
+    }
+}
+
+#[macroquad::main("Camera")]
+async fn main() {
+    let mut editor = Editor::default();
+
+    loop {
+        editor.handle_user_inputs();
+        let cam = Editor::set_cam(&editor);
+
+        clear_background(LIGHTGRAY);
+
+        // draw inside canvas/map
+        draw_line(0.0, 0.0, MAP_WIDTH, MAP_HEIGHT, 1.0, BLUE);
+        draw_circle(0.0, 0.0, 5.0, RED);
+        draw_circle(MAP_WIDTH / 2., MAP_HEIGHT / 2., 5.0, RED);
+        draw_circle(MAP_WIDTH, MAP_HEIGHT, 5.0, YELLOW);
+        draw_rectangle_lines(0.0, 0.0, MAP_WIDTH, MAP_HEIGHT, 5.0, BLACK);
+
+        Editor::reset_camera();
+
+        // draw globally
         draw_circle(0.0, 0.0, 15.0, ORANGE);
         draw_circle(screen_width(), screen_height(), 15.0, ORANGE);
         draw_line(0.0, 0.0, screen_width(), screen_height(), 1.0, BLUE);
@@ -88,8 +114,6 @@ async fn main() {
             5.0,
             BLACK,
         );
-
-        // draw_rectangle_lines(0.0, 0.0, MAP_WIDTH, MAP_HEIGHT, 1.0, GREEN);
 
         next_frame().await
     }
