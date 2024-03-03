@@ -1,6 +1,5 @@
-use macroquad::experimental::camera::mouse;
 use macroquad::math::Rect;
-use macroquad::{camera, prelude::*};
+use macroquad::prelude::*;
 
 // TODO: this approach works rather well, but is has one major downside:
 // the viewport has the same aspect ratio as the map which allows
@@ -26,6 +25,14 @@ impl Editor {
         f32::min(screen_width() / MAP_WIDTH, screen_height() / MAP_HEIGHT)
     }
 
+    fn mouse_in_viewport(cam: &Camera2D) -> bool {
+        let (mouse_x, mouse_y) = mouse_position();
+        0.0 <= mouse_x
+            && mouse_x <= cam.viewport.unwrap().2 as f32
+            && 0.0 <= mouse_y
+            && mouse_y <= cam.viewport.unwrap().3 as f32
+    }
+
     /// this should result in the exact same behaviour as if not using a camera at all
     fn reset_camera() {
         // no idea why i dont have to use negative values here???
@@ -47,8 +54,8 @@ impl Editor {
         // so i guess this is (x, y, width, height) not two positions?
         cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
 
-        cam.target.x -= self.offset.x * (MAP_WIDTH);
-        cam.target.y -= self.offset.y * (MAP_HEIGHT);
+        cam.target.x -= self.offset.x;
+        cam.target.y -= self.offset.y;
         cam.zoom *= self.zoom;
 
         set_camera(&cam);
@@ -67,9 +74,9 @@ impl Editor {
             self.offset.x += SHIFT_FACTOR;
         } else if is_key_pressed(KeyCode::D) {
             self.offset.x -= SHIFT_FACTOR;
-        } else if is_key_pressed(KeyCode::S) {
-            self.offset.y += SHIFT_FACTOR;
         } else if is_key_pressed(KeyCode::W) {
+            self.offset.y += SHIFT_FACTOR;
+        } else if is_key_pressed(KeyCode::S) {
             self.offset.y -= SHIFT_FACTOR;
         }
     }
@@ -87,10 +94,29 @@ impl Default for Editor {
 #[macroquad::main("Camera")]
 async fn main() {
     let mut editor = Editor::default();
+    let mut last_local_mouse: Option<Vec2> = None;
 
     loop {
         editor.handle_user_inputs();
+
         let cam = Editor::set_cam(&editor);
+
+        // TODO: yeah no this doesnt work. i need to calculate my own delta completly disregarding
+        // the camera, because its offset will fuck everything up. so i guess i should just look at
+        // the global position and somehow scale it using the actual viewport?
+        if is_mouse_button_down(MouseButton::Left) && Editor::mouse_in_viewport(&cam) {
+            let current_local_mouse = cam.screen_to_world(mouse_position().into());
+
+            if let Some(last_local_m) = last_local_mouse {
+                let local_delta = current_local_mouse - last_local_m;
+
+                editor.offset += local_delta;
+
+                dbg!((current_local_mouse, local_delta));
+            }
+
+            last_local_mouse = Some(current_local_mouse);
+        }
 
         clear_background(LIGHTGRAY);
 
@@ -126,7 +152,6 @@ async fn main() {
 
         draw_circle_lines(mouse_pos_abs.0, mouse_pos_abs.1, 10.0, 2.0, GRAY);
 
-        dbg!(mouse_pos_abs);
         next_frame().await
     }
 }
