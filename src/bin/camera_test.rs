@@ -10,9 +10,8 @@ use macroquad::prelude::*;
 // Possible approach: Still use entire available screen space as viewport, but
 // add some kind of scaling factors to deal with the distortion?
 
-const MAP_WIDTH: f32 = 400.0;
-const MAP_HEIGHT: f32 = 400.0;
-const ASPECT_RATIO: f32 = MAP_WIDTH / MAP_HEIGHT;
+const MAP_WIDTH: f32 = 600.0;
+const MAP_HEIGHT: f32 = 600.0;
 const ZOOM_FACTOR: f32 = 0.5;
 const SHIFT_FACTOR: f32 = 0.1;
 
@@ -36,24 +35,6 @@ impl Editor {
         )));
     }
 
-    fn handle_user_inputs(&mut self) {
-        if is_key_released(KeyCode::E) {
-            self.zoom *= ZOOM_FACTOR;
-        } else if is_key_released(KeyCode::Q) {
-            self.zoom /= ZOOM_FACTOR;
-        } else if is_key_released(KeyCode::R) {
-            *self = Editor::default();
-        } else if is_key_released(KeyCode::D) {
-            self.offset.x += SHIFT_FACTOR;
-        } else if is_key_released(KeyCode::A) {
-            self.offset.x -= SHIFT_FACTOR;
-        } else if is_key_released(KeyCode::W) {
-            self.offset.y += SHIFT_FACTOR;
-        } else if is_key_released(KeyCode::S) {
-            self.offset.y -= SHIFT_FACTOR;
-        }
-    }
-
     fn set_cam(&self) -> Camera2D {
         let display_factor = Editor::get_display_factor();
         let x_view = display_factor * MAP_WIDTH;
@@ -65,12 +46,31 @@ impl Editor {
 
         cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
 
-        cam.offset = self.offset;
+        cam.target.x -= self.offset.x * (MAP_WIDTH);
+        cam.target.y -= self.offset.y * (MAP_HEIGHT);
         cam.zoom *= self.zoom;
 
         set_camera(&cam);
 
         cam
+    }
+
+    fn handle_user_inputs(&mut self) {
+        if is_key_pressed(KeyCode::Q) {
+            self.zoom *= ZOOM_FACTOR;
+        } else if is_key_pressed(KeyCode::E) {
+            self.zoom /= ZOOM_FACTOR;
+        } else if is_key_pressed(KeyCode::R) {
+            *self = Editor::default();
+        } else if is_key_pressed(KeyCode::A) {
+            self.offset.x += SHIFT_FACTOR;
+        } else if is_key_pressed(KeyCode::D) {
+            self.offset.x -= SHIFT_FACTOR;
+        } else if is_key_pressed(KeyCode::S) {
+            self.offset.y += SHIFT_FACTOR;
+        } else if is_key_pressed(KeyCode::W) {
+            self.offset.y -= SHIFT_FACTOR;
+        }
     }
 }
 
@@ -99,6 +99,9 @@ async fn main() {
         draw_circle(MAP_WIDTH / 2., MAP_HEIGHT / 2., 5.0, RED);
         draw_circle(MAP_WIDTH, MAP_HEIGHT, 5.0, YELLOW);
         draw_rectangle_lines(0.0, 0.0, MAP_WIDTH, MAP_HEIGHT, 5.0, BLACK);
+
+        // draw target
+        draw_circle(cam.target.x, cam.target.y, 2.5, ORANGE);
 
         Editor::reset_camera();
 
