@@ -10,15 +10,11 @@ name = "camera_test"
 egui-macroquad = "0.15.0"
 egui = "0.21.0"
 egui-miniquad = "0.14.0"
-macroquad = { version="0.3.25", default-features=false }
+macroquad = "0.3.25"
 ndarray = "0.15.6"
 rand = {version="0.8.5", features=['small_rng']}
 seahash = "4.1.0"
 rand_distr = "0.4.3"
-
-[features]
-default = ["audio"]
-audio = ["macroquad/audio"]
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
