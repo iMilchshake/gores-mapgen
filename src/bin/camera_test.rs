@@ -55,8 +55,7 @@ impl Editor {
         // so i guess this is (x, y, width, height) not two positions?
         cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
 
-        cam.target.x -= self.offset.x;
-        cam.target.y -= self.offset.y;
+        cam.target -= self.offset;
         cam.zoom *= self.zoom;
 
         set_camera(&cam);
@@ -64,24 +63,7 @@ impl Editor {
         cam
     }
 
-    fn handle_user_inputs(&mut self) {
-        // handle key inputs
-        if is_key_pressed(KeyCode::Q) {
-            self.zoom *= ZOOM_FACTOR;
-        } else if is_key_pressed(KeyCode::E) {
-            self.zoom /= ZOOM_FACTOR;
-        } else if is_key_pressed(KeyCode::R) {
-            *self = Editor::default();
-        } else if is_key_pressed(KeyCode::A) {
-            self.offset.x += SHIFT_FACTOR;
-        } else if is_key_pressed(KeyCode::D) {
-            self.offset.x -= SHIFT_FACTOR;
-        } else if is_key_pressed(KeyCode::W) {
-            self.offset.y += SHIFT_FACTOR;
-        } else if is_key_pressed(KeyCode::S) {
-            self.offset.y -= SHIFT_FACTOR;
-        }
-
+    fn handle_mouse_inputs(&mut self) {
         // handle mouse inputs
         let mouse_wheel_y = mouse_wheel().1;
         if !mouse_wheel_y.is_zero() {
@@ -110,7 +92,7 @@ async fn main() {
     let mut last_mouse: Option<Vec2> = None;
 
     loop {
-        editor.handle_user_inputs();
+        editor.handle_mouse_inputs();
 
         let cam = Editor::set_cam(&editor);
 
