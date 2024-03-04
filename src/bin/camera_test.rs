@@ -1,5 +1,6 @@
 use macroquad::math::Rect;
 use macroquad::prelude::*;
+use rand_distr::num_traits::{Signed, Zero};
 
 // TODO: this approach works rather well, but is has one major downside:
 // the viewport has the same aspect ratio as the map which allows
@@ -12,7 +13,7 @@ use macroquad::prelude::*;
 
 const MAP_WIDTH: f32 = 600.0;
 const MAP_HEIGHT: f32 = 600.0;
-const ZOOM_FACTOR: f32 = 0.5;
+const ZOOM_FACTOR: f32 = 0.9;
 const SHIFT_FACTOR: f32 = 0.1;
 
 struct Editor {
@@ -64,6 +65,7 @@ impl Editor {
     }
 
     fn handle_user_inputs(&mut self) {
+        // handle key inputs
         if is_key_pressed(KeyCode::Q) {
             self.zoom *= ZOOM_FACTOR;
         } else if is_key_pressed(KeyCode::E) {
@@ -78,6 +80,16 @@ impl Editor {
             self.offset.y += SHIFT_FACTOR;
         } else if is_key_pressed(KeyCode::S) {
             self.offset.y -= SHIFT_FACTOR;
+        }
+
+        // handle mouse inputs
+        let mouse_wheel_y = mouse_wheel().1;
+        if !mouse_wheel_y.is_zero() {
+            if mouse_wheel_y.is_positive() {
+                self.zoom /= ZOOM_FACTOR;
+            } else {
+                self.zoom *= ZOOM_FACTOR;
+            }
         }
     }
 }
@@ -94,28 +106,33 @@ impl Default for Editor {
 #[macroquad::main("Camera")]
 async fn main() {
     let mut editor = Editor::default();
-    let mut last_local_mouse: Option<Vec2> = None;
+
+    let mut last_mouse: Option<Vec2> = None;
 
     loop {
         editor.handle_user_inputs();
 
         let cam = Editor::set_cam(&editor);
 
-        // TODO: yeah no this doesnt work. i need to calculate my own delta completly disregarding
-        // the camera, because its offset will fuck everything up. so i guess i should just look at
-        // the global position and somehow scale it using the actual viewport?
         if is_mouse_button_down(MouseButton::Left) && Editor::mouse_in_viewport(&cam) {
-            let current_local_mouse = cam.screen_to_world(mouse_position().into());
+            let mouse = mouse_position();
 
-            if let Some(last_local_m) = last_local_mouse {
-                let local_delta = current_local_mouse - last_local_m;
+            if let Some(last_mouse) = last_mouse {
+                let display_factor = Editor::get_display_factor();
+                let local_delta = Vec2::new(mouse.0, mouse.1) - last_mouse;
+                let x_view = display_factor * MAP_WIDTH;
+                let y_view = display_factor * MAP_HEIGHT;
 
-                editor.offset += local_delta;
+                dbg!((&mouse, &display_factor, &x_view, &y_view, &local_delta));
 
-                dbg!((current_local_mouse, local_delta));
+                editor.offset += local_delta / (editor.zoom * display_factor);
             }
 
-            last_local_mouse = Some(current_local_mouse);
+            last_mouse = Some(mouse.into());
+
+        // mouse pressed for first frame, reset last position
+        } else if is_mouse_button_released(MouseButton::Left) {
+            last_mouse = None;
         }
 
         clear_background(LIGHTGRAY);
@@ -129,11 +146,6 @@ async fn main() {
 
         // draw target
         draw_circle(cam.target.x, cam.target.y, 2.5, ORANGE);
-
-        let mouse_pos_abs = mouse_position();
-        let mouse_viewport = cam.screen_to_world(mouse_pos_abs.into());
-
-        draw_circle_lines(mouse_viewport.x, mouse_viewport.y, 8.0, 2.0, GRAY);
 
         Editor::reset_camera();
 
@@ -150,6 +162,7 @@ async fn main() {
             BLACK,
         );
 
+        let mouse_pos_abs = mouse_position();
         draw_circle_lines(mouse_pos_abs.0, mouse_pos_abs.1, 10.0, 2.0, GRAY);
 
         next_frame().await
