@@ -52,6 +52,7 @@ impl EditorPlayback {
 pub struct Editor {
     pub playback: EditorPlayback,
     pub canvas: Option<egui::Rect>,
+    egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
     zoom: f32,
     offset: Vec2,
@@ -64,6 +65,7 @@ impl Editor {
         Editor {
             playback: initial_playback,
             canvas: None,
+            egui_wants_mouse: None,
             average_fps: TARGET_FPS as f32,
             zoom: 1.0,
             offset: Vec2::ZERO,
@@ -116,6 +118,7 @@ impl Editor {
 
             // store remaining space for macroquad drawing
             self.canvas = Some(egui_ctx.available_rect());
+            self.egui_wants_mouse = Some(egui_ctx.wants_pointer_input());
         });
     }
 
@@ -149,16 +152,6 @@ impl Editor {
         // so i guess this is (x, y, width, height) not two positions?
         cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
 
-        dbg!((
-            &display_factor,
-            &x_view,
-            &y_view,
-            y_shift,
-            &map_rect,
-            &self.offset,
-            &self.zoom
-        ));
-
         cam.target -= self.offset;
         cam.zoom *= self.zoom;
 
@@ -182,7 +175,13 @@ impl Editor {
             }
         }
 
-        if is_mouse_button_down(MouseButton::Left) && Editor::mouse_in_viewport(&self.cam.unwrap())
+        let egui_wants_mouse = self
+            .egui_wants_mouse
+            .expect("expect to be set after define_gui()");
+
+        if !egui_wants_mouse
+            && is_mouse_button_down(MouseButton::Left)
+            && Editor::mouse_in_viewport(&self.cam.unwrap())
         {
             let mouse = mouse_position();
 
@@ -190,7 +189,6 @@ impl Editor {
                 let display_factor = self.get_display_factor(map);
                 let local_delta = Vec2::new(mouse.0, mouse.1) - last_mouse;
                 self.offset += local_delta / (self.zoom * display_factor);
-                // dbg!((&mouse, &display_factor, &x_view, &y_view, &local_delta));
             }
 
             self.last_mouse = Some(mouse.into());
