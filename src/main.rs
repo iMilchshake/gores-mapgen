@@ -1,17 +1,19 @@
+mod editor;
 mod grid_render;
 mod map;
 mod position;
 mod walker;
+
+use editor::*;
 use grid_render::*;
 use map::*;
 use position::*;
 use walker::*;
 
-use egui::{epaint::Shadow, Color32, Frame, Label, Margin};
 use macroquad::{
-    camera::{Camera2D},
+    camera::set_camera,
     color::*,
-    math::{vec2, Rect, Vec2},
+    math::{vec2, Vec2},
     miniquad,
     time::get_fps,
     window::*,
@@ -30,15 +32,6 @@ const DISABLE_VSYNC: bool = true;
 const AVG_FPS_FACTOR: f32 = 0.25; // how much current fps is weighted into the rolling average
 
 const STEPS_PER_FRAME: usize = 50;
-
-fn window_frame() -> Frame {
-    Frame {
-        fill: Color32::from_gray(0),
-        inner_margin: Margin::same(5.0),
-        shadow: Shadow::NONE,
-        ..Default::default()
-    }
-}
 
 fn window_conf() -> Conf {
     Conf {
@@ -80,94 +73,6 @@ async fn wait_for_next_frame(frame_start: Instant, minimum_frame_time: Duration)
     }
 }
 
-#[derive(PartialEq, Debug)]
-enum EditorPlayback {
-    Paused,
-    SingleStep,
-    Playing,
-}
-
-impl EditorPlayback {
-    fn is_not_paused(&self) -> bool {
-        match self {
-            EditorPlayback::Paused => false,
-            EditorPlayback::Playing | EditorPlayback::SingleStep => true,
-        }
-    }
-
-    fn toggle(&mut self) {
-        *self = match self {
-            EditorPlayback::Paused => EditorPlayback::Playing,
-            EditorPlayback::Playing | EditorPlayback::SingleStep => EditorPlayback::Paused,
-        };
-    }
-
-    fn pause(&mut self) {
-        *self = EditorPlayback::Paused;
-    }
-}
-
-struct Editor {
-    playback: EditorPlayback,
-    canvas: Option<egui::Rect>,
-    average_fps: f32,
-}
-
-impl Editor {
-    fn new(initial_playback: EditorPlayback) -> Editor {
-        Editor {
-            playback: initial_playback,
-            canvas: None,
-            average_fps: TARGET_FPS as f32,
-        }
-    }
-
-    fn get_display_factor(&self, map: &Map) -> Option<f32> {
-        self.canvas.map(|canvas| {
-            f32::min(
-                canvas.width() / map.width as f32,
-                canvas.height() / map.height as f32,
-            )
-        })
-    }
-
-    fn define_egui(&mut self, walker: &CuteWalker) {
-        // define egui
-        egui_macroquad::ui(|egui_ctx| {
-            egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
-                ui.label("hello world");
-
-                // toggle pause
-                if ui.button("toggle").clicked() {
-                    self.playback.toggle();
-                }
-
-                // pause, allow single step
-                if ui.button("single").clicked() {
-                    self.playback = EditorPlayback::SingleStep;
-                }
-                ui.separator();
-            });
-
-            egui::Window::new("DEBUG")
-                .frame(window_frame())
-                .show(egui_ctx, |ui| {
-                    ui.add(Label::new(format!("fps: {:}", get_fps())));
-                    ui.add(Label::new(format!(
-                        "avg: {:}",
-                        self.average_fps.round() as usize
-                    )));
-                    ui.add(Label::new(format!("{:?}", walker)));
-                    ui.add(Label::new(format!("{:?}", self.playback)));
-                    // ui.add(Label::new(format!("{:?}", editor.curr_goal)));
-                });
-
-            // store remaining space for macroquad drawing
-            self.canvas = Some(egui_ctx.available_rect());
-        });
-    }
-}
-
 struct Random {
     seed: String,
     seed_u64: u64,
@@ -177,8 +82,8 @@ struct Random {
 
 impl Random {
     fn new(seed: String, weights: Vec<i32>) -> Random {
-        // sadly WeightedAliasIndex is initialized using a Vec manually checking
-        // for the correct size. I feel like there must be a better way
+        // sadly WeightedAliasIndex is initialized using a Vec. So im manually
+        // checking for the correct size. I feel like there must be a better way
         assert_eq!(weights.len(), 4);
 
         let seed_u64 = hash(seed.as_bytes());
@@ -216,9 +121,6 @@ async fn main() {
 
     // fps control
     let minimum_frame_time = time::Duration::from_secs_f32(1. / TARGET_FPS as f32);
-
-    let _cam = Camera2D::from_display_rect(Rect::new(0.0, 0.0, screen_width(), screen_height()));
-    // set_camera(&cam);
 
     loop {
         // framerate control
@@ -262,19 +164,14 @@ async fn main() {
 
         editor.define_egui(&walker);
 
-        clear_background(WHITE);
-        let display_factor = editor
-            .get_display_factor(&map)
-            .expect("should be set after define_egui call");
-        draw_grid_blocks(&map.grid, display_factor, vec2(0.0, 0.0));
+        editor.set_cam(&map);
+        editor.handle_user_inputs(&map);
 
-        // cam = Camera2D::from_display_rect(Rect::new(
-        //     0.0,
-        //     0.0,
-        //     editor.canvas.unwrap().width(),
-        //     editor.canvas.unwrap().height(),
-        // ));
-        // set_camera(&cam);
+        clear_background(WHITE);
+
+        let display_factor = editor.get_display_factor(&map);
+
+        draw_grid_blocks(&map.grid, display_factor, vec2(0.0, 0.0));
 
         draw_walker(&walker, display_factor, vec2(0.0, 0.0));
         draw_waypoints(&walker.waypoints, display_factor);

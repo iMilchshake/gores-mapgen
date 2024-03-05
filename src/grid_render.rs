@@ -32,10 +32,10 @@ pub fn draw_grid_blocks(grid: &Array2<BlockType>, display_factor: f32, display_s
     for x in 0..width {
         for y in 0..height {
             draw_rectangle(
-                (x as f32) * display_factor + display_shift.x,
-                (y as f32) * display_factor + display_shift.y,
-                display_factor,
-                display_factor,
+                x as f32,
+                y as f32,
+                1.0,
+                1.0,
                 match grid[[x, y]] {
                     BlockType::Filled => LIME,
                     _ => DARKGRAY,
@@ -47,28 +47,23 @@ pub fn draw_grid_blocks(grid: &Array2<BlockType>, display_factor: f32, display_s
 
 pub fn draw_walker(walker: &CuteWalker, display_factor: f32, display_shift: Vec2) {
     draw_rectangle_lines(
-        (walker.pos.x as f32) * display_factor + display_shift.x,
-        (walker.pos.y as f32) * display_factor + display_shift.y,
-        display_factor,
-        display_factor,
+        walker.pos.x as f32,
+        walker.pos.y as f32,
+        1.0,
+        1.0,
         2.0,
         YELLOW,
     );
     draw_circle(
-        walker.pos.x as f32 * display_factor + (display_factor / 2.),
-        walker.pos.y as f32 * display_factor + (display_factor / 2.),
-        display_factor * 0.25,
+        walker.pos.x as f32 + 0.5,
+        walker.pos.y as f32 + 0.5,
+        0.25,
         BLUE,
     )
 }
 
 pub fn draw_waypoints(waypoints: &Vec<Position>, display_factor: f32) {
     for pos in waypoints.iter() {
-        draw_circle(
-            pos.x as f32 * display_factor + (display_factor / 2.),
-            pos.y as f32 * display_factor + (display_factor / 2.),
-            display_factor,
-            RED,
-        )
+        draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, display_factor, RED)
     }
 }

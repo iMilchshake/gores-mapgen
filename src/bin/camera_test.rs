@@ -1,6 +1,6 @@
-use macroquad::experimental::camera::mouse;
 use macroquad::math::Rect;
-use macroquad::{camera, prelude::*};
+use macroquad::prelude::*;
+use rand_distr::num_traits::{Signed, Zero};
 
 // TODO: this approach works rather well, but is has one major downside:
 // the viewport has the same aspect ratio as the map which allows
@@ -13,7 +13,7 @@ use macroquad::{camera, prelude::*};
 
 const MAP_WIDTH: f32 = 600.0;
 const MAP_HEIGHT: f32 = 600.0;
-const ZOOM_FACTOR: f32 = 0.5;
+const ZOOM_FACTOR: f32 = 0.9;
 const SHIFT_FACTOR: f32 = 0.1;
 
 struct Editor {
@@ -24,6 +24,14 @@ struct Editor {
 impl Editor {
     fn get_display_factor() -> f32 {
         f32::min(screen_width() / MAP_WIDTH, screen_height() / MAP_HEIGHT)
+    }
+
+    fn mouse_in_viewport(cam: &Camera2D) -> bool {
+        let (mouse_x, mouse_y) = mouse_position();
+        0.0 <= mouse_x
+            && mouse_x <= cam.viewport.unwrap().2 as f32
+            && 0.0 <= mouse_y
+            && mouse_y <= cam.viewport.unwrap().3 as f32
     }
 
     /// this should result in the exact same behaviour as if not using a camera at all
@@ -47,8 +55,7 @@ impl Editor {
         // so i guess this is (x, y, width, height) not two positions?
         cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
 
-        cam.target.x -= self.offset.x * (MAP_WIDTH);
-        cam.target.y -= self.offset.y * (MAP_HEIGHT);
+        cam.target -= self.offset;
         cam.zoom *= self.zoom;
 
         set_camera(&cam);
@@ -56,21 +63,15 @@ impl Editor {
         cam
     }
 
-    fn handle_user_inputs(&mut self) {
-        if is_key_pressed(KeyCode::Q) {
-            self.zoom *= ZOOM_FACTOR;
-        } else if is_key_pressed(KeyCode::E) {
-            self.zoom /= ZOOM_FACTOR;
-        } else if is_key_pressed(KeyCode::R) {
-            *self = Editor::default();
-        } else if is_key_pressed(KeyCode::A) {
-            self.offset.x += SHIFT_FACTOR;
-        } else if is_key_pressed(KeyCode::D) {
-            self.offset.x -= SHIFT_FACTOR;
-        } else if is_key_pressed(KeyCode::S) {
-            self.offset.y += SHIFT_FACTOR;
-        } else if is_key_pressed(KeyCode::W) {
-            self.offset.y -= SHIFT_FACTOR;
+    fn handle_mouse_inputs(&mut self) {
+        // handle mouse inputs
+        let mouse_wheel_y = mouse_wheel().1;
+        if !mouse_wheel_y.is_zero() {
+            if mouse_wheel_y.is_positive() {
+                self.zoom /= ZOOM_FACTOR;
+            } else {
+                self.zoom *= ZOOM_FACTOR;
+            }
         }
     }
 }
@@ -88,9 +89,33 @@ impl Default for Editor {
 async fn main() {
     let mut editor = Editor::default();
 
+    let mut last_mouse: Option<Vec2> = None;
+
     loop {
-        editor.handle_user_inputs();
+        editor.handle_mouse_inputs();
+
         let cam = Editor::set_cam(&editor);
+
+        if is_mouse_button_down(MouseButton::Left) && Editor::mouse_in_viewport(&cam) {
+            let mouse = mouse_position();
+
+            if let Some(last_mouse) = last_mouse {
+                let display_factor = Editor::get_display_factor();
+                let local_delta = Vec2::new(mouse.0, mouse.1) - last_mouse;
+                let x_view = display_factor * MAP_WIDTH;
+                let y_view = display_factor * MAP_HEIGHT;
+
+                dbg!((&mouse, &display_factor, &x_view, &y_view, &local_delta));
+
+                editor.offset += local_delta / (editor.zoom * display_factor);
+            }
+
+            last_mouse = Some(mouse.into());
+
+        // mouse pressed for first frame, reset last position
+        } else if is_mouse_button_released(MouseButton::Left) {
+            last_mouse = None;
+        }
 
         clear_background(LIGHTGRAY);
 
@@ -103,11 +128,6 @@ async fn main() {
 
         // draw target
         draw_circle(cam.target.x, cam.target.y, 2.5, ORANGE);
-
-        let mouse_pos_abs = mouse_position();
-        let mouse_viewport = cam.screen_to_world(mouse_pos_abs.into());
-
-        draw_circle_lines(mouse_viewport.x, mouse_viewport.y, 8.0, 2.0, GRAY);
 
         Editor::reset_camera();
 
@@ -124,9 +144,9 @@ async fn main() {
             BLACK,
         );
 
+        let mouse_pos_abs = mouse_position();
         draw_circle_lines(mouse_pos_abs.0, mouse_pos_abs.1, 10.0, 2.0, GRAY);
 
-        dbg!(mouse_pos_abs);
         next_frame().await
     }
 }
