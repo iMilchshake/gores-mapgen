@@ -11,7 +11,6 @@ use position::*;
 use walker::*;
 
 use macroquad::{
-    camera::set_camera,
     color::*,
     math::{vec2, Vec2},
     miniquad,
@@ -163,18 +162,15 @@ async fn main() {
         }
 
         editor.define_egui(&walker);
-
         editor.set_cam(&map);
         editor.handle_user_inputs(&map);
 
         clear_background(WHITE);
+        draw_grid_blocks(&map.grid);
+        draw_waypoints(&walker.waypoints);
+        draw_walker(&walker);
+        draw_walker_kernel(&walker);
 
-        let display_factor = editor.get_display_factor(&map);
-
-        draw_grid_blocks(&map.grid, display_factor, vec2(0.0, 0.0));
-
-        draw_walker(&walker, display_factor, vec2(0.0, 0.0));
-        draw_waypoints(&walker.waypoints, display_factor);
         egui_macroquad::draw();
 
         wait_for_next_frame(frame_start, minimum_frame_time).await;

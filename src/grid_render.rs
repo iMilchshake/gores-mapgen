@@ -1,4 +1,5 @@
-use crate::{CuteWalker, Position, Vec2};
+use crate::{CuteWalker, Kernel, Position, Vec2};
+use egui::Color32;
 use macroquad::color::*;
 use macroquad::shapes::*;
 use ndarray::Array2;
@@ -24,28 +25,22 @@ pub fn handle_mouse_inputs(_display_factor: &mut f32, _display_shift: &mut Vec2)
     } */
 }
 
-pub fn draw_grid_blocks(grid: &Array2<BlockType>, display_factor: f32, display_shift: Vec2) {
-    let width = grid.dim().0;
-    let height = grid.dim().1;
-
-    // TODO: replace this with iterator
-    for x in 0..width {
-        for y in 0..height {
-            draw_rectangle(
-                x as f32,
-                y as f32,
-                1.0,
-                1.0,
-                match grid[[x, y]] {
-                    BlockType::Filled => LIME,
-                    _ => DARKGRAY,
-                },
-            );
-        }
+pub fn draw_grid_blocks(grid: &Array2<BlockType>) {
+    for ((x, y), value) in grid.indexed_iter() {
+        draw_rectangle(
+            x as f32,
+            y as f32,
+            1.0,
+            1.0,
+            match value {
+                BlockType::Filled => LIME,
+                _ => DARKGRAY,
+            },
+        );
     }
 }
 
-pub fn draw_walker(walker: &CuteWalker, display_factor: f32, display_shift: Vec2) {
+pub fn draw_walker(walker: &CuteWalker) {
     draw_rectangle_lines(
         walker.pos.x as f32,
         walker.pos.y as f32,
@@ -62,8 +57,26 @@ pub fn draw_walker(walker: &CuteWalker, display_factor: f32, display_shift: Vec2
     )
 }
 
-pub fn draw_waypoints(waypoints: &Vec<Position>, display_factor: f32) {
+pub fn draw_walker_kernel(walker: &CuteWalker) {
+    let offset: usize = walker.kernel.size / 2; // offset of kernel wrt. position (top/left)
+
+    let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
+    for ((x, y), kernel_active) in walker.kernel.vector.indexed_iter() {
+        if *kernel_active {
+            draw_rectangle_lines(
+                (root_pos.x + x) as f32,
+                (root_pos.y + y) as f32,
+                1.0,
+                1.0,
+                0.1,
+                Color::new(0.1, 0.1, 1.0, 0.5),
+            );
+        }
+    }
+}
+
+pub fn draw_waypoints(waypoints: &Vec<Position>) {
     for pos in waypoints.iter() {
-        draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, display_factor, RED)
+        draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, 1.0, RED)
     }
 }

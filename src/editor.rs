@@ -105,6 +105,7 @@ impl Editor {
 
             egui::Window::new("DEBUG")
                 .frame(window_frame())
+                .default_open(false)
                 .show(egui_ctx, |ui| {
                     ui.add(Label::new(format!("fps: {:}", get_fps())));
                     ui.add(Label::new(format!(
@@ -113,7 +114,6 @@ impl Editor {
                     )));
                     ui.add(Label::new(format!("{:?}", walker)));
                     ui.add(Label::new(format!("{:?}", self.playback)));
-                    // ui.add(Label::new(format!("{:?}", editor.curr_goal)));
                 });
 
             // store remaining space for macroquad drawing
