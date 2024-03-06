@@ -1,4 +1,4 @@
-use crate::{get_fps, CuteWalker, Map, Vec2, TARGET_FPS};
+use crate::{get_fps, CuteWalker, Map, Vec2};
 
 use egui::{epaint::Shadow, Color32, Frame, Label, Margin};
 
@@ -13,6 +13,7 @@ use rand_distr::num_traits::Zero;
 
 const ZOOM_FACTOR: f32 = 0.9;
 const SHIFT_FACTOR: f32 = 0.1;
+const AVG_FPS_FACTOR: f32 = 0.25; // how much current fps is weighted into the rolling average
 
 fn window_frame() -> Frame {
     Frame {
@@ -66,12 +67,21 @@ impl Editor {
             playback: initial_playback,
             canvas: None,
             egui_wants_mouse: None,
-            average_fps: TARGET_FPS as f32,
+            average_fps: 0.0,
             zoom: 1.0,
             offset: Vec2::ZERO,
             cam: None,
             last_mouse: None,
         }
+    }
+
+    pub fn on_frame_start(&mut self) {
+        // framerate control
+        self.average_fps =
+            (self.average_fps * (1. - AVG_FPS_FACTOR)) + (get_fps() as f32 * AVG_FPS_FACTOR);
+
+        // this value is only valid for each frame after calling define_egui()
+        self.canvas = None;
     }
 
     pub fn get_display_factor(&self, map: &Map) -> f32 {
