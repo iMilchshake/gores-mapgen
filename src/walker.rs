@@ -1,4 +1,4 @@
-use crate::{BlockType, Kernel, Map, Position, Random};
+use crate::{Kernel, KernelType, Map, Position, Random};
 
 // this walker is indeed very cute
 #[derive(Debug)]
@@ -47,7 +47,7 @@ impl CuteWalker {
         self.steps += 1;
 
         // remove blocks using a kernel at current position
-        map.update(self, BlockType::Filled)?;
+        map.update(self, KernelType::Inner)?;
 
         Ok(())
     }
@@ -66,7 +66,11 @@ impl CuteWalker {
         self.steps += 1;
 
         // remove blocks using a kernel at current position
-        map.update(self, BlockType::Filled)?;
+        self.kernel = Kernel::new(5, 0.0);
+        map.update(self, KernelType::Outer)?;
+
+        self.kernel = Kernel::new(3, 0.0);
+        map.update(self, KernelType::Inner)?;
 
         Ok(())
     }

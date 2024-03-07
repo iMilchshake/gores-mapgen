@@ -1,21 +1,19 @@
-use crate::{get_fps, CuteWalker, Map, Vec2};
-
+use crate::{CuteWalker, Map};
 use egui::{epaint::Shadow, Color32, Frame, Label, Margin};
-
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
     is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position, mouse_wheel,
     KeyCode, MouseButton,
 };
-use macroquad::math::Rect;
+use macroquad::math::{Rect, Vec2};
+use macroquad::time::get_fps;
 use macroquad::window::{screen_height, screen_width};
 use rand_distr::num_traits::Zero;
 
 const ZOOM_FACTOR: f32 = 0.9;
-const SHIFT_FACTOR: f32 = 0.1;
 const AVG_FPS_FACTOR: f32 = 0.25; // how much current fps is weighted into the rolling average
 
-fn window_frame() -> Frame {
+pub fn window_frame() -> Frame {
     Frame {
         fill: Color32::from_gray(0),
         inner_margin: Margin::same(5.0),
@@ -53,7 +51,7 @@ impl EditorPlayback {
 pub struct Editor {
     pub playback: EditorPlayback,
     pub canvas: Option<egui::Rect>,
-    egui_wants_mouse: Option<bool>,
+    pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
     zoom: f32,
     offset: Vec2,

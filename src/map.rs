@@ -1,7 +1,19 @@
-use crate::BlockType;
+use crate::draw_grid_blocks;
 use crate::CuteWalker;
 use crate::Position;
 use ndarray::Array2;
+
+#[derive(Debug, Clone, Copy)]
+pub enum BlockType {
+    Empty,
+    Hookable,
+    Freeze,
+}
+
+pub enum KernelType {
+    Outer,
+    Inner,
+}
 
 #[derive(Debug)]
 pub struct Map {
@@ -58,7 +70,11 @@ impl Map {
         }
     }
 
-    pub fn update(&mut self, walker: &CuteWalker, value: BlockType) -> Result<(), &'static str> {
+    pub fn update(
+        &mut self,
+        walker: &CuteWalker,
+        kernel_type: KernelType,
+    ) -> Result<(), &'static str> {
         let offset: usize = walker.kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = walker.kernel.size - offset; // how much kernel extends position (bot/right)
 
@@ -72,9 +88,20 @@ impl Map {
         }
 
         let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
-        for ((x, y), kernel_active) in walker.kernel.vector.indexed_iter() {
+        for ((kernel_x, kernel_y), kernel_active) in walker.kernel.vector.indexed_iter() {
+            let absolute_pos = Position::new(root_pos.x + kernel_x, root_pos.y + kernel_y);
             if *kernel_active {
-                self.grid[[root_pos.x + x, root_pos.y + y]] = value;
+                let current_type = self.grid[absolute_pos.as_index()];
+                let new_type = match (&kernel_type, current_type) {
+                    // inner kernel removes everything
+                    (KernelType::Inner, _) => BlockType::Empty,
+
+                    // outer kernel will turn hookables to freeze
+                    (KernelType::Outer, BlockType::Hookable) => BlockType::Freeze,
+                    (KernelType::Outer, BlockType::Freeze) => BlockType::Freeze,
+                    (KernelType::Outer, BlockType::Empty) => BlockType::Empty,
+                };
+                self.grid[absolute_pos.as_index()] = new_type;
             }
         }
 

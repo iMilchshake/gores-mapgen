@@ -6,6 +6,10 @@ edition = "2021"
 [[bin]]
 name = "camera_test"
 
+[[bin]]
+name = "kernel_test"
+path = "src/kernel_test.rs"
+
 [dependencies]
 egui-macroquad = "0.15.0"
 egui = "0.21.0"
@@ -20,7 +24,7 @@ rand_distr = "0.4.3"
 [profile.dev]
 opt-level = 1
 
-# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+# Enable high optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
 

@@ -1,29 +1,7 @@
-use crate::{CuteWalker, Kernel, Position, Vec2};
-use egui::Color32;
+use crate::{BlockType, CuteWalker, Position};
 use macroquad::color::*;
 use macroquad::shapes::*;
 use ndarray::Array2;
-
-#[derive(Debug, Clone, Copy)]
-pub enum BlockType {
-    Empty,
-    Filled,
-}
-
-pub fn handle_mouse_inputs(_display_factor: &mut f32, _display_shift: &mut Vec2) {
-    /* let mouse_wheel_y = mouse_wheel().1;
-
-    if mouse_wheel_y > 0.0 {
-        *display_factor *= ZOOM_FACTOR;
-    } else if mouse_wheel_y < 0.0 {
-        *display_factor /= ZOOM_FACTOR;
-    }
-
-    let mouse_delta = mouse_delta_position();
-    if is_mouse_button_down(MouseButton::Left) {
-        *display_shift -= mouse_delta.mul(SHIFT_FACTOR);
-    } */
-}
 
 pub fn draw_grid_blocks(grid: &Array2<BlockType>) {
     for ((x, y), value) in grid.indexed_iter() {
@@ -33,8 +11,9 @@ pub fn draw_grid_blocks(grid: &Array2<BlockType>) {
             1.0,
             1.0,
             match value {
-                BlockType::Filled => LIME,
-                _ => DARKGRAY,
+                BlockType::Hookable => BROWN,
+                BlockType::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
+                _ => Color::new(0.0, 0.0, 0.0, 0.1),
             },
         );
     }
@@ -68,7 +47,7 @@ pub fn draw_walker_kernel(walker: &CuteWalker) {
                 (root_pos.y + y) as f32,
                 1.0,
                 1.0,
-                0.1,
+                0.05,
                 Color::new(0.1, 0.1, 1.0, 0.5),
             );
         }

@@ -102,11 +102,6 @@ async fn main() {
             if let Some(last_mouse) = last_mouse {
                 let display_factor = Editor::get_display_factor();
                 let local_delta = Vec2::new(mouse.0, mouse.1) - last_mouse;
-                let x_view = display_factor * MAP_WIDTH;
-                let y_view = display_factor * MAP_HEIGHT;
-
-                dbg!((&mouse, &display_factor, &x_view, &y_view, &local_delta));
-
                 editor.offset += local_delta / (editor.zoom * display_factor);
             }
 

@@ -1,6 +1,6 @@
-use std::{usize};
+use std::usize;
 
-use crate::{Map, ShiftDirection};
+use crate::Map;
 
 // using my own position vector to meet ndarray's indexing standard using usize
 //
@@ -10,6 +10,14 @@ use crate::{Map, ShiftDirection};
 pub struct Position {
     pub x: usize,
     pub y: usize,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ShiftDirection {
+    Up,
+    Right,
+    Down,
+    Left,
 }
 
 impl Position {
