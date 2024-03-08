@@ -35,4 +35,8 @@ impl Random {
         let index = self.weighted_dist.sample(&mut self.gen);
         *shifts.get(index).expect("out of bounds")
     }
+
+    pub fn with_probability(&mut self, probability: f32) -> bool {
+        self.gen.gen_bool(probability.into())
+    }
 }

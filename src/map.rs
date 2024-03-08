@@ -25,16 +25,19 @@ pub struct Map {
 #[derive(Debug)]
 pub struct Kernel {
     pub size: usize,
-    pub circularity: f32,
+    pub radius: f32,
     pub vector: Array2<bool>,
 }
 
+// TODO: getting max_radius or the kernel_vector involves sqrt()'s. In the future i should at least
+// replace the comparison in get_kernel() with squared radii.
+
 impl Kernel {
-    pub fn new(size: usize, circularity: f32) -> Kernel {
+    pub fn new(size: usize, radius: f32) -> Kernel {
         Kernel {
             size,
-            circularity,
-            vector: Kernel::get_kernel_vector(size, circularity),
+            radius,
+            vector: Kernel::get_kernel_vector(size, radius),
         }
     }
 
@@ -42,37 +45,40 @@ impl Kernel {
         (size - 1) as f32 / 2.0
     }
 
-    pub fn get_kernel_radius(size: usize, circularity: f32) -> f32 {
+    pub fn get_valid_radius_bounds(size: usize) -> (f32, f32) {
         let center = Kernel::get_kernel_center(size);
-
-        // calculate radii based on the size and circularity
         let min_radius = (size - 1) as f32 / 2.0; // min radius is from center to border
         let max_radius = f32::sqrt(center * center + center * center); // max radius is from center to corner
-        let radius = circularity * min_radius + (1.0 - circularity) * max_radius;
 
-        radius
+        (min_radius, max_radius)
     }
 
-    pub fn get_min_circularity(size: usize, radius_limit: f32) -> f32 {
-        let center = Kernel::get_kernel_center(size);
+    pub fn is_valid_radius(size: usize, radius: f32) -> bool {
+        let (min_radius, max_radius) = Kernel::get_valid_radius_bounds(size);
+        let is_valid = min_radius <= radius && radius <= max_radius;
 
-        let min_radius = (size - 1) as f32 / 2.0;
-        let max_radius = f32::sqrt(center * center + center * center);
-
-        let actual_max_radius = f32::min(max_radius, radius_limit); // get LOWER bound
-
-        // calculate circularity which results in actual max radius by linear combination of min
-        // and max radius
-        // a=xb+(1-x)c => x = (a-c)/(b-c)
-
-        let min_circularity = (actual_max_radius - max_radius) / (min_radius - max_radius);
-
-        min_circularity
+        is_valid
     }
 
-    fn get_kernel_vector(size: usize, circularity: f32) -> Array2<bool> {
+    // pub fn get_min_circularity(size: usize, radius_limit: f32) -> f32 {
+    //     let center = Kernel::get_kernel_center(size);
+    //
+    //     let min_radius = (size - 1) as f32 / 2.0;
+    //     let max_radius = f32::sqrt(center * center + center * center);
+    //
+    //     let actual_max_radius = f32::min(max_radius, radius_limit); // get LOWER bound
+    //
+    //     // calculate circularity which results in actual max radius by linear combination of min
+    //     // and max radius
+    //     // a=xb+(1-x)c => x = (a-c)/(b-c)
+    //
+    //     let min_circularity = (actual_max_radius - max_radius) / (min_radius - max_radius);
+    //
+    //     min_circularity
+    // }
+
+    fn get_kernel_vector(size: usize, radius: f32) -> Array2<bool> {
         let center = Kernel::get_kernel_center(size);
-        let radius = Kernel::get_kernel_radius(size, circularity);
 
         let mut kernel = Array2::from_elem((size, size), false);
         for ((x, y), value) in kernel.indexed_iter_mut() {
@@ -80,7 +86,6 @@ impl Kernel {
                 (x as f32 - center) * (x as f32 - center)
                     + (y as f32 - center) * (y as f32 - center),
             );
-            // TODO: i should be able to compare squared distances here for performance..
             if distance <= radius {
                 *value = true;
             }

@@ -22,10 +22,25 @@ pub fn define_egui(editor: &mut Editor, state: &mut State) {
             .show(egui_ctx, |ui| {
                 ui.add(Label::new(format!("TEST")));
 
+                let inner_radius_bounds = Kernel::get_valid_radius_bounds(state.inner_size);
+                let outer_radius_bounds = Kernel::get_valid_radius_bounds(state.outer_size);
+
                 ui.add(egui::Slider::new(&mut state.inner_size, 1..=19).text("inner_size"));
-                ui.add(egui::Slider::new(&mut state.inner_circ, 0.0..=1.0).text("inner_circ"));
+                ui.add(
+                    egui::Slider::new(
+                        &mut state.inner_radius,
+                        inner_radius_bounds.0..=inner_radius_bounds.1,
+                    )
+                    .text("inner_radius"),
+                );
                 ui.add(egui::Slider::new(&mut state.outer_size, 1..=19).text("outer_size"));
-                ui.add(egui::Slider::new(&mut state.outer_circ, 0.0..=1.0).text("outer_circ"));
+                ui.add(
+                    egui::Slider::new(
+                        &mut state.outer_radius,
+                        outer_radius_bounds.0..=outer_radius_bounds.1,
+                    )
+                    .text("outer_radius"),
+                );
             });
 
         // store remaining space for macroquad drawing
@@ -35,9 +50,9 @@ pub fn define_egui(editor: &mut Editor, state: &mut State) {
 }
 
 struct State {
-    inner_circ: f32,
+    inner_radius: f32,
     inner_size: usize,
-    outer_circ: f32,
+    outer_radius: f32,
     outer_size: usize,
 }
 
@@ -60,13 +75,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     }
 
     let size = walker.kernel.size;
-    let circularity = walker.kernel.circularity;
-
-    let center = (size - 1) as f32 / 2.0;
-    let min_radius = (size - 1) as f32 / 2.0; // min radius is from center to border
-    let max_radius = f32::sqrt(center * center + center * center); // max radius is from center to corner
-
-    let radius = circularity * min_radius + (1.0 - circularity) * max_radius;
+    let radius = walker.kernel.radius;
 
     dbg!((&flag, radius));
 
@@ -127,9 +136,9 @@ async fn main() {
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
-        inner_circ: 0.0,
+        inner_radius: Kernel::get_valid_radius_bounds(3).0,
         inner_size: 3,
-        outer_circ: 0.0,
+        outer_radius: Kernel::get_valid_radius_bounds(5).1,
         outer_size: 5,
     };
 
@@ -145,18 +154,13 @@ async fn main() {
         clear_background(GRAY);
         draw_walker(&walker);
 
-        walker.kernel = Kernel::new(state.outer_size, state.outer_circ);
+        walker.kernel = Kernel::new(state.outer_size, state.outer_radius);
         draw_thingy(&walker, false);
 
-        let outer_radius = Kernel::get_kernel_radius(state.outer_size, state.outer_circ);
-        let min_inner_circ = Kernel::get_min_circularity(state.inner_size, outer_radius - SQRT_2);
-        dbg!((&outer_radius, &min_inner_circ));
-
-        if 0.0 <= min_inner_circ && min_inner_circ <= 1.0 {
-            state.inner_circ = min_inner_circ;
+        if (state.outer_radius - state.inner_radius) < SQRT_2 {
+            state.inner_radius = state.outer_radius - SQRT_2;
         }
-
-        walker.kernel = Kernel::new(state.inner_size, state.inner_circ);
+        walker.kernel = Kernel::new(state.inner_size, state.inner_radius);
         draw_thingy(&walker, true);
 
         egui_macroquad::draw();
