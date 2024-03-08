@@ -5,6 +5,8 @@ mod map;
 mod position;
 mod random;
 mod walker;
+use std::f32::consts::SQRT_2;
+
 use crate::{editor::*, fps_control::*, grid_render::*, map::*, position::*, random::*, walker::*};
 
 use egui::Label;
@@ -59,9 +61,11 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
 
     let size = walker.kernel.size;
     let circularity = walker.kernel.circularity;
+
     let center = (size - 1) as f32 / 2.0;
     let min_radius = (size - 1) as f32 / 2.0; // min radius is from center to border
     let max_radius = f32::sqrt(center * center + center * center); // max radius is from center to corner
+
     let radius = circularity * min_radius + (1.0 - circularity) * max_radius;
 
     dbg!((&flag, radius));
@@ -141,11 +145,19 @@ async fn main() {
         clear_background(GRAY);
         draw_walker(&walker);
 
-        walker.kernel = Kernel::new(state.inner_size, state.inner_circ);
-        draw_thingy(&walker, true);
-
         walker.kernel = Kernel::new(state.outer_size, state.outer_circ);
         draw_thingy(&walker, false);
+
+        let outer_radius = Kernel::get_kernel_radius(state.outer_size, state.outer_circ);
+        let min_inner_circ = Kernel::get_min_circularity(state.inner_size, outer_radius - SQRT_2);
+        dbg!((&outer_radius, &min_inner_circ));
+
+        if 0.0 <= min_inner_circ && min_inner_circ <= 1.0 {
+            state.inner_circ = min_inner_circ;
+        }
+
+        walker.kernel = Kernel::new(state.inner_size, state.inner_circ);
+        draw_thingy(&walker, true);
 
         egui_macroquad::draw();
         fps_ctrl.wait_for_next_frame().await;
