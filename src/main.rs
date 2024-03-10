@@ -34,7 +34,7 @@ async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
 
     let mut map = Map::new(300, 300, BlockType::Hookable);
-    let kernel = Kernel::new(8, 0.9);
+    let kernel = Kernel::new(8, Position::new(0, 0));
     let waypoints: Vec<Position> = vec![
         Position::new(250, 50),
         Position::new(250, 250),

@@ -6,16 +6,12 @@ mod position;
 mod random;
 mod walker;
 
-use std::f64::consts::SQRT_2;
-
 use crate::{editor::*, fps_control::*, grid_render::*, map::*, position::*, random::*, walker::*};
 
-use egui::emath::Numeric;
-use egui::{Label, Response};
+use egui::Label;
 use macroquad::color::*;
 use macroquad::shapes::*;
 use macroquad::window::clear_background;
-use rand_distr::num_traits::ToPrimitive;
 
 pub fn define_egui(editor: &mut Editor, state: &mut State) {
     // define egui
@@ -25,24 +21,16 @@ pub fn define_egui(editor: &mut Editor, state: &mut State) {
             .show(egui_ctx, |ui| {
                 ui.add(Label::new(format!("TEST")));
 
-                let inner_radius_bounds = Kernel::get_valid_radius_bounds(state.inner_size);
                 let outer_radius_bounds = Kernel::get_valid_radius_bounds(state.outer_size);
 
-                ui.add(egui::Slider::new(&mut state.inner_size, 1..=19).text("inner_size"));
-                ui.add(
-                    egui::Slider::new(
-                        &mut state.inner_radius_sqr,
-                        inner_radius_bounds.0..=inner_radius_bounds.1,
-                    )
-                    .text("inner_radius_sqr"),
-                );
                 ui.add(egui::Slider::new(&mut state.outer_size, 1..=19).text("outer_size"));
                 ui.add(
-                    egui::Slider::new(
-                        &mut state.outer_radius_sqr,
-                        outer_radius_bounds.0..=outer_radius_bounds.1,
-                    )
-                    .text("outer_radius_sqr"),
+                    egui::Slider::new(&mut state.outer_max_pos.x, 0..=(state.outer_size - 1 / 2))
+                        .text("outer pos x"),
+                );
+                ui.add(
+                    egui::Slider::new(&mut state.outer_max_pos.y, 0..=(state.outer_size - 1 / 2))
+                        .text("outer pos y"),
                 );
             });
 
@@ -54,10 +42,9 @@ pub fn define_egui(editor: &mut Editor, state: &mut State) {
 
 #[derive(Debug)]
 struct State {
-    inner_radius_sqr: usize,
-    inner_size: usize,
-    outer_radius_sqr: usize,
+    // outer_radius_sqr: usize,
     outer_size: usize,
+    outer_max_pos: Position,
 }
 
 fn draw_thingy(walker: &CuteWalker, flag: bool) {
@@ -79,7 +66,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     }
 
     let size = walker.kernel.size;
-    let radius_sqr = walker.kernel.radius_sqr;
+    let radius_sqr = walker.kernel.max_distance_sqr;
 
     // very crappy hotfix to deal with different center whether size is even or not
     let offset = match size % 2 == 0 {
@@ -144,15 +131,13 @@ async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
     let map = Map::new(20, 20, BlockType::Hookable);
 
-    let kernel = Kernel::new(3, 1);
+    let kernel = Kernel::new(3, Position::new(2, 1));
     let mut walker = CuteWalker::new(Position::new(10, 10), vec![Position::new(15, 15)], kernel);
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
-        inner_radius_sqr: Kernel::get_valid_radius_bounds(3).0,
-        inner_size: 3,
-        outer_radius_sqr: Kernel::get_valid_radius_bounds(5).1,
         outer_size: 5,
+        outer_max_pos: Position::new(2, 1),
     };
 
     loop {
@@ -167,13 +152,13 @@ async fn main() {
         clear_background(GRAY);
         draw_walker(&walker);
 
-        walker.kernel = Kernel::new(state.outer_size, state.outer_radius_sqr);
+        walker.kernel = Kernel::new(state.outer_size, state.outer_max_pos.clone());
         draw_thingy(&walker, false);
 
-        let weird_factor: f64 = 2.0 * SQRT_2 * state.outer_radius_sqr.to_f64().sqrt();
-        let max_inner_radius_sqr: f64 = state.outer_radius_sqr.to_f64() - weird_factor + 2.0;
+        // let weird_factor: f64 = 2.0 * SQRT_2 * state.outer_radius_sqr.to_f64().sqrt();
+        // let max_inner_radius_sqr: f64 = state.outer_radius_sqr.to_f64() - weird_factor + 2.0;
         // as this is based on a less or equal equation we can round down to the next integer,
-        let valid_inner_radius_sqr: usize = (max_inner_radius_sqr).round().to_usize().unwrap();
+        // let valid_inner_radius_sqr: usize = (max_inner_radius_sqr).round().to_usize().unwrap();
 
         // NOTE: it seems to work with a crappy fix like this using +0.2 ... this is the case
         // because an extra distance of sqrt(2) is required in the "worst case" if the
@@ -210,22 +195,12 @@ async fn main() {
         // trivial way. This would be nice when changing the size of the kernel, but wanting that
         // it remains a similar shape.
 
-        if state.inner_radius_sqr as f64 > max_inner_radius_sqr {
-            state.inner_radius_sqr = valid_inner_radius_sqr;
-        }
+        let valid_inner_max_pos =
+            Position::new(state.outer_max_pos.x - 1, state.outer_max_pos.y - 1);
 
-        walker.kernel = Kernel::new(state.inner_size, state.inner_radius_sqr);
+        walker.kernel = Kernel::new(state.outer_size - 2, valid_inner_max_pos);
 
-        let valid_radii_sqr = Kernel::get_unique_radii_sqr(state.inner_size);
-
-        dbg!((
-            &weird_factor,
-            &max_inner_radius_sqr,
-            &valid_inner_radius_sqr,
-            &state,
-            &walker.kernel,
-            &valid_radii_sqr
-        ));
+        dbg!((&state, &walker.kernel));
         draw_thingy(&walker, true);
 
         egui_macroquad::draw();
