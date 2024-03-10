@@ -1,7 +1,9 @@
+use crate::draw_grid_blocks;
 use crate::CuteWalker;
 use crate::Position;
 use itertools::Itertools;
 use ndarray::Array2;
+use rand_distr::num_traits::Pow;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BlockType {
@@ -25,23 +27,22 @@ pub struct Map {
 #[derive(Debug)]
 pub struct Kernel {
     pub size: usize,
-    pub limiting_offset: Position,
-    pub max_distance_sqr: usize,
+    pub radius_sqr: usize,
     pub vector: Array2<bool>,
+    pub max_distance_sqr: usize,
 }
 
 // TODO: getting max_radius or the kernel_vector involves sqrt()'s. In the future i should at least
 // replace the comparison in get_kernel() with squared radii.
 
 impl Kernel {
-    pub fn new(size: usize, limiting_offset: Position) -> Kernel {
-        let max_distance_sqr = &limiting_offset.x.pow(2) + &limiting_offset.y.pow(2);
-        let vector = Kernel::get_kernel_vector(size, limiting_offset.clone(), max_distance_sqr);
+    pub fn new(size: usize, radius_sqr: usize) -> Kernel {
+        let (vector, max_distance_sqr) = Kernel::get_kernel_vector(size, radius_sqr);
         Kernel {
             size,
-            limiting_offset,
-            max_distance_sqr,
+            radius_sqr,
             vector,
+            max_distance_sqr,
         }
     }
 
@@ -54,8 +55,6 @@ impl Kernel {
         let center = Kernel::get_kernel_center(size);
 
         let min_radius = ((size - 1) / 2).pow(2); // min radius is from center to border
-
-        // TODO: 2*center.pow(2) ?
         let max_radius = center * center + center * center; // max radius is from center to corner
 
         (min_radius, max_radius)
@@ -68,23 +67,42 @@ impl Kernel {
         is_valid
     }
 
-    /// TODO: this could also be further optimized by using the kernels symmetry
-    fn get_kernel_vector(
-        size: usize,
-        limiting_offset: Position,
-        max_distance_sqr: usize,
-    ) -> Array2<bool> {
-        let center = Kernel::get_kernel_center(size);
-        let mut kernel = Array2::from_elem((size, size), false);
+    // pub fn get_min_circularity(size: usize, radius_limit: f32) -> f32 {
+    //     let center = Kernel::get_kernel_center(size);
+    //
+    //     let min_radius = (size - 1) as f32 / 2.0;
+    //     let max_radius = f32::sqrt(center * center + center * center);
+    //
+    //     let actual_max_radius = f32::min(max_radius, radius_limit); // get LOWER bound
+    //
+    //     // calculate circularity which results in actual max radius by linear combination of min
+    //     // and max radius
+    //     // a=xb+(1-x)c => x = (a-c)/(b-c)
+    //
+    //     let min_circularity = (actual_max_radius - max_radius) / (min_radius - max_radius);
+    //
+    //     min_circularity
+    // }
 
+    /// TODO: this could also be further optimized by using the kernels symmetry
+    fn get_kernel_vector(size: usize, radius_sqr: usize) -> (Array2<bool>, usize) {
+        let center = Kernel::get_kernel_center(size);
+        let mut max_distance_sqr = 0;
+        dbg!(&center);
+
+        let mut kernel = Array2::from_elem((size, size), false);
         for ((x, y), value) in kernel.indexed_iter_mut() {
             let distance = x.abs_diff(center).pow(2) + y.abs_diff(center).pow(2);
-            if distance <= max_distance_sqr {
+            if distance <= radius_sqr {
                 *value = true;
+
+                if distance >= max_distance_sqr {
+                    max_distance_sqr = distance;
+                }
             }
         }
 
-        kernel
+        (kernel, max_distance_sqr)
     }
 
     /// iterate over all possible distances from center to valid positions within the kernel bounds
