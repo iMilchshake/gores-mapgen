@@ -1,7 +1,9 @@
 use crate::draw_grid_blocks;
 use crate::CuteWalker;
 use crate::Position;
+use itertools::Itertools;
 use ndarray::Array2;
+use rand_distr::num_traits::Pow;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BlockType {
@@ -25,37 +27,42 @@ pub struct Map {
 #[derive(Debug)]
 pub struct Kernel {
     pub size: usize,
-    pub radius: f32,
+    pub radius_sqr: usize,
     pub vector: Array2<bool>,
+    pub max_distance_sqr: usize,
 }
 
 // TODO: getting max_radius or the kernel_vector involves sqrt()'s. In the future i should at least
 // replace the comparison in get_kernel() with squared radii.
 
 impl Kernel {
-    pub fn new(size: usize, radius: f32) -> Kernel {
+    pub fn new(size: usize, radius_sqr: usize) -> Kernel {
+        let (vector, max_distance_sqr) = Kernel::get_kernel_vector(size, radius_sqr);
         Kernel {
             size,
-            radius,
-            vector: Kernel::get_kernel_vector(size, radius),
+            radius_sqr,
+            vector,
+            max_distance_sqr,
         }
     }
 
-    fn get_kernel_center(size: usize) -> f32 {
-        (size - 1) as f32 / 2.0
+    fn get_kernel_center(size: usize) -> usize {
+        (size - 1) / 2
     }
 
-    pub fn get_valid_radius_bounds(size: usize) -> (f32, f32) {
+    pub fn get_valid_radius_bounds(size: usize) -> (usize, usize) {
+        // TODO: center and min_radius are actually the same value
         let center = Kernel::get_kernel_center(size);
-        let min_radius = (size - 1) as f32 / 2.0; // min radius is from center to border
-        let max_radius = f32::sqrt(center * center + center * center); // max radius is from center to corner
+
+        let min_radius = ((size - 1) / 2).pow(2); // min radius is from center to border
+        let max_radius = center * center + center * center; // max radius is from center to corner
 
         (min_radius, max_radius)
     }
 
-    pub fn is_valid_radius(size: usize, radius: f32) -> bool {
+    pub fn is_valid_radius(size: usize, radius_sqr: usize) -> bool {
         let (min_radius, max_radius) = Kernel::get_valid_radius_bounds(size);
-        let is_valid = min_radius <= radius && radius <= max_radius;
+        let is_valid = min_radius <= radius_sqr && radius_sqr <= max_radius;
 
         is_valid
     }
@@ -77,21 +84,53 @@ impl Kernel {
     //     min_circularity
     // }
 
-    fn get_kernel_vector(size: usize, radius: f32) -> Array2<bool> {
+    /// TODO: this could also be further optimized by using the kernels symmetry
+    fn get_kernel_vector(size: usize, radius_sqr: usize) -> (Array2<bool>, usize) {
         let center = Kernel::get_kernel_center(size);
+        let mut max_distance_sqr = 0;
+        dbg!(&center);
 
         let mut kernel = Array2::from_elem((size, size), false);
         for ((x, y), value) in kernel.indexed_iter_mut() {
-            let distance = f32::sqrt(
-                (x as f32 - center) * (x as f32 - center)
-                    + (y as f32 - center) * (y as f32 - center),
-            );
-            if distance <= radius {
+            let distance = x.abs_diff(center).pow(2) + y.abs_diff(center).pow(2);
+            if distance <= radius_sqr {
                 *value = true;
+
+                if distance >= max_distance_sqr {
+                    max_distance_sqr = distance;
+                }
             }
         }
 
-        kernel
+        (kernel, max_distance_sqr)
+    }
+
+    /// iterate over all possible distances from center to valid positions within the kernel bounds
+    /// to get all possible squared radii. This returns a Vec of all possible squared radii that
+    /// limit at least one possible location in the kernel, so each results in a unique kernel
+    pub fn get_unique_radii_sqr(size: usize) -> Vec<usize> {
+        let mut valid_sqr_distances: Vec<usize> = Vec::new();
+        let center = Kernel::get_kernel_center(size);
+        let max_offset = size - center - 1;
+        let min_radius_sqr = Kernel::get_valid_radius_bounds(size).0;
+
+        for x in 0..=max_offset {
+            // due to symmetry only look at values >= x
+            for y in x..=max_offset {
+                let distance_sqr = x * x + y * y;
+
+                // ensure that each radius is only added once
+                if distance_sqr >= min_radius_sqr
+                    && !valid_sqr_distances.iter().contains(&distance_sqr)
+                {
+                    valid_sqr_distances.push(distance_sqr);
+                }
+            }
+        }
+
+        dbg!((&center, &max_offset, &min_radius_sqr, &valid_sqr_distances));
+
+        valid_sqr_distances
     }
 }
 

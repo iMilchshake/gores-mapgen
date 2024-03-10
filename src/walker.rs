@@ -66,10 +66,10 @@ impl CuteWalker {
         self.steps += 1;
 
         // remove blocks using a kernel at current position
-        self.kernel = Kernel::new(5, 0.0);
+        self.kernel = Kernel::new(5, 1);
         map.update(self, KernelType::Outer)?;
 
-        self.kernel = Kernel::new(3, 0.0);
+        self.kernel = Kernel::new(3, 2);
         map.update(self, KernelType::Inner)?;
 
         Ok(())

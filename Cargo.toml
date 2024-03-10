@@ -19,6 +19,7 @@ ndarray = "0.15.6"
 rand = {version="0.8.5", features=['small_rng']}
 seahash = "4.1.0"
 rand_distr = "0.4.3"
+itertools = "0.12.1"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

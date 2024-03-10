@@ -5,14 +5,17 @@ mod map;
 mod position;
 mod random;
 mod walker;
-use std::f32::consts::SQRT_2;
+
+use std::f64::consts::SQRT_2;
 
 use crate::{editor::*, fps_control::*, grid_render::*, map::*, position::*, random::*, walker::*};
 
-use egui::Label;
+use egui::emath::Numeric;
+use egui::{Label, Response};
 use macroquad::color::*;
 use macroquad::shapes::*;
 use macroquad::window::clear_background;
+use rand_distr::num_traits::ToPrimitive;
 
 pub fn define_egui(editor: &mut Editor, state: &mut State) {
     // define egui
@@ -28,18 +31,18 @@ pub fn define_egui(editor: &mut Editor, state: &mut State) {
                 ui.add(egui::Slider::new(&mut state.inner_size, 1..=19).text("inner_size"));
                 ui.add(
                     egui::Slider::new(
-                        &mut state.inner_radius,
+                        &mut state.inner_radius_sqr,
                         inner_radius_bounds.0..=inner_radius_bounds.1,
                     )
-                    .text("inner_radius"),
+                    .text("inner_radius_sqr"),
                 );
                 ui.add(egui::Slider::new(&mut state.outer_size, 1..=19).text("outer_size"));
                 ui.add(
                     egui::Slider::new(
-                        &mut state.outer_radius,
+                        &mut state.outer_radius_sqr,
                         outer_radius_bounds.0..=outer_radius_bounds.1,
                     )
-                    .text("outer_radius"),
+                    .text("outer_radius_sqr"),
                 );
             });
 
@@ -49,10 +52,11 @@ pub fn define_egui(editor: &mut Editor, state: &mut State) {
     });
 }
 
+#[derive(Debug)]
 struct State {
-    inner_radius: f32,
+    inner_radius_sqr: usize,
     inner_size: usize,
-    outer_radius: f32,
+    outer_radius_sqr: usize,
     outer_size: usize,
 }
 
@@ -75,9 +79,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     }
 
     let size = walker.kernel.size;
-    let radius = walker.kernel.radius;
-
-    dbg!((&flag, radius));
+    let radius_sqr = walker.kernel.radius_sqr;
 
     // very crappy hotfix to deal with different center whether size is even or not
     let offset = match size % 2 == 0 {
@@ -88,8 +90,19 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     draw_circle_lines(
         (walker.pos.x) as f32 + offset,
         (walker.pos.y) as f32 + offset,
-        radius,
+        (radius_sqr as f32).sqrt(),
         0.05,
+        match flag {
+            true => GREEN,
+            false => RED,
+        },
+    );
+
+    draw_circle_lines(
+        (walker.pos.x) as f32 + offset,
+        (walker.pos.y) as f32 + offset,
+        radius_sqr as f32,
+        0.025,
         match flag {
             true => GREEN,
             false => RED,
@@ -131,14 +144,14 @@ async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
     let map = Map::new(20, 20, BlockType::Hookable);
 
-    let kernel = Kernel::new(3, 0.0);
+    let kernel = Kernel::new(3, 1);
     let mut walker = CuteWalker::new(Position::new(10, 10), vec![Position::new(15, 15)], kernel);
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
-        inner_radius: Kernel::get_valid_radius_bounds(3).0,
+        inner_radius_sqr: Kernel::get_valid_radius_bounds(3).0,
         inner_size: 3,
-        outer_radius: Kernel::get_valid_radius_bounds(5).1,
+        outer_radius_sqr: Kernel::get_valid_radius_bounds(5).1,
         outer_size: 5,
     };
 
@@ -154,13 +167,65 @@ async fn main() {
         clear_background(GRAY);
         draw_walker(&walker);
 
-        walker.kernel = Kernel::new(state.outer_size, state.outer_radius);
+        walker.kernel = Kernel::new(state.outer_size, state.outer_radius_sqr);
         draw_thingy(&walker, false);
 
-        if (state.outer_radius - state.inner_radius) < SQRT_2 {
-            state.inner_radius = state.outer_radius - SQRT_2;
+        let weird_factor: f64 = 2.0 * SQRT_2 * state.outer_radius_sqr.to_f64().sqrt();
+        let max_inner_radius_sqr: f64 = state.outer_radius_sqr.to_f64() - weird_factor + 2.0;
+        // as this is based on a less or equal equation we can round down to the next integer,
+        let valid_inner_radius_sqr: usize = (max_inner_radius_sqr).round().to_usize().unwrap();
+
+        // NOTE: it seems to work with a crappy fix like this using +0.2 ... this is the case
+        // because an extra distance of sqrt(2) is required in the "worst case" if the
+        // "most outward" blocks are exactly on the limiting radius (e.g. max radius). Then, The full
+        // sqrt(2) are required, in other cases less is okay. Therefore the sqrt(2) assumption
+        // might not be that useful? What other possible ways could there be to validate if outer
+        // kernel has at least "one padding" around the inner kernel?
+
+        // TODO: idea: dont do radius+sqrt(2), but radius-unused+sqrt(2), where unused is the
+        // amount of the radius that is not required for active blocks. This means i need to
+        // somehow get the "actual limiting radius"
+
+        // NOTE: okay jesus christ im  going insane. it turns out that this entire approach is
+        // faulty to begin with. When only using kernel-radii that are exactly limiting the most
+        // outter blocks, i expected the remaining margin to be sqrt(2) (see get_unique_radii_sqr).
+        // But, it turns out that this is not correct. Imagine 3x3 - 4x4. Then yes. but imagine
+        // 2x3 - 3x4, then yes the difference vector is (1,1) which has a distance of sqrt(2). But
+        // if you draw the whole thing using vectors you'll see that the distance between the radii
+        // and the limited blocks is only both equal to sqrt(2) if the vectors for the limiting
+        // are overlapping. I tried to think about doing funky calculations using angles, but the
+        // inner circle is not known and therefore the angle is also not known.
+        // Instead i came up with a completly new Kernel representation, which would make this
+        // entire calculation obsolete. Instead of defining some circularity/radius i could define
+        // the 'limiting block' (x, y), which would also implicitly define a radius. I also should ensure
+        // that x and y are positive. Then, i could simply reduce -1 from both and have the 'one
+        // smaller but valid' kernel! It might also make sense to have some x>=y constraint because
+        // otherwise (3,2) and (2,3) would result in the same kernel.
+        // This idea could also have some problems that im currently not noticing :D
+        // (x,y) are actually the offset to the center, so the largest possible value resulting in
+        // a square kernel would be (size - center - 1, size - center - 1) and the smallest possible value
+        // would be (0, size - center - 1), which should result in fully circular kernel.
+        // the only downside i can think of is that, while i can calculate a circularity (0 - 1)
+        // based on these informations, i cant generate a kernel based on some circularity in some
+        // trivial way. This would be nice when changing the size of the kernel, but wanting that
+        // it remains a similar shape.
+
+        if state.inner_radius_sqr as f64 > max_inner_radius_sqr {
+            state.inner_radius_sqr = valid_inner_radius_sqr;
         }
-        walker.kernel = Kernel::new(state.inner_size, state.inner_radius);
+
+        walker.kernel = Kernel::new(state.inner_size, state.inner_radius_sqr);
+
+        let valid_radii_sqr = Kernel::get_unique_radii_sqr(state.inner_size);
+
+        dbg!((
+            &weird_factor,
+            &max_inner_radius_sqr,
+            &valid_inner_radius_sqr,
+            &state,
+            &walker.kernel,
+            &valid_radii_sqr
+        ));
         draw_thingy(&walker, true);
 
         egui_macroquad::draw();
