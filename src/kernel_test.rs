@@ -8,10 +8,11 @@ mod walker;
 
 use std::f64::consts::SQRT_2;
 
+
 use crate::{editor::*, fps_control::*, grid_render::*, map::*, position::*, random::*, walker::*};
 
 use egui::emath::Numeric;
-use egui::{Label, Response};
+use egui::{Label};
 use macroquad::color::*;
 use macroquad::shapes::*;
 use macroquad::window::clear_background;
@@ -23,7 +24,7 @@ pub fn define_egui(editor: &mut Editor, state: &mut State) {
         egui::Window::new("DEBUG")
             .frame(window_frame())
             .show(egui_ctx, |ui| {
-                ui.add(Label::new(format!("TEST")));
+                ui.add(Label::new("TEST".to_string()));
 
                 let inner_radius_bounds = Kernel::get_valid_radius_bounds(state.inner_size);
                 let outer_radius_bounds = Kernel::get_valid_radius_bounds(state.outer_size);
@@ -155,6 +156,8 @@ async fn main() {
         outer_size: 5,
     };
 
+    Kernel::evaluate_kernels(19);
+
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
@@ -216,16 +219,16 @@ async fn main() {
 
         walker.kernel = Kernel::new(state.inner_size, state.inner_radius_sqr);
 
-        let valid_radii_sqr = Kernel::get_unique_radii_sqr(state.inner_size);
+        // let valid_radii_sqr = Kernel::get_unique_radii_sqr(state.inner_size);
 
-        dbg!((
-            &weird_factor,
-            &max_inner_radius_sqr,
-            &valid_inner_radius_sqr,
-            &state,
-            &walker.kernel,
-            &valid_radii_sqr
-        ));
+        // dbg!((
+        //     &weird_factor,
+        //     &max_inner_radius_sqr,
+        //     &valid_inner_radius_sqr,
+        //     &state,
+        //     &walker.kernel,
+        //     &valid_radii_sqr
+        // ));
         draw_thingy(&walker, true);
 
         egui_macroquad::draw();

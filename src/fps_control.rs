@@ -28,7 +28,7 @@ impl FPSControl {
     }
 
     pub fn on_frame_start(&mut self) {
-        if let Some(_) = self.max_fps {
+        if self.max_fps.is_some() {
             self.frame_start = Some(Instant::now());
         }
     }
@@ -36,7 +36,7 @@ impl FPSControl {
     pub async fn wait_for_next_frame(&self) {
         next_frame().await; // submit our render calls to our screen
 
-        if let Some(_) = self.max_fps {
+        if self.max_fps.is_some() {
             let frame_start = self.frame_start.expect("this should be set on_frame_start");
             let min_frame_time = self.min_frame_time.expect("should be set in MaxFps mode");
 

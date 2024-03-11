@@ -1,9 +1,14 @@
-use crate::draw_grid_blocks;
+use std::f64::consts::SQRT_2;
+
+
+
 use crate::CuteWalker;
 use crate::Position;
+use egui::emath::Numeric;
+use egui::epaint::ahash::HashMap;
+use egui::epaint::ahash::HashMapExt;
 use itertools::Itertools;
 use ndarray::Array2;
-use rand_distr::num_traits::Pow;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BlockType {
@@ -29,20 +34,15 @@ pub struct Kernel {
     pub size: usize,
     pub radius_sqr: usize,
     pub vector: Array2<bool>,
-    pub max_distance_sqr: usize,
 }
-
-// TODO: getting max_radius or the kernel_vector involves sqrt()'s. In the future i should at least
-// replace the comparison in get_kernel() with squared radii.
 
 impl Kernel {
     pub fn new(size: usize, radius_sqr: usize) -> Kernel {
-        let (vector, max_distance_sqr) = Kernel::get_kernel_vector(size, radius_sqr);
+        let vector = Kernel::get_kernel_vector(size, radius_sqr);
         Kernel {
             size,
             radius_sqr,
             vector,
-            max_distance_sqr,
         }
     }
 
@@ -62,9 +62,9 @@ impl Kernel {
 
     pub fn is_valid_radius(size: usize, radius_sqr: usize) -> bool {
         let (min_radius, max_radius) = Kernel::get_valid_radius_bounds(size);
-        let is_valid = min_radius <= radius_sqr && radius_sqr <= max_radius;
+        
 
-        is_valid
+        min_radius <= radius_sqr && radius_sqr <= max_radius
     }
 
     // pub fn get_min_circularity(size: usize, radius_limit: f32) -> f32 {
@@ -84,31 +84,26 @@ impl Kernel {
     //     min_circularity
     // }
 
-    /// TODO: this could also be further optimized by using the kernels symmetry
-    fn get_kernel_vector(size: usize, radius_sqr: usize) -> (Array2<bool>, usize) {
+    /// TODO: this could also be further optimized by using the kernels symmetry, but instead of
+    /// optimizing this function it would make sense to replace the entire kernel
+    fn get_kernel_vector(size: usize, radius_sqr: usize) -> Array2<bool> {
         let center = Kernel::get_kernel_center(size);
-        let mut max_distance_sqr = 0;
-        dbg!(&center);
 
         let mut kernel = Array2::from_elem((size, size), false);
         for ((x, y), value) in kernel.indexed_iter_mut() {
             let distance = x.abs_diff(center).pow(2) + y.abs_diff(center).pow(2);
             if distance <= radius_sqr {
                 *value = true;
-
-                if distance >= max_distance_sqr {
-                    max_distance_sqr = distance;
-                }
             }
         }
 
-        (kernel, max_distance_sqr)
+        kernel
     }
 
     /// iterate over all possible distances from center to valid positions within the kernel bounds
     /// to get all possible squared radii. This returns a Vec of all possible squared radii that
     /// limit at least one possible location in the kernel, so each results in a unique kernel
-    pub fn get_unique_radii_sqr(size: usize) -> Vec<usize> {
+    pub fn get_unique_radii_sqr(size: usize, check_min: bool) -> Vec<usize> {
         let mut valid_sqr_distances: Vec<usize> = Vec::new();
         let center = Kernel::get_kernel_center(size);
         let max_offset = size - center - 1;
@@ -119,18 +114,47 @@ impl Kernel {
             for y in x..=max_offset {
                 let distance_sqr = x * x + y * y;
 
-                // ensure that each radius is only added once
-                if distance_sqr >= min_radius_sqr
-                    && !valid_sqr_distances.iter().contains(&distance_sqr)
-                {
+                let min_check: bool = !check_min || distance_sqr >= min_radius_sqr;
+                if min_check && !valid_sqr_distances.iter().contains(&distance_sqr) {
                     valid_sqr_distances.push(distance_sqr);
                 }
             }
         }
 
-        dbg!((&center, &max_offset, &min_radius_sqr, &valid_sqr_distances));
+        valid_sqr_distances.sort(); // TODO: do i need this?
 
         valid_sqr_distances
+    }
+
+    pub fn evaluate_kernels(max_kernel_size: usize) {
+        let all_valid_radii_sqr = Kernel::get_unique_radii_sqr(max_kernel_size, false);
+
+        // TODO: use two hashmaps to achieve bidirectional mapping, not sure if i actually need
+        // this, but might come in handy
+        let mut max_inner_radius_for_outer: HashMap<usize, usize> = HashMap::new();
+        let mut max_outer_radius_for_inner: HashMap<usize, usize> = HashMap::new();
+
+        for outer_radius_index in 0..all_valid_radii_sqr.len() {
+            let outer_radius = *all_valid_radii_sqr.get(outer_radius_index).unwrap();
+
+            for inner_radius_index in (0..outer_radius_index).rev() {
+                let inner_radius = *all_valid_radii_sqr.get(inner_radius_index).unwrap();
+
+                // validate if inner radius is valid TODO: replace this with an error free method!
+                let factor: f64 = 2.0 * SQRT_2 * outer_radius.to_f64().sqrt();
+                let kernel_is_valid = inner_radius.to_f64() <= outer_radius.to_f64() - factor + 2.0;
+
+                if kernel_is_valid {
+                    println!("outer: {:} \t inner: {:}", outer_radius, inner_radius);
+                    max_inner_radius_for_outer.insert(outer_radius, inner_radius); // always unique entry
+                    max_outer_radius_for_inner.insert(inner_radius, outer_radius); // will override
+                    break;
+                }
+            }
+        }
+
+        dbg!(max_inner_radius_for_outer);
+        dbg!(max_outer_radius_for_inner);
     }
 }
 
