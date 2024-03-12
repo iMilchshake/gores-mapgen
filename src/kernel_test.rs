@@ -7,12 +7,12 @@ mod random;
 mod walker;
 
 use std::f64::consts::SQRT_2;
-
+use std::process::exit;
 
 use crate::{editor::*, fps_control::*, grid_render::*, map::*, position::*, random::*, walker::*};
 
 use egui::emath::Numeric;
-use egui::{Label};
+use egui::Label;
 use macroquad::color::*;
 use macroquad::shapes::*;
 use macroquad::window::clear_background;
@@ -156,80 +156,30 @@ async fn main() {
         outer_size: 5,
     };
 
-    Kernel::evaluate_kernels(19);
+    let (all_valid_radii_sqr, max_inner_radius_for_outer, max_outer_radius_for_inner) =
+        Kernel::precompute_kernel_configurations(19);
 
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
-
         define_egui(&mut editor, &mut state);
-
         editor.set_cam(&map);
         editor.handle_user_inputs(&map);
-
         clear_background(GRAY);
         draw_walker(&walker);
 
-        walker.kernel = Kernel::new(state.outer_size, state.outer_radius_sqr);
+        let outer_kernel = Kernel::new(state.outer_size, state.outer_radius_sqr);
+        walker.kernel = outer_kernel.clone();
         draw_thingy(&walker, false);
 
-        let weird_factor: f64 = 2.0 * SQRT_2 * state.outer_radius_sqr.to_f64().sqrt();
-        let max_inner_radius_sqr: f64 = state.outer_radius_sqr.to_f64() - weird_factor + 2.0;
-        // as this is based on a less or equal equation we can round down to the next integer,
-        let valid_inner_radius_sqr: usize = (max_inner_radius_sqr).round().to_usize().unwrap();
-
-        // NOTE: it seems to work with a crappy fix like this using +0.2 ... this is the case
-        // because an extra distance of sqrt(2) is required in the "worst case" if the
-        // "most outward" blocks are exactly on the limiting radius (e.g. max radius). Then, The full
-        // sqrt(2) are required, in other cases less is okay. Therefore the sqrt(2) assumption
-        // might not be that useful? What other possible ways could there be to validate if outer
-        // kernel has at least "one padding" around the inner kernel?
-
-        // TODO: idea: dont do radius+sqrt(2), but radius-unused+sqrt(2), where unused is the
-        // amount of the radius that is not required for active blocks. This means i need to
-        // somehow get the "actual limiting radius"
-
-        // NOTE: okay jesus christ im  going insane. it turns out that this entire approach is
-        // faulty to begin with. When only using kernel-radii that are exactly limiting the most
-        // outter blocks, i expected the remaining margin to be sqrt(2) (see get_unique_radii_sqr).
-        // But, it turns out that this is not correct. Imagine 3x3 - 4x4. Then yes. but imagine
-        // 2x3 - 3x4, then yes the difference vector is (1,1) which has a distance of sqrt(2). But
-        // if you draw the whole thing using vectors you'll see that the distance between the radii
-        // and the limited blocks is only both equal to sqrt(2) if the vectors for the limiting
-        // are overlapping. I tried to think about doing funky calculations using angles, but the
-        // inner circle is not known and therefore the angle is also not known.
-        // Instead i came up with a completly new Kernel representation, which would make this
-        // entire calculation obsolete. Instead of defining some circularity/radius i could define
-        // the 'limiting block' (x, y), which would also implicitly define a radius. I also should ensure
-        // that x and y are positive. Then, i could simply reduce -1 from both and have the 'one
-        // smaller but valid' kernel! It might also make sense to have some x>=y constraint because
-        // otherwise (3,2) and (2,3) would result in the same kernel.
-        // This idea could also have some problems that im currently not noticing :D
-        // (x,y) are actually the offset to the center, so the largest possible value resulting in
-        // a square kernel would be (size - center - 1, size - center - 1) and the smallest possible value
-        // would be (0, size - center - 1), which should result in fully circular kernel.
-        // the only downside i can think of is that, while i can calculate a circularity (0 - 1)
-        // based on these informations, i cant generate a kernel based on some circularity in some
-        // trivial way. This would be nice when changing the size of the kernel, but wanting that
-        // it remains a similar shape.
-
-        if state.inner_radius_sqr as f64 > max_inner_radius_sqr {
-            state.inner_radius_sqr = valid_inner_radius_sqr;
-        }
-
-        walker.kernel = Kernel::new(state.inner_size, state.inner_radius_sqr);
-
-        // let valid_radii_sqr = Kernel::get_unique_radii_sqr(state.inner_size);
-
-        // dbg!((
-        //     &weird_factor,
-        //     &max_inner_radius_sqr,
-        //     &valid_inner_radius_sqr,
-        //     &state,
-        //     &walker.kernel,
-        //     &valid_radii_sqr
-        // ));
+        let inner_kernel = Kernel::new(state.inner_size, state.inner_radius_sqr);
+        walker.kernel = inner_kernel.clone();
         draw_thingy(&walker, true);
+
+        let max_valid_inner_radius = max_inner_radius_for_outer.get(&state.outer_radius_sqr);
+        if state.inner_radius_sqr > *max_valid_inner_radius.unwrap() {
+            dbg!("invalid", &state.inner_radius_sqr, &max_valid_inner_radius);
+        }
 
         egui_macroquad::draw();
         fps_ctrl.wait_for_next_frame().await;

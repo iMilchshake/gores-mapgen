@@ -1,7 +1,5 @@
 use std::f64::consts::SQRT_2;
 
-
-
 use crate::CuteWalker;
 use crate::Position;
 use egui::emath::Numeric;
@@ -29,7 +27,7 @@ pub struct Map {
     pub width: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Kernel {
     pub size: usize,
     pub radius_sqr: usize,
@@ -38,6 +36,7 @@ pub struct Kernel {
 
 impl Kernel {
     pub fn new(size: usize, radius_sqr: usize) -> Kernel {
+        assert!(size % 2 == 1, "kernel size must be odd");
         let vector = Kernel::get_kernel_vector(size, radius_sqr);
         Kernel {
             size,
@@ -50,10 +49,16 @@ impl Kernel {
         (size - 1) / 2
     }
 
-    pub fn get_valid_radius_bounds(size: usize) -> (usize, usize) {
-        // TODO: center and min_radius are actually the same value
-        let center = Kernel::get_kernel_center(size);
+    fn center(&self) -> usize {
+        (self.size - 1) / 2
+    }
 
+    fn max_offset(&self) -> usize {
+        (self.size - 1) / 2
+    }
+
+    pub fn get_valid_radius_bounds(size: usize) -> (usize, usize) {
+        let center = Kernel::get_kernel_center(size);
         let min_radius = ((size - 1) / 2).pow(2); // min radius is from center to border
         let max_radius = center * center + center * center; // max radius is from center to corner
 
@@ -62,27 +67,9 @@ impl Kernel {
 
     pub fn is_valid_radius(size: usize, radius_sqr: usize) -> bool {
         let (min_radius, max_radius) = Kernel::get_valid_radius_bounds(size);
-        
 
         min_radius <= radius_sqr && radius_sqr <= max_radius
     }
-
-    // pub fn get_min_circularity(size: usize, radius_limit: f32) -> f32 {
-    //     let center = Kernel::get_kernel_center(size);
-    //
-    //     let min_radius = (size - 1) as f32 / 2.0;
-    //     let max_radius = f32::sqrt(center * center + center * center);
-    //
-    //     let actual_max_radius = f32::min(max_radius, radius_limit); // get LOWER bound
-    //
-    //     // calculate circularity which results in actual max radius by linear combination of min
-    //     // and max radius
-    //     // a=xb+(1-x)c => x = (a-c)/(b-c)
-    //
-    //     let min_circularity = (actual_max_radius - max_radius) / (min_radius - max_radius);
-    //
-    //     min_circularity
-    // }
 
     /// TODO: this could also be further optimized by using the kernels symmetry, but instead of
     /// optimizing this function it would make sense to replace the entire kernel
@@ -126,11 +113,42 @@ impl Kernel {
         valid_sqr_distances
     }
 
-    pub fn evaluate_kernels(max_kernel_size: usize) {
-        let all_valid_radii_sqr = Kernel::get_unique_radii_sqr(max_kernel_size, false);
+    pub fn check_kernel_configuration(inner_kernel: &Kernel, outer_kernel: &Kernel) -> bool {
+        let max_offset = inner_kernel.max_offset();
+        let inner_center = inner_kernel.center();
+        let outer_center = outer_kernel.center();
 
-        // TODO: use two hashmaps to achieve bidirectional mapping, not sure if i actually need
-        // this, but might come in handy
+        for x in (0..=max_offset).rev() {
+            for y in (0..=max_offset).rev() {
+                let inner_pos = (inner_center + x, inner_center + y);
+                if inner_kernel.vector.get(inner_pos) != Some(&true) {
+                    continue; // inner cell is not active, skip
+                }
+
+                // check adjacent neighboring cells in outer kernel
+                for &offset in &[(1, 1), (0, 1), (0, 1)] {
+                    let outer_pos = (outer_center + x + offset.0, outer_center + y + offset.1);
+                    if outer_kernel.vector.get(outer_pos) != Some(&true) {
+                        return false; // outer cell is not active -> INVALID
+                    }
+                }
+            }
+        }
+
+        true
+    }
+
+    /// Precomputes all possible unique squared radii that can be used and their compatibility
+    /// when used as inner and outer kernels. The algorithm that checks the validity is somewhat
+    /// inefficient, so this function should be called once at startup, but not used at runtime.
+    /// TODO: currently this returns a bidirectional mapping using two hashmaps. Do i actually need
+    /// that?
+    /// TODO: precomputed information could be encapsulated inside a struct and easily accessed
+    /// using functions, hiding all that pain
+    pub fn precompute_kernel_configurations(
+        max_kernel_size: usize,
+    ) -> (Vec<usize>, HashMap<usize, usize>, HashMap<usize, usize>) {
+        let all_valid_radii_sqr = Kernel::get_unique_radii_sqr(max_kernel_size, false);
         let mut max_inner_radius_for_outer: HashMap<usize, usize> = HashMap::new();
         let mut max_outer_radius_for_inner: HashMap<usize, usize> = HashMap::new();
 
@@ -140,11 +158,13 @@ impl Kernel {
             for inner_radius_index in (0..outer_radius_index).rev() {
                 let inner_radius = *all_valid_radii_sqr.get(inner_radius_index).unwrap();
 
-                // validate if inner radius is valid TODO: replace this with an error free method!
-                let factor: f64 = 2.0 * SQRT_2 * outer_radius.to_f64().sqrt();
-                let kernel_is_valid = inner_radius.to_f64() <= outer_radius.to_f64() - factor + 2.0;
+                // validate if inner radius is valid
+                let inner_kernel = Kernel::new(max_kernel_size, inner_radius);
+                let outer_kernel = Kernel::new(max_kernel_size, outer_radius);
+                let kernel_valid = Kernel::check_kernel_configuration(&inner_kernel, &outer_kernel);
 
-                if kernel_is_valid {
+                // if it is optimal, store it as the upper bound and skip all possible smaller ones
+                if kernel_valid {
                     println!("outer: {:} \t inner: {:}", outer_radius, inner_radius);
                     max_inner_radius_for_outer.insert(outer_radius, inner_radius); // always unique entry
                     max_outer_radius_for_inner.insert(inner_radius, outer_radius); // will override
@@ -153,8 +173,11 @@ impl Kernel {
             }
         }
 
-        dbg!(max_inner_radius_for_outer);
-        dbg!(max_outer_radius_for_inner);
+        (
+            all_valid_radii_sqr,
+            max_inner_radius_for_outer,
+            max_outer_radius_for_inner,
+        )
     }
 }
 
