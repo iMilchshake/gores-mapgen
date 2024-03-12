@@ -12,8 +12,12 @@ use egui::Label;
 use macroquad::color::*;
 use macroquad::shapes::*;
 use macroquad::window::clear_background;
+use rand_distr::num_traits::Saturating;
 
-pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidKernelTable) {
+fn state_to_kernels(
+    state: &mut State,
+    kernel_table: &ValidKernelTable,
+) -> (Kernel, Kernel, usize, usize) {
     let outer_size = state.outer_size_index * 2 + 1;
     let outer_radii = kernel_table.valid_radii_per_size.get(&outer_size).unwrap();
     let outer_radius = outer_radii.get(state.outer_radius_index).unwrap();
@@ -26,15 +30,34 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
         .get(&inner_size)
         .unwrap()
         .clone();
-    dbg!(&inner_radii);
+    dbg!("before", &inner_radii);
     inner_radii.retain(|&x| x <= max_valid_inner_radius);
 
     dbg!(&inner_size, &outer_size, &outer_radius);
-    dbg!(&inner_radii);
+    dbg!("after", &inner_radii);
 
-    let inner_radius = inner_radii.get(state.inner_radius_index).unwrap();
+    let inner_radius = if state.inner_radius_index < inner_radii.len().saturating_sub(1) {
+        inner_radii.get(state.inner_radius_index).unwrap()
+    } else {
+        state.inner_radius_index = inner_radii.len().saturating_sub(1);
+        inner_radii.get(state.inner_radius_index).unwrap_or(&0)
+    };
+
+    dbg!(&state);
 
     dbg!(&max_valid_inner_radius);
+
+    (
+        Kernel::new(inner_size, *inner_radius),
+        Kernel::new(outer_size, *outer_radius),
+        inner_radii.len().saturating_sub(1),
+        outer_radii.len().saturating_sub(1),
+    )
+}
+
+pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidKernelTable) {
+    let (inner_kernel, outer_kernel, inner_radius_max_index, outer_radius_max_index) =
+        state_to_kernels(state, kernel_table);
 
     // define egui
     egui_macroquad::ui(|egui_ctx| {
@@ -43,7 +66,7 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
             .show(egui_ctx, |ui| {
                 ui.add(Label::new("TEST".to_string()));
                 ui.horizontal(|ui| {
-                    ui.label(format!("inner size: {inner_size}",));
+                    ui.label(format!("inner size: {}", inner_kernel.size));
                     if ui.button("-").clicked() {
                         state.inner_size_index = state.inner_size_index.saturating_sub(1);
                         state.inner_radius_index = 0;
@@ -55,7 +78,7 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label(format!("outer size: {outer_size}"));
+                    ui.label(format!("outer size: {}", outer_kernel.size));
                     if ui.button("-").clicked() {
                         state.outer_size_index = state.outer_size_index.saturating_sub(1);
                         state.outer_radius_index = 0;
@@ -67,34 +90,28 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label(format!("inner radius: {inner_radius}",));
+                    ui.label(format!("inner radius: {}", inner_kernel.radius_sqr));
                     if ui.button("-").clicked() {
                         state.inner_radius_index = state
                             .inner_radius_index
                             .saturating_sub(1)
-                            .min(inner_radii.len() - 1);
+                            .min(inner_radius_max_index);
                     }
                     if ui.button("+").clicked() {
                         state.inner_radius_index = state
                             .inner_radius_index
                             .saturating_add(1)
-                            .min(inner_radii.len() - 1);
+                            .min(outer_radius_max_index);
                     }
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label(format!("outer radius: {outer_radius}",));
+                    ui.label(format!("outer radius: {}", outer_kernel.radius_sqr));
                     if ui.button("-").clicked() {
-                        state.outer_radius_index = state
-                            .outer_radius_index
-                            .saturating_sub(1)
-                            .min(outer_radii.len() - 1);
+                        state.outer_radius_index = state.outer_radius_index.saturating_sub(1);
                     }
                     if ui.button("+").clicked() {
-                        state.outer_radius_index = state
-                            .outer_radius_index
-                            .saturating_add(1)
-                            .min(outer_radii.len() - 1);
+                        state.outer_radius_index = state.outer_radius_index.saturating_add(1);
                     }
                 });
             });
@@ -191,14 +208,8 @@ async fn main() {
         draw_walker(&walker);
 
         // this is very stupid, if only there were some better solution... :D
-        let inner_size = state.inner_size_index * 2 + 1;
-        let outer_size = state.outer_size_index * 2 + 1;
-        let inner_radii = kernel_table.valid_radii_per_size.get(&inner_size).unwrap();
-        let outer_radii = kernel_table.valid_radii_per_size.get(&outer_size).unwrap();
-        let inner_radius = inner_radii.get(state.inner_radius_index).unwrap();
-        let outer_radius = outer_radii.get(state.outer_radius_index).unwrap();
+        let (inner_kernel, outer_kernel, _, _) = state_to_kernels(&mut state, &kernel_table);
 
-        let outer_kernel = Kernel::new(outer_size, *outer_radius);
         walker.kernel = outer_kernel.clone();
         draw_thingy(&walker, false);
 
@@ -206,8 +217,6 @@ async fn main() {
         //     dbg!("invalid", &state.inner_radius_sqr, &max_valid_inner_radius);
         //     state.inner_radius_sqr = max_valid_inner_radius;
         // }
-
-        let inner_kernel = Kernel::new(inner_size, *inner_radius);
         walker.kernel = inner_kernel.clone();
         draw_thingy(&walker, true);
 
