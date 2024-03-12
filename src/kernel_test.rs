@@ -6,45 +6,97 @@ mod position;
 mod random;
 mod walker;
 
-use std::f64::consts::SQRT_2;
-use std::process::exit;
-
 use crate::{editor::*, fps_control::*, grid_render::*, map::*, position::*, random::*, walker::*};
 
-use egui::emath::Numeric;
 use egui::Label;
 use macroquad::color::*;
 use macroquad::shapes::*;
 use macroquad::window::clear_background;
-use rand_distr::num_traits::ToPrimitive;
 
-pub fn define_egui(editor: &mut Editor, state: &mut State) {
+pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidKernelTable) {
+    let outer_size = state.outer_size_index * 2 + 1;
+    let outer_radii = kernel_table.valid_radii_per_size.get(&outer_size).unwrap();
+    let outer_radius = outer_radii.get(state.outer_radius_index).unwrap();
+
+    let max_valid_inner_radius = kernel_table.get_max_valid_inner_radius(&outer_radius);
+
+    let inner_size = state.inner_size_index * 2 + 1;
+    let mut inner_radii = kernel_table
+        .valid_radii_per_size
+        .get(&inner_size)
+        .unwrap()
+        .clone();
+    dbg!(&inner_radii);
+    inner_radii.retain(|&x| x <= max_valid_inner_radius);
+
+    dbg!(&inner_size, &outer_size, &outer_radius);
+    dbg!(&inner_radii);
+
+    let inner_radius = inner_radii.get(state.inner_radius_index).unwrap();
+
+    dbg!(&max_valid_inner_radius);
+
     // define egui
     egui_macroquad::ui(|egui_ctx| {
         egui::Window::new("DEBUG")
             .frame(window_frame())
             .show(egui_ctx, |ui| {
                 ui.add(Label::new("TEST".to_string()));
+                ui.horizontal(|ui| {
+                    ui.label(format!("inner size: {inner_size}",));
+                    if ui.button("-").clicked() {
+                        state.inner_size_index = state.inner_size_index.saturating_sub(1);
+                        state.inner_radius_index = 0;
+                    }
+                    if ui.button("+").clicked() {
+                        state.inner_size_index = state.inner_size_index.saturating_add(1);
+                        state.inner_radius_index = 0;
+                    }
+                });
 
-                let inner_radius_bounds = Kernel::get_valid_radius_bounds(state.inner_size);
-                let outer_radius_bounds = Kernel::get_valid_radius_bounds(state.outer_size);
+                ui.horizontal(|ui| {
+                    ui.label(format!("outer size: {outer_size}"));
+                    if ui.button("-").clicked() {
+                        state.outer_size_index = state.outer_size_index.saturating_sub(1);
+                        state.outer_radius_index = 0;
+                    }
+                    if ui.button("+").clicked() {
+                        state.outer_size_index = state.outer_size_index.saturating_add(1);
+                        state.outer_radius_index = 0;
+                    }
+                });
 
-                ui.add(egui::Slider::new(&mut state.inner_size, 1..=19).text("inner_size"));
-                ui.add(
-                    egui::Slider::new(
-                        &mut state.inner_radius_sqr,
-                        inner_radius_bounds.0..=inner_radius_bounds.1,
-                    )
-                    .text("inner_radius_sqr"),
-                );
-                ui.add(egui::Slider::new(&mut state.outer_size, 1..=19).text("outer_size"));
-                ui.add(
-                    egui::Slider::new(
-                        &mut state.outer_radius_sqr,
-                        outer_radius_bounds.0..=outer_radius_bounds.1,
-                    )
-                    .text("outer_radius_sqr"),
-                );
+                ui.horizontal(|ui| {
+                    ui.label(format!("inner radius: {inner_radius}",));
+                    if ui.button("-").clicked() {
+                        state.inner_radius_index = state
+                            .inner_radius_index
+                            .saturating_sub(1)
+                            .min(inner_radii.len() - 1);
+                    }
+                    if ui.button("+").clicked() {
+                        state.inner_radius_index = state
+                            .inner_radius_index
+                            .saturating_add(1)
+                            .min(inner_radii.len() - 1);
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label(format!("outer radius: {outer_radius}",));
+                    if ui.button("-").clicked() {
+                        state.outer_radius_index = state
+                            .outer_radius_index
+                            .saturating_sub(1)
+                            .min(outer_radii.len() - 1);
+                    }
+                    if ui.button("+").clicked() {
+                        state.outer_radius_index = state
+                            .outer_radius_index
+                            .saturating_add(1)
+                            .min(outer_radii.len() - 1);
+                    }
+                });
             });
 
         // store remaining space for macroquad drawing
@@ -55,10 +107,10 @@ pub fn define_egui(editor: &mut Editor, state: &mut State) {
 
 #[derive(Debug)]
 struct State {
-    inner_radius_sqr: usize,
-    inner_size: usize,
-    outer_radius_sqr: usize,
-    outer_size: usize,
+    inner_radius_index: usize,
+    outer_radius_index: usize,
+    inner_size_index: usize,
+    outer_size_index: usize,
 }
 
 fn draw_thingy(walker: &CuteWalker, flag: bool) {
@@ -111,35 +163,6 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     );
 }
 
-// NOTE: Conclusion: a kernel pair is valid if the inner and outer radius have a difference of at
-// last sqrt(2)=1.41 and a size difference of at least 2. if the size difference in larger the
-// circularity constraint becomes slighly more slack, but i should be able to neglect that. Also
-
-// NOTE: for some setups, an inner circle that should have exactly one block of padding, might be
-// only possible with one exact circularity value that just hits the 1.41 difference. So in
-// practice when sampling the cirtularity from a continous space, this would almost never be
-// picked. I could:
-// 1. Add a specific rule which will use 1-block padding with a certain probability and only
-//    otherwise sample from the available circularities. (test: would different kernels have
-//    different probabilities?)
-// 2. Add 1-block freeze padding as in original generator?
-// 3. somehow map the continous circularitiy to a discrete space. Then all configs could be sampled
-//    uniform (and additionally maybe a weighting for 1-block?). One possible approach would be to
-//    allow a fixed number of samples. e.g. 0.0, 0.5 and 1.0. But again, this might be good or bad
-//    for different sizes. Another approach would be to pre-calculate ALL possible kernels and
-//    check their compatibility? I could iterate over all sizes/circularities and then store all
-//    unique kernels with their respective radius. Then, i could easily use that to determine valid
-//    kernel pairs and sample from a discrete space! It might make sense to store the smallest and
-//    largest radius that leads to the same kernel. This would make the validity check easier, then
-//    i could use the min radius for inner and max radius for outer to make sure that they have at
-//    least 1.41 distance.
-
-// NOTE: i dont even know if all that effort would be worth it. I guess for now i should just
-// enforce odd-size, size diff of 2, and min diff of 1.41 in radius and just ignore the rest for
-// now xd
-
-// TODO: first i need a way to add constraint available circularities based on valid radii.
-
 #[macroquad::main("kernel_test")]
 async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
@@ -150,36 +173,43 @@ async fn main() {
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
-        inner_radius_sqr: Kernel::get_valid_radius_bounds(3).0,
-        inner_size: 3,
-        outer_radius_sqr: Kernel::get_valid_radius_bounds(5).1,
-        outer_size: 5,
+        inner_size_index: 0,
+        inner_radius_index: 0,
+        outer_size_index: 0,
+        outer_radius_index: 0,
     };
 
-    let (all_valid_radii_sqr, max_inner_radius_for_outer, max_outer_radius_for_inner) =
-        Kernel::precompute_kernel_configurations(19);
+    let kernel_table = ValidKernelTable::new(19);
 
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
-        define_egui(&mut editor, &mut state);
+        define_egui(&mut editor, &mut state, &kernel_table);
         editor.set_cam(&map);
         editor.handle_user_inputs(&map);
         clear_background(GRAY);
         draw_walker(&walker);
 
-        let outer_kernel = Kernel::new(state.outer_size, state.outer_radius_sqr);
+        // this is very stupid, if only there were some better solution... :D
+        let inner_size = state.inner_size_index * 2 + 1;
+        let outer_size = state.outer_size_index * 2 + 1;
+        let inner_radii = kernel_table.valid_radii_per_size.get(&inner_size).unwrap();
+        let outer_radii = kernel_table.valid_radii_per_size.get(&outer_size).unwrap();
+        let inner_radius = inner_radii.get(state.inner_radius_index).unwrap();
+        let outer_radius = outer_radii.get(state.outer_radius_index).unwrap();
+
+        let outer_kernel = Kernel::new(outer_size, *outer_radius);
         walker.kernel = outer_kernel.clone();
         draw_thingy(&walker, false);
 
-        let inner_kernel = Kernel::new(state.inner_size, state.inner_radius_sqr);
+        // if state.inner_radius_sqr > max_valid_inner_radius {
+        //     dbg!("invalid", &state.inner_radius_sqr, &max_valid_inner_radius);
+        //     state.inner_radius_sqr = max_valid_inner_radius;
+        // }
+
+        let inner_kernel = Kernel::new(inner_size, *inner_radius);
         walker.kernel = inner_kernel.clone();
         draw_thingy(&walker, true);
-
-        let max_valid_inner_radius = max_inner_radius_for_outer.get(&state.outer_radius_sqr);
-        if state.inner_radius_sqr > *max_valid_inner_radius.unwrap() {
-            dbg!("invalid", &state.inner_radius_sqr, &max_valid_inner_radius);
-        }
 
         egui_macroquad::draw();
         fps_ctrl.wait_for_next_frame().await;
