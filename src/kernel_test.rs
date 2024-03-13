@@ -1,18 +1,27 @@
 mod editor;
 mod fps_control;
 mod grid_render;
+mod kernel;
 mod map;
 mod position;
 mod random;
 mod walker;
 
-use crate::{editor::*, fps_control::*, grid_render::*, map::*, position::*, random::*, walker::*};
+use crate::{
+    editor::*,
+    fps_control::*,
+    grid_render::*,
+    kernel::{Kernel, ValidKernelTable},
+    map::*,
+    position::*,
+    random::*,
+    walker::*,
+};
 
 use egui::Label;
 use macroquad::color::*;
 use macroquad::shapes::*;
 use macroquad::window::clear_background;
-use rand_distr::num_traits::Saturating;
 
 fn state_to_kernels(
     state: &mut State,
@@ -90,7 +99,7 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label(format!("inner radius: {}", inner_kernel.radius_sqr));
+                    ui.label(format!("inner radius: {}", inner_kernel.radius));
                     if ui.button("-").clicked() {
                         state.inner_radius_index = state
                             .inner_radius_index
@@ -106,7 +115,7 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label(format!("outer radius: {}", outer_kernel.radius_sqr));
+                    ui.label(format!("outer radius: {}", outer_kernel.radius));
                     if ui.button("-").clicked() {
                         state.outer_radius_index = state.outer_radius_index.saturating_sub(1);
                     }
@@ -149,7 +158,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     }
 
     let size = walker.kernel.size;
-    let radius_sqr = walker.kernel.radius_sqr;
+    let radius = walker.kernel.radius;
 
     // very crappy hotfix to deal with different center whether size is even or not
     let offset = match size % 2 == 0 {
@@ -160,7 +169,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     draw_circle_lines(
         (walker.pos.x) as f32 + offset,
         (walker.pos.y) as f32 + offset,
-        (radius_sqr as f32).sqrt(),
+        (radius as f32).sqrt(),
         0.05,
         match flag {
             true => GREEN,
@@ -171,7 +180,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     draw_circle_lines(
         (walker.pos.x) as f32 + offset,
         (walker.pos.y) as f32 + offset,
-        radius_sqr as f32,
+        radius as f32,
         0.025,
         match flag {
             true => GREEN,
@@ -207,16 +216,11 @@ async fn main() {
         clear_background(GRAY);
         draw_walker(&walker);
 
-        // this is very stupid, if only there were some better solution... :D
         let (inner_kernel, outer_kernel, _, _) = state_to_kernels(&mut state, &kernel_table);
 
         walker.kernel = outer_kernel.clone();
         draw_thingy(&walker, false);
 
-        // if state.inner_radius_sqr > max_valid_inner_radius {
-        //     dbg!("invalid", &state.inner_radius_sqr, &max_valid_inner_radius);
-        //     state.inner_radius_sqr = max_valid_inner_radius;
-        // }
         walker.kernel = inner_kernel.clone();
         draw_thingy(&walker, true);
 

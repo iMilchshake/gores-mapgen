@@ -1,11 +1,21 @@
 mod editor;
 mod fps_control;
 mod grid_render;
+mod kernel;
 mod map;
 mod position;
 mod random;
 mod walker;
-use crate::{editor::*, fps_control::*, grid_render::*, map::*, position::*, random::*, walker::*};
+use crate::{
+    editor::*,
+    fps_control::*,
+    grid_render::*,
+    kernel::{Kernel, ValidKernelTable},
+    map::*,
+    position::*,
+    random::*,
+    walker::*,
+};
 
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
