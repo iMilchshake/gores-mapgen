@@ -1,3 +1,4 @@
+use crate::KernelType;
 use crate::{BlockType, CuteWalker, Position};
 use macroquad::color::*;
 use macroquad::shapes::*;
@@ -36,19 +37,25 @@ pub fn draw_walker(walker: &CuteWalker) {
     )
 }
 
-pub fn draw_walker_kernel(walker: &CuteWalker) {
-    let offset: usize = walker.kernel.size / 2; // offset of kernel wrt. position (top/left)
+pub fn draw_walker_kernel(walker: &CuteWalker, kernel_type: KernelType) {
+    let kernel = match kernel_type {
+        KernelType::Inner => &walker.inner_kernel,
+        KernelType::Outer => &walker.outer_kernel,
+    };
+    let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
 
     let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
-    for ((x, y), kernel_active) in walker.kernel.vector.indexed_iter() {
+    for ((x, y), kernel_active) in kernel.vector.indexed_iter() {
         if *kernel_active {
-            draw_rectangle_lines(
+            draw_rectangle(
                 (root_pos.x + x) as f32,
                 (root_pos.y + y) as f32,
                 1.0,
                 1.0,
-                0.05,
-                Color::new(0.1, 0.1, 1.0, 0.5),
+                match kernel_type {
+                    KernelType::Inner => Color::new(0.0, 0.0, 1.0, 0.1),
+                    KernelType::Outer => Color::new(0.0, 1.0, 0.0, 0.1),
+                },
             );
         }
     }

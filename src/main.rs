@@ -44,14 +44,41 @@ async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
 
     let mut map = Map::new(300, 300, BlockType::Hookable);
-    let kernel = Kernel::new(8, 7);
+    let kernel_table = ValidKernelTable::new(15);
+    let config = GenerationConfig::new(5, 0.1);
     let waypoints: Vec<Position> = vec![
         Position::new(250, 50),
         Position::new(250, 250),
         Position::new(50, 250),
         Position::new(50, 50),
     ];
-    let mut walker = CuteWalker::new(Position::new(50, 50), waypoints, kernel);
+
+    // yeah this is utterly stupid
+    let init_inner_kernel = Kernel::new(
+        3,
+        *kernel_table
+            .valid_radii_per_size
+            .get(&3)
+            .unwrap()
+            .last()
+            .unwrap(),
+    );
+    let init_outer_kernel = Kernel::new(
+        5,
+        *kernel_table
+            .valid_radii_per_size
+            .get(&5)
+            .unwrap()
+            .last()
+            .unwrap(),
+    );
+
+    let mut walker = CuteWalker::new(
+        Position::new(50, 50),
+        waypoints,
+        init_inner_kernel,
+        init_outer_kernel,
+    );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     loop {
@@ -70,11 +97,7 @@ async fn main() {
                 }
 
                 // randomly mutate kernel
-                // if rnd.gen.gen_bool(0.1) {
-                //     let size = rnd.gen.gen_range(3..=7);
-                //     let circularity = rnd.gen.gen_range(0.0..=1.0);
-                //     walker.kernel = Kernel::new(size, circularity);
-                // }
+                walker.mutate_kernel(&config, &mut rnd, &kernel_table);
 
                 // perform one greedy step
                 if let Err(err) = walker.probabilistic_step(&mut map, &mut rnd) {
@@ -98,7 +121,8 @@ async fn main() {
         draw_grid_blocks(&map.grid);
         draw_waypoints(&walker.waypoints);
         draw_walker(&walker);
-        draw_walker_kernel(&walker);
+        draw_walker_kernel(&walker, KernelType::Outer);
+        draw_walker_kernel(&walker, KernelType::Inner);
 
         egui_macroquad::draw();
 

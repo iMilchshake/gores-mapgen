@@ -140,9 +140,9 @@ struct State {
 }
 
 fn draw_thingy(walker: &CuteWalker, flag: bool) {
-    let offset: usize = walker.kernel.size / 2; // offset of kernel wrt. position (top/left)
+    let offset: usize = walker.inner_kernel.size / 2; // offset of kernel wrt. position (top/left)
     let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
-    for ((x, y), kernel_active) in walker.kernel.vector.indexed_iter() {
+    for ((x, y), kernel_active) in walker.inner_kernel.vector.indexed_iter() {
         if *kernel_active {
             draw_rectangle(
                 (root_pos.x + x) as f32,
@@ -157,8 +157,8 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
         }
     }
 
-    let size = walker.kernel.size;
-    let radius = walker.kernel.radius;
+    let size = walker.inner_kernel.size;
+    let radius = walker.inner_kernel.radius;
 
     // very crappy hotfix to deal with different center whether size is even or not
     let offset = match size % 2 == 0 {
@@ -218,10 +218,10 @@ async fn main() {
 
         let (inner_kernel, outer_kernel, _, _) = state_to_kernels(&mut state, &kernel_table);
 
-        walker.kernel = outer_kernel.clone();
+        walker.inner_kernel = outer_kernel.clone();
         draw_thingy(&walker, false);
 
-        walker.kernel = inner_kernel.clone();
+        walker.inner_kernel = inner_kernel.clone();
         draw_thingy(&walker, true);
 
         egui_macroquad::draw();

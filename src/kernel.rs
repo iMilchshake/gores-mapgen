@@ -10,6 +10,7 @@ pub struct Kernel {
     pub vector: Array2<bool>,
 }
 
+#[derive(Debug)]
 pub struct ValidKernelTable {
     pub max_kernel_size: usize,
     pub all_valid_radii: Vec<usize>,
@@ -49,7 +50,7 @@ impl ValidKernelTable {
         }
 
         let mut valid_radii_per_size: HashMap<usize, Vec<usize>> = HashMap::new();
-        for kernel_size in (1..max_kernel_size).step_by(2) {
+        for kernel_size in (1..=max_kernel_size).step_by(2) {
             let valid_radii = ValidKernelTable::get_unique_radii(kernel_size, true);
             valid_radii_per_size.insert(kernel_size, valid_radii);
         }
