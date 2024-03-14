@@ -130,12 +130,12 @@ impl Editor {
         });
     }
 
-    fn mouse_in_viewport(cam: &Camera2D) -> bool {
+    fn mouse_in_viewport(viewport: &egui::Rect) -> bool {
         let (mouse_x, mouse_y) = mouse_position();
         0.0 <= mouse_x
-            && mouse_x <= cam.viewport.unwrap().2 as f32
+            && mouse_x <= viewport.width()
             && 0.0 <= mouse_y
-            && mouse_y <= cam.viewport.unwrap().3 as f32
+            && mouse_y <= viewport.height()
     }
 
     /// this should result in the exact same behaviour as if not using a camera at all
@@ -150,18 +150,31 @@ impl Editor {
     }
 
     pub fn set_cam(&mut self, map: &Map) {
+        let canvas = self.canvas.expect("canvas not defined");
         let display_factor = self.get_display_factor(map);
-        let x_view = display_factor * map.width as f32;
-        let y_view = display_factor * map.height as f32;
-        let y_shift = screen_height() - y_view;
+        // let x_view = display_factor * map.width as f32;
+        // let y_view = display_factor * map.height as f32;
+        // let y_shift = screen_height() - y_view;
         let map_rect = Rect::new(0.0, 0.0, map.width as f32, map.height as f32);
         let mut cam = Camera2D::from_display_rect(map_rect);
 
         // so i guess this is (x, y, width, height) not two positions?
-        cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
+        cam.viewport = Some((0, 0, canvas.width() as i32, canvas.height() as i32));
 
-        cam.target -= self.offset;
-        cam.zoom *= self.zoom;
+        let view_aspect_ratio = canvas.width() / canvas.height();
+
+        cam.target.x -= self.offset.x;
+        cam.target.y -= self.offset.y;
+
+        cam.zoom.y *= self.zoom;
+
+        dbg!((
+            &view_aspect_ratio,
+            &canvas,
+            &self.zoom,
+            &cam.zoom,
+            &display_factor
+        ));
 
         set_camera(&cam);
         self.cam = Some(cam);
@@ -189,7 +202,7 @@ impl Editor {
 
         if !egui_wants_mouse
             && is_mouse_button_down(MouseButton::Left)
-            && Editor::mouse_in_viewport(&self.cam.unwrap())
+            && Editor::mouse_in_viewport(&self.canvas.expect("expect canvas to be set"))
         {
             let mouse = mouse_position();
 
