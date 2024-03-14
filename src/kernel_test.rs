@@ -188,7 +188,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
 #[macroquad::main("kernel_test")]
 async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
-    let map = Map::new(20, 20, BlockType::Hookable);
+    let map = Map::new(20, 20, BlockType::Hookable, Position::new(0, 0));
 
     let init_kernel = Kernel::new(1, 0);
     let mut walker = CuteWalker::new(
