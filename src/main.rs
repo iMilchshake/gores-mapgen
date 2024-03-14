@@ -39,13 +39,15 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut rnd = Random::new("iMilchshake".to_string(), vec![4, 3, 2, 1]);
-
     let mut editor = Editor::new(EditorPlayback::Paused);
+    let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut map = Map::new(300, 300, BlockType::Hookable);
-    let kernel_table = ValidKernelTable::new(15);
-    let config = GenerationConfig::new(5, 0.1);
+    let mut rnd = Random::new("iMilchshake".to_string(), vec![8, 6, 6, 5]);
+    let config = GenerationConfig::new(3, 5, 0.5, 0.2);
+    let kernel_table = ValidKernelTable::new(config.max_outer_size);
+
+    let spawn = Position::new(50, 50);
     let waypoints: Vec<Position> = vec![
         Position::new(250, 50),
         Position::new(250, 250),
@@ -53,17 +55,15 @@ async fn main() {
         Position::new(50, 50),
     ];
 
-    // yeah this is utterly stupid
-    let init_inner_kernel = Kernel::new(3, 2);
-    let init_outer_kernel = Kernel::new(5, 8);
-
-    let mut walker = CuteWalker::new(
-        Position::new(50, 50),
-        waypoints,
-        init_inner_kernel,
-        init_outer_kernel,
+    let init_inner_kernel = Kernel::new(
+        config.max_inner_size,
+        *kernel_table
+            .get_valid_radii(&config.max_inner_size)
+            .last()
+            .unwrap(),
     );
-    let mut fps_ctrl = FPSControl::new().with_max_fps(60);
+    let init_outer_kernel = kernel_table.get_min_valid_outer_kernel(&init_inner_kernel);
+    let mut walker = CuteWalker::new(spawn, waypoints, init_inner_kernel, init_outer_kernel);
 
     loop {
         fps_ctrl.on_frame_start();
