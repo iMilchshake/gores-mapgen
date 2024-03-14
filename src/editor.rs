@@ -149,28 +149,15 @@ impl Editor {
         )));
     }
 
-    pub fn set_cam(&mut self) {
-        // Retrieve the width and height of the canvas
-        let canvas_width = self
-            .canvas
-            .get_or_insert(egui::Rect::from_min_max(
-                egui::Pos2::new(0.0, 0.0),
-                egui::Pos2::new(0.0, 0.0),
-            ))
-            .width();
-        let canvas_height = self
-            .canvas
-            .get_or_insert(egui::Rect::from_min_max(
-                egui::Pos2::new(0.0, 0.0),
-                egui::Pos2::new(0.0, 0.0),
-            ))
-            .height();
+    pub fn set_cam(&mut self, display_factor: f32) {
+        let canvas_width = self.canvas.unwrap().width();
+        let canvas_height = self.canvas.unwrap().height();    
 
         let mut cam = Camera2D::from_display_rect(Rect::new(0.0, 0.0, canvas_width, canvas_height));
         cam.viewport = Some((0, 0, canvas_width as i32, canvas_height as i32));
 
         let zoomed_offset = self.offset * cam.zoom;
-        cam.target = -self.offset * 2.5 - zoomed_offset / (self.zoom);
+        cam.target = -self.offset * display_factor - zoomed_offset / (self.zoom);
         cam.zoom *= self.zoom;
 
         set_camera(&cam);
