@@ -42,12 +42,12 @@ async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
-    let mut map = Map::new(300, 300, BlockType::Hookable);
+    let spawn = Position::new(50, 50);
+    let mut map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
     let mut rnd = Random::new("iMilchshake".to_string(), vec![8, 6, 6, 5]);
     let config = GenerationConfig::new(3, 5, 0.5, 0.2);
     let kernel_table = ValidKernelTable::new(config.max_outer_size);
 
-    let spawn = Position::new(50, 50);
     let waypoints: Vec<Position> = vec![
         Position::new(250, 50),
         Position::new(250, 250),
