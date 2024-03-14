@@ -194,8 +194,13 @@ async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
     let map = Map::new(20, 20, BlockType::Hookable);
 
-    let kernel = Kernel::new(3, 1);
-    let mut walker = CuteWalker::new(Position::new(10, 10), vec![Position::new(15, 15)], kernel);
+    let init_kernel = Kernel::new(1, 0);
+    let mut walker = CuteWalker::new(
+        Position::new(10, 10),
+        vec![Position::new(15, 15)],
+        init_kernel.clone(),
+        init_kernel.clone(),
+    );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
