@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::{CuteWalker, Map};
 use egui::Pos2;
 use egui::{epaint::Shadow, Color32, Frame, Label, Margin};
@@ -168,6 +170,13 @@ impl Editor {
         if is_key_pressed(KeyCode::R) {
             self.zoom = 1.0;
             self.offset = Vec2::ZERO;
+        }
+
+        if is_key_pressed(KeyCode::E) {
+            let t0 = Instant::now();
+            map.export();
+            let time = Instant::now().duration_since(t0);
+            dbg!(time);
         }
 
         // handle mouse inputs

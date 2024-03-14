@@ -14,9 +14,9 @@ pub struct Kernel {
 pub struct ValidKernelTable {
     pub max_kernel_size: usize,
     pub all_valid_radii: Vec<usize>,
-    pub valid_radii_per_size: HashMap<usize, Vec<usize>>,
+    valid_radii_per_size: HashMap<usize, Vec<usize>>,
     max_inner_radius_for_outer: HashMap<usize, usize>,
-    max_outer_radius_for_inner: HashMap<usize, usize>,
+    min_outer_radius_for_inner: HashMap<usize, usize>,
 }
 
 impl ValidKernelTable {
@@ -26,7 +26,7 @@ impl ValidKernelTable {
     pub fn new(max_kernel_size: usize) -> ValidKernelTable {
         let all_valid_radii = ValidKernelTable::get_unique_radii(max_kernel_size, false);
         let mut max_inner_radius_for_outer: HashMap<usize, usize> = HashMap::new();
-        let mut max_outer_radius_for_inner: HashMap<usize, usize> = HashMap::new();
+        let mut min_outer_radius_for_inner: HashMap<usize, usize> = HashMap::new();
 
         for outer_radius_index in 0..all_valid_radii.len() {
             let outer_radius = *all_valid_radii.get(outer_radius_index).unwrap();
@@ -41,10 +41,23 @@ impl ValidKernelTable {
 
                 // if it is optimal, store it as the upper bound and skip all possible smaller ones
                 if kernel_valid {
-                    println!("outer: {:} \t inner: {:}", outer_radius, inner_radius);
-                    max_inner_radius_for_outer.insert(outer_radius, inner_radius); // always unique entry
-                    max_outer_radius_for_inner.insert(inner_radius, outer_radius); // will override
-                    break;
+                    // only store if not already a value present, so it remains the max value
+                    max_inner_radius_for_outer
+                        .entry(outer_radius)
+                        .or_insert(inner_radius);
+
+                    match min_outer_radius_for_inner.get(&inner_radius) {
+                        None => {
+                            // no value yet -> just save
+                            min_outer_radius_for_inner.insert(inner_radius, outer_radius);
+                        }
+                        Some(min_outer_radius) => {
+                            // current min radius is larger -> override with current outer_radius
+                            if *min_outer_radius > outer_radius {
+                                min_outer_radius_for_inner.insert(inner_radius, outer_radius);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -59,7 +72,7 @@ impl ValidKernelTable {
             max_kernel_size,
             all_valid_radii,
             max_inner_radius_for_outer,
-            max_outer_radius_for_inner,
+            min_outer_radius_for_inner,
             valid_radii_per_size,
         }
     }
@@ -71,6 +84,32 @@ impl ValidKernelTable {
             .unwrap_or(&0);
 
         *max_radius
+    }
+
+    pub fn get_min_valid_outer_radius(&self, inner_radius: &usize) -> usize {
+        let max_radius = self
+            .min_outer_radius_for_inner
+            .get(inner_radius)
+            .expect("expect an entry for inner_radius");
+
+        *max_radius
+    }
+
+    pub fn get_min_valid_outer_kernel(&self, inner_kernel: &Kernel) -> Kernel {
+        let size = inner_kernel.size + 2;
+        let radius = self.get_min_valid_outer_radius(&inner_kernel.radius);
+
+        Kernel::new(size, radius)
+    }
+
+    /// Returns all valid radii for a given kernel size. Will return an empty Vec if no values have
+    /// been precomputed for the kernel size
+    /// TODO: this will result in an implicit copy each time - better use Option here!
+    pub fn get_valid_radii(&self, size: &usize) -> Vec<usize> {
+        self.valid_radii_per_size
+            .get(size)
+            .unwrap_or(&Vec::new())
+            .to_vec()
     }
 
     /// iterate over all possible distances from center to valid positions within the kernel bounds

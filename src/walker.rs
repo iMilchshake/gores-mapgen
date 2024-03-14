@@ -14,21 +14,28 @@ pub struct CuteWalker {
 }
 
 pub struct GenerationConfig {
-    pub max_kernel_size: usize,
+    pub max_inner_size: usize,
+    pub max_outer_size: usize,
     pub inner_rad_mut_prob: f32,
-    pub outer_rad_mut_prob: f32,
     pub inner_size_mut_prob: f32,
-    pub outer_size_mut_prob: f32,
 }
 
 impl GenerationConfig {
-    pub fn new(max_kernel_size: usize, mut_prob: f32) -> GenerationConfig {
+    pub fn new(
+        max_inner_size: usize,
+        max_outer_size: usize,
+        inner_rad_mut_prob: f32,
+        inner_size_mut_prob: f32,
+    ) -> GenerationConfig {
+        assert!(
+            max_outer_size - 2 >= max_inner_size,
+            "max_outer_size needs to be +2 of max_inner_size"
+        );
         GenerationConfig {
-            max_kernel_size,
-            inner_rad_mut_prob: mut_prob,
-            outer_rad_mut_prob: mut_prob,
-            inner_size_mut_prob: mut_prob,
-            outer_size_mut_prob: mut_prob,
+            max_inner_size,
+            max_outer_size,
+            inner_rad_mut_prob,
+            inner_size_mut_prob,
         }
     }
 }
@@ -109,37 +116,23 @@ impl CuteWalker {
         rnd: &mut Random,
         kernel_table: &ValidKernelTable,
     ) {
-        // mutate both kernels
+        let mut inner_size = self.inner_kernel.size;
+        let mut inner_radius = self.inner_kernel.radius;
+        let mut modified = false;
+
+        // mutate inner kernel
         if rnd.with_probability(config.inner_size_mut_prob) {
-            self.inner_kernel.size = rnd.random_size(config.max_kernel_size);
+            inner_size = rnd.random_kernel_size(config.max_inner_size);
+            modified = true;
         }
-        if rnd.with_probability(config.outer_size_mut_prob) {
-            self.outer_kernel.size = rnd.random_size(config.max_kernel_size);
-        }
-
-        // enforce valid configuration
-        if self.outer_kernel.size < self.inner_kernel.size + 2 {
-            self.outer_kernel.size = self.inner_kernel.size + 2;
+        if rnd.with_probability(config.inner_rad_mut_prob) {
+            inner_radius = rnd.pick_element(&kernel_table.get_valid_radii(&inner_size));
+            modified = true;
         }
 
-        // very ugly - enforce maximum radius
-        self.inner_kernel = Kernel::new(
-            self.inner_kernel.size,
-            *kernel_table
-                .valid_radii_per_size
-                .get(&self.inner_kernel.size)
-                .unwrap()
-                .last()
-                .unwrap(),
-        );
-        self.outer_kernel = Kernel::new(
-            self.outer_kernel.size,
-            *kernel_table
-                .valid_radii_per_size
-                .get(&self.outer_kernel.size)
-                .unwrap()
-                .last()
-                .unwrap(),
-        );
+        if modified {
+            self.inner_kernel = Kernel::new(inner_size, inner_radius);
+            self.outer_kernel = kernel_table.get_min_valid_outer_kernel(&self.inner_kernel);
+        }
     }
 }

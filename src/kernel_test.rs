@@ -28,17 +28,13 @@ fn state_to_kernels(
     kernel_table: &ValidKernelTable,
 ) -> (Kernel, Kernel, usize, usize) {
     let outer_size = state.outer_size_index * 2 + 1;
-    let outer_radii = kernel_table.valid_radii_per_size.get(&outer_size).unwrap();
+    let outer_radii = kernel_table.get_valid_radii(&outer_size);
     let outer_radius = outer_radii.get(state.outer_radius_index).unwrap();
 
-    let max_valid_inner_radius = kernel_table.get_max_valid_inner_radius(&outer_radius);
+    let max_valid_inner_radius = kernel_table.get_max_valid_inner_radius(outer_radius);
 
     let inner_size = state.inner_size_index * 2 + 1;
-    let mut inner_radii = kernel_table
-        .valid_radii_per_size
-        .get(&inner_size)
-        .unwrap()
-        .clone();
+    let mut inner_radii = kernel_table.get_valid_radii(&inner_size).clone();
     dbg!("before", &inner_radii);
     inner_radii.retain(|&x| x <= max_valid_inner_radius);
 
@@ -192,10 +188,15 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
 #[macroquad::main("kernel_test")]
 async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
-    let map = Map::new(20, 20, BlockType::Hookable);
+    let map = Map::new(20, 20, BlockType::Hookable, Position::new(0, 0));
 
-    let kernel = Kernel::new(3, 1);
-    let mut walker = CuteWalker::new(Position::new(10, 10), vec![Position::new(15, 15)], kernel);
+    let init_kernel = Kernel::new(1, 0);
+    let mut walker = CuteWalker::new(
+        Position::new(10, 10),
+        vec![Position::new(15, 15)],
+        init_kernel.clone(),
+        init_kernel.clone(),
+    );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
