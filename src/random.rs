@@ -40,12 +40,16 @@ impl Random {
         self.gen.gen_bool(probability.into())
     }
 
-    pub fn random_size(&mut self, max_size: usize) -> usize {
+    pub fn pick_element(&mut self, values: &Vec<usize>) -> usize {
+        values[self.gen.gen_range(0..values.len())]
+    }
+
+    pub fn random_kernel_size(&mut self, max_size: usize) -> usize {
         assert!(max_size >= 1); // at least 1
         let sizes_count = max_size.div_ceil(2);
         let size_index = self.gen.gen_range(0..sizes_count);
-        let size = 2 * size_index + 1;
+        
 
-        size
+        2 * size_index + 1
     }
 }

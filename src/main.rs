@@ -54,24 +54,8 @@ async fn main() {
     ];
 
     // yeah this is utterly stupid
-    let init_inner_kernel = Kernel::new(
-        3,
-        *kernel_table
-            .valid_radii_per_size
-            .get(&3)
-            .unwrap()
-            .last()
-            .unwrap(),
-    );
-    let init_outer_kernel = Kernel::new(
-        5,
-        *kernel_table
-            .valid_radii_per_size
-            .get(&5)
-            .unwrap()
-            .last()
-            .unwrap(),
-    );
+    let init_inner_kernel = Kernel::new(3, 2);
+    let init_outer_kernel = Kernel::new(5, 8);
 
     let mut walker = CuteWalker::new(
         Position::new(50, 50),

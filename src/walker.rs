@@ -1,4 +1,7 @@
-use crate::{kernel::ValidKernelTable, Kernel, KernelType, Map, Position, Random};
+use crate::{
+    kernel::{ValidKernelTable},
+    Kernel, KernelType, Map, Position, Random,
+};
 
 // this walker is indeed very cute
 #[derive(Debug)]
@@ -16,9 +19,7 @@ pub struct CuteWalker {
 pub struct GenerationConfig {
     pub max_kernel_size: usize,
     pub inner_rad_mut_prob: f32,
-    pub outer_rad_mut_prob: f32,
     pub inner_size_mut_prob: f32,
-    pub outer_size_mut_prob: f32,
 }
 
 impl GenerationConfig {
@@ -26,9 +27,7 @@ impl GenerationConfig {
         GenerationConfig {
             max_kernel_size,
             inner_rad_mut_prob: mut_prob,
-            outer_rad_mut_prob: mut_prob,
             inner_size_mut_prob: mut_prob,
-            outer_size_mut_prob: mut_prob,
         }
     }
 }
@@ -109,37 +108,22 @@ impl CuteWalker {
         rnd: &mut Random,
         kernel_table: &ValidKernelTable,
     ) {
-        // mutate both kernels
+        // mutate inner kernel
+        let mut inner_size = self.inner_kernel.size;
+        let mut inner_radius = self.inner_kernel.radius;
         if rnd.with_probability(config.inner_size_mut_prob) {
-            self.inner_kernel.size = rnd.random_size(config.max_kernel_size);
+            inner_size = rnd.random_kernel_size(config.max_kernel_size);
         }
-        if rnd.with_probability(config.outer_size_mut_prob) {
-            self.outer_kernel.size = rnd.random_size(config.max_kernel_size);
-        }
-
-        // enforce valid configuration
-        if self.outer_kernel.size < self.inner_kernel.size + 2 {
-            self.outer_kernel.size = self.inner_kernel.size + 2;
+        if rnd.with_probability(config.inner_rad_mut_prob) {
+            inner_radius = rnd.pick_element(&kernel_table.get_valid_radii(&inner_size));
         }
 
-        // very ugly - enforce maximum radius
-        self.inner_kernel = Kernel::new(
-            self.inner_kernel.size,
-            *kernel_table
-                .valid_radii_per_size
-                .get(&self.inner_kernel.size)
-                .unwrap()
-                .last()
-                .unwrap(),
-        );
-        self.outer_kernel = Kernel::new(
-            self.outer_kernel.size,
-            *kernel_table
-                .valid_radii_per_size
-                .get(&self.outer_kernel.size)
-                .unwrap()
-                .last()
-                .unwrap(),
-        );
+        // enforce valid configuration -> fixed 1 block margin for now
+        let outer_kernel_size = inner_size + 2;
+        let outer_kernel_rad = kernel_table.get_min_valid_outer_radius(&inner_radius);
+
+        // update kernels - TODO: optimization - only do this if values changed?
+        self.inner_kernel = Kernel::new(inner_size, inner_radius);
+        self.outer_kernel = Kernel::new(outer_kernel_size, outer_kernel_rad);
     }
 }
