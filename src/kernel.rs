@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use itertools::Itertools;
 use ndarray::Array2;
@@ -41,10 +41,10 @@ impl ValidKernelTable {
 
                 // if it is optimal, store it as the upper bound and skip all possible smaller ones
                 if kernel_valid {
-                    println!("outer: {:} \t inner: {:}", outer_radius, inner_radius);
-
                     // only store if not already a value present, so it remains the max value
-                    max_inner_radius_for_outer.entry(outer_radius).or_insert(inner_radius);
+                    max_inner_radius_for_outer
+                        .entry(outer_radius)
+                        .or_insert(inner_radius);
 
                     match min_outer_radius_for_inner.get(&inner_radius) {
                         None => {
@@ -93,6 +93,13 @@ impl ValidKernelTable {
             .expect("expect an entry for inner_radius");
 
         *max_radius
+    }
+
+    pub fn get_min_valid_outer_kernel(&self, inner_kernel: &Kernel) -> Kernel {
+        let size = inner_kernel.size + 2;
+        let radius = self.get_min_valid_outer_radius(&inner_kernel.radius);
+
+        Kernel::new(size, radius)
     }
 
     /// Returns all valid radii for a given kernel size. Will return an empty Vec if no values have
