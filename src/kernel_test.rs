@@ -7,6 +7,8 @@ mod position;
 mod random;
 mod walker;
 
+use std::process::exit;
+
 use crate::{
     editor::*,
     fps_control::*,
@@ -27,19 +29,13 @@ fn state_to_kernels(
     state: &mut State,
     kernel_table: &ValidKernelTable,
 ) -> (Kernel, Kernel, usize, usize) {
-    let outer_size = state.outer_size_index * 2 + 1;
-    let outer_radii = kernel_table.get_valid_radii(&outer_size);
+    let outer_radii = kernel_table.get_valid_radii(&state.outer_size);
     let outer_radius = outer_radii.get(state.outer_radius_index).unwrap();
 
     let max_valid_inner_radius = kernel_table.get_max_valid_inner_radius(outer_radius);
 
-    let inner_size = state.inner_size_index * 2 + 1;
-    let mut inner_radii = kernel_table.get_valid_radii(&inner_size).clone();
-    dbg!("before", &inner_radii);
+    let mut inner_radii = kernel_table.get_valid_radii(&state.inner_size).clone();
     inner_radii.retain(|&x| x <= max_valid_inner_radius);
-
-    dbg!(&inner_size, &outer_size, &outer_radius);
-    dbg!("after", &inner_radii);
 
     let inner_radius = if state.inner_radius_index < inner_radii.len().saturating_sub(1) {
         inner_radii.get(state.inner_radius_index).unwrap()
@@ -48,13 +44,11 @@ fn state_to_kernels(
         inner_radii.get(state.inner_radius_index).unwrap_or(&0)
     };
 
-    dbg!(&state);
-
-    dbg!(&max_valid_inner_radius);
+    dbg!(&state.inner_size, &state.outer_size, &outer_radius);
 
     (
-        Kernel::new(inner_size, *inner_radius),
-        Kernel::new(outer_size, *outer_radius),
+        Kernel::new(state.inner_size, *inner_radius),
+        Kernel::new(state.outer_size, *outer_radius),
         inner_radii.len().saturating_sub(1),
         outer_radii.len().saturating_sub(1),
     )
@@ -73,11 +67,11 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
                 ui.horizontal(|ui| {
                     ui.label(format!("inner size: {}", inner_kernel.size));
                     if ui.button("-").clicked() {
-                        state.inner_size_index = state.inner_size_index.saturating_sub(1);
+                        state.inner_size = state.inner_size.saturating_sub(1).max(1);
                         state.inner_radius_index = 0;
                     }
                     if ui.button("+").clicked() {
-                        state.inner_size_index = state.inner_size_index.saturating_add(1);
+                        state.inner_size = (state.inner_size + 1).min(kernel_table.max_kernel_size); // TODO: -2 here?
                         state.inner_radius_index = 0;
                     }
                 });
@@ -85,11 +79,11 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
                 ui.horizontal(|ui| {
                     ui.label(format!("outer size: {}", outer_kernel.size));
                     if ui.button("-").clicked() {
-                        state.outer_size_index = state.outer_size_index.saturating_sub(1);
+                        state.outer_size = state.outer_size.saturating_sub(1).max(1);
                         state.outer_radius_index = 0;
                     }
                     if ui.button("+").clicked() {
-                        state.outer_size_index = state.outer_size_index.saturating_add(1);
+                        state.outer_size = (state.outer_size + 1).min(kernel_table.max_kernel_size);
                         state.outer_radius_index = 0;
                     }
                 });
@@ -106,17 +100,23 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
                         state.inner_radius_index = state
                             .inner_radius_index
                             .saturating_add(1)
-                            .min(outer_radius_max_index);
+                            .min(inner_radius_max_index);
                     }
                 });
 
                 ui.horizontal(|ui| {
                     ui.label(format!("outer radius: {}", outer_kernel.radius));
                     if ui.button("-").clicked() {
-                        state.outer_radius_index = state.outer_radius_index.saturating_sub(1);
+                        state.outer_radius_index = state
+                            .outer_radius_index
+                            .saturating_sub(1)
+                            .min(outer_radius_max_index);
                     }
                     if ui.button("+").clicked() {
-                        state.outer_radius_index = state.outer_radius_index.saturating_add(1);
+                        state.outer_radius_index = state
+                            .outer_radius_index
+                            .saturating_add(1)
+                            .min(outer_radius_max_index);
                     }
                 });
             });
@@ -131,58 +131,64 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
 struct State {
     inner_radius_index: usize,
     outer_radius_index: usize,
-    inner_size_index: usize,
-    outer_size_index: usize,
+    inner_size: usize,
+    outer_size: usize,
 }
 
-fn draw_thingy(walker: &CuteWalker, flag: bool) {
-    let offset: usize = walker.inner_kernel.size / 2; // offset of kernel wrt. position (top/left)
+fn draw_thingy(walker: &CuteWalker, kernel_type: KernelType) {
+    let kernel = match kernel_type {
+        KernelType::Inner => &walker.inner_kernel,
+        KernelType::Outer => &walker.outer_kernel,
+    };
+    let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
     let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
-    for ((x, y), kernel_active) in walker.inner_kernel.vector.indexed_iter() {
+
+    dbg!(("ay", &kernel_type, &kernel, &offset, &root_pos));
+
+    for ((x, y), kernel_active) in kernel.vector.indexed_iter() {
         if *kernel_active {
             draw_rectangle(
                 (root_pos.x + x) as f32,
                 (root_pos.y + y) as f32,
                 1.0,
                 1.0,
-                match flag {
-                    true => Color::new(0.0, 1.0, 0.0, 0.5),
-                    false => Color::new(1.0, 0.0, 0.0, 0.5),
+                match kernel_type {
+                    KernelType::Inner => Color::new(0.0, 0.0, 1.0, 0.5),
+                    KernelType::Outer => Color::new(0.0, 1.0, 0.0, 0.5),
                 },
             );
         }
     }
 
-    let size = walker.inner_kernel.size;
-    let radius = walker.inner_kernel.radius;
-
     // very crappy hotfix to deal with different center whether size is even or not
-    let offset = match size % 2 == 0 {
-        true => 0.0,
-        false => 0.5,
-    };
+    // let offset = match size % 2 == 0 {
+    //     true => 0.0,
+    //     false => 0.5,
+    // };
 
     draw_circle_lines(
-        (walker.pos.x) as f32 + offset,
-        (walker.pos.y) as f32 + offset,
-        (radius as f32).sqrt(),
+        // (walker.pos.x) as f32 + offset,
+        // (walker.pos.y) as f32 + offset,
+        (walker.pos.x) as f32,
+        (walker.pos.y) as f32,
+        (kernel.radius as f32).sqrt(),
         0.05,
-        match flag {
-            true => GREEN,
-            false => RED,
+        match kernel_type {
+            KernelType::Inner => GREEN,
+            KernelType::Outer => RED,
         },
     );
 
-    draw_circle_lines(
-        (walker.pos.x) as f32 + offset,
-        (walker.pos.y) as f32 + offset,
-        radius as f32,
-        0.025,
-        match flag {
-            true => GREEN,
-            false => RED,
-        },
-    );
+    // draw_circle_lines(
+    //     (walker.pos.x) as f32 + offset,
+    //     (walker.pos.y) as f32 + offset,
+    //     radius as f32,
+    //     0.025,
+    //     match flag {
+    //         true => GREEN,
+    //         false => RED,
+    //     },
+    // );
 }
 
 #[macroquad::main("kernel_test")]
@@ -200,9 +206,9 @@ async fn main() {
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
-        inner_size_index: 0,
+        inner_size: 1,
         inner_radius_index: 0,
-        outer_size_index: 0,
+        outer_size: 1,
         outer_radius_index: 0,
     };
 
@@ -219,11 +225,11 @@ async fn main() {
 
         let (inner_kernel, outer_kernel, _, _) = state_to_kernels(&mut state, &kernel_table);
 
-        walker.inner_kernel = outer_kernel.clone();
-        draw_thingy(&walker, false);
+        walker.outer_kernel = outer_kernel.clone();
+        draw_thingy(&walker, KernelType::Outer);
 
         walker.inner_kernel = inner_kernel.clone();
-        draw_thingy(&walker, true);
+        draw_thingy(&walker, KernelType::Inner);
 
         egui_macroquad::draw();
         fps_ctrl.wait_for_next_frame().await;

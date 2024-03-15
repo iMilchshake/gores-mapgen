@@ -12,6 +12,7 @@ pub enum BlockType {
     Freeze,
 }
 
+#[derive(Debug)]
 pub enum KernelType {
     Outer,
     Inner,

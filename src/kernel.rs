@@ -63,7 +63,7 @@ impl ValidKernelTable {
         }
 
         let mut valid_radii_per_size: HashMap<usize, Vec<usize>> = HashMap::new();
-        for kernel_size in (1..=max_kernel_size).step_by(2) {
+        for kernel_size in 1..=max_kernel_size {
             let valid_radii = ValidKernelTable::get_unique_radii(kernel_size, true);
             valid_radii_per_size.insert(kernel_size, valid_radii);
         }
@@ -164,7 +164,6 @@ impl ValidKernelTable {
 
 impl Kernel {
     pub fn new(size: usize, radius: usize) -> Kernel {
-        assert!(size % 2 == 1, "kernel size must be odd");
         let vector = Kernel::get_kernel_vector(size, radius);
         Kernel {
             size,
@@ -177,11 +176,11 @@ impl Kernel {
         (size - 1) / 2
     }
 
-    fn center(&self) -> usize {
+    pub fn center(&self) -> usize {
         (self.size - 1) / 2
     }
 
-    fn max_offset(&self) -> usize {
+    pub fn max_offset(&self) -> usize {
         (self.size - 1) / 2
     }
 
