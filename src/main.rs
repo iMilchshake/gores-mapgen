@@ -6,6 +6,8 @@ mod map;
 mod position;
 mod random;
 mod walker;
+use std::process::exit;
+
 use crate::{
     editor::*,
     fps_control::*,
@@ -46,7 +48,7 @@ async fn main() {
     let mut map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
     let mut rnd = Random::new("iMilchshake".to_string(), vec![8, 6, 6, 5]);
     let config = GenerationConfig::new(3, 5, 0.5, 0.2);
-    let kernel_table = ValidKernelTable::new(config.max_outer_size);
+    let kernel_table = ValidKernelTable::new(config.max_outer_size + 2 + 11);
 
     let waypoints: Vec<Position> = vec![
         Position::new(250, 50),

@@ -48,7 +48,6 @@ impl Random {
         assert!(max_size >= 1); // at least 1
         let sizes_count = max_size.div_ceil(2);
         let size_index = self.gen.gen_range(0..sizes_count);
-        
 
         2 * size_index + 1
     }

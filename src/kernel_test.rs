@@ -7,8 +7,6 @@ mod position;
 mod random;
 mod walker;
 
-use std::process::exit;
-
 use crate::{
     editor::*,
     fps_control::*,
