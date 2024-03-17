@@ -1,4 +1,4 @@
-use core::panic;
+
 
 use crate::CuteWalker;
 use crate::Position;

@@ -1,4 +1,4 @@
-use crate::{kernel::ValidKernelTable, Kernel, KernelType, Map, Position, Random};
+use crate::{Kernel, KernelType, Map, Position, Random};
 
 // this walker is indeed very cute
 #[derive(Debug)]
@@ -110,14 +110,9 @@ impl CuteWalker {
         println!("Cute walker was cuddled!");
     }
 
-    pub fn mutate_kernel(
-        &mut self,
-        config: &GenerationConfig,
-        rnd: &mut Random,
-        kernel_table: &ValidKernelTable,
-    ) {
+    pub fn mutate_kernel(&mut self, config: &GenerationConfig, rnd: &mut Random) {
         let mut inner_size = self.inner_kernel.size;
-        let mut inner_radius = self.inner_kernel.radius;
+        let mut inner_circularity = self.inner_kernel.circularity;
         let mut modified = false;
 
         // mutate inner kernel
@@ -126,13 +121,17 @@ impl CuteWalker {
             modified = true;
         }
         if rnd.with_probability(config.inner_rad_mut_prob) {
-            inner_radius = rnd.pick_element(&kernel_table.get_valid_radii(&inner_size));
+            inner_circularity = *rnd.pick_element(&vec![0.0, 0.1, 0.2, 0.6, 0.8]);
             modified = true;
         }
 
+        if inner_size <= 2 {
+            inner_circularity = 0.0;
+        }
+
         if modified {
-            self.inner_kernel = Kernel::new(inner_size, inner_radius);
-            self.outer_kernel = kernel_table.get_min_valid_outer_kernel(&self.inner_kernel);
+            self.inner_kernel = Kernel::new(inner_size, inner_circularity);
+            self.outer_kernel = Kernel::new(inner_size + 2, inner_circularity)
         }
     }
 }

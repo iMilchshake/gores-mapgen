@@ -40,16 +40,17 @@ impl Random {
         self.gen.gen_bool(probability.into())
     }
 
-    pub fn pick_element(&mut self, values: &Vec<usize>) -> usize {
-        values[self.gen.gen_range(0..values.len())]
+    /// TODO: is this broken?
+    pub fn pick_element<'a, T>(&'a mut self, values: &'a Vec<T>) -> &T {
+        &values[self.gen.gen_range(0..values.len())]
+    }
+
+    pub fn random_circularity(&mut self) -> f32 {
+        self.gen.gen_range(0.0..=1.0)
     }
 
     pub fn random_kernel_size(&mut self, max_size: usize) -> usize {
-        assert!(max_size >= 1); // at least 1
-        let sizes_count = max_size.div_ceil(2);
-        let size_index = self.gen.gen_range(0..sizes_count);
-        
-
-        2 * size_index + 1
+        assert!(max_size >= 1);
+        self.gen.gen_range(1..=max_size)
     }
 }

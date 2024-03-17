@@ -7,13 +7,7 @@ mod position;
 mod random;
 mod walker;
 use crate::{
-    editor::*,
-    fps_control::*,
-    grid_render::*,
-    kernel::{Kernel, ValidKernelTable},
-    map::*,
-    position::*,
-    random::*,
+    editor::*, fps_control::*, grid_render::*, kernel::Kernel, map::*, position::*, random::*,
     walker::*,
 };
 
@@ -44,9 +38,8 @@ async fn main() {
 
     let spawn = Position::new(50, 50);
     let mut map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
-    let mut rnd = Random::new("iMilchshake".to_string(), vec![8, 6, 6, 5]);
+    let mut rnd = Random::new("iMilchshake".to_string(), vec![6, 5, 4, 3]);
     let config = GenerationConfig::new(3, 5, 0.5, 0.2);
-    let kernel_table = ValidKernelTable::new(config.max_outer_size);
 
     let waypoints: Vec<Position> = vec![
         Position::new(250, 50),
@@ -55,14 +48,8 @@ async fn main() {
         Position::new(50, 50),
     ];
 
-    let init_inner_kernel = Kernel::new(
-        config.max_inner_size,
-        *kernel_table
-            .get_valid_radii(&config.max_inner_size)
-            .last()
-            .unwrap(),
-    );
-    let init_outer_kernel = kernel_table.get_min_valid_outer_kernel(&init_inner_kernel);
+    let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
+    let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
     let mut walker = CuteWalker::new(spawn, waypoints, init_inner_kernel, init_outer_kernel);
 
     loop {
@@ -81,7 +68,7 @@ async fn main() {
                 }
 
                 // randomly mutate kernel
-                walker.mutate_kernel(&config, &mut rnd, &kernel_table);
+                walker.mutate_kernel(&config, &mut rnd);
 
                 // perform one greedy step
                 if let Err(err) = walker.probabilistic_step(&mut map, &mut rnd) {

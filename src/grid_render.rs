@@ -44,12 +44,19 @@ pub fn draw_walker_kernel(walker: &CuteWalker, kernel_type: KernelType) {
     };
     let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
 
-    let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
+    let root_x = walker.pos.x.checked_sub(offset);
+    let root_y = walker.pos.y.checked_sub(offset);
+
+    if root_x == None || root_y == None {
+        return; // dont draw as the following draw operation would fail
+                // TODO: do this for each cell individually!
+    }
+
     for ((x, y), kernel_active) in kernel.vector.indexed_iter() {
         if *kernel_active {
             draw_rectangle(
-                (root_pos.x + x) as f32,
-                (root_pos.y + y) as f32,
+                (root_x.unwrap() + x) as f32,
+                (root_y.unwrap() + y) as f32,
                 1.0,
                 1.0,
                 match kernel_type {

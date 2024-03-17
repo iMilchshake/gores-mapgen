@@ -8,13 +8,7 @@ mod random;
 mod walker;
 
 use crate::{
-    editor::*,
-    fps_control::*,
-    grid_render::*,
-    kernel::{Kernel, ValidKernelTable},
-    map::*,
-    position::*,
-    random::*,
+    editor::*, fps_control::*, grid_render::*, kernel::Kernel, map::*, position::*, random::*,
     walker::*,
 };
 
@@ -23,47 +17,14 @@ use macroquad::color::*;
 use macroquad::shapes::*;
 use macroquad::window::clear_background;
 
-fn state_to_kernels(
-    state: &mut State,
-    kernel_table: &ValidKernelTable,
-) -> (Kernel, Kernel, usize, usize) {
-    let outer_size = state.outer_size_index * 2 + 1;
-    let outer_radii = kernel_table.get_valid_radii(&outer_size);
-    let outer_radius = outer_radii.get(state.outer_radius_index).unwrap();
-
-    let max_valid_inner_radius = kernel_table.get_max_valid_inner_radius(outer_radius);
-
-    let inner_size = state.inner_size_index * 2 + 1;
-    let mut inner_radii = kernel_table.get_valid_radii(&inner_size).clone();
-    dbg!("before", &inner_radii);
-    inner_radii.retain(|&x| x <= max_valid_inner_radius);
-
-    dbg!(&inner_size, &outer_size, &outer_radius);
-    dbg!("after", &inner_radii);
-
-    let inner_radius = if state.inner_radius_index < inner_radii.len().saturating_sub(1) {
-        inner_radii.get(state.inner_radius_index).unwrap()
-    } else {
-        state.inner_radius_index = inner_radii.len().saturating_sub(1);
-        inner_radii.get(state.inner_radius_index).unwrap_or(&0)
-    };
-
-    dbg!(&state);
-
-    dbg!(&max_valid_inner_radius);
-
+fn state_to_kernels(state: &mut State) -> (Kernel, Kernel) {
     (
-        Kernel::new(inner_size, *inner_radius),
-        Kernel::new(outer_size, *outer_radius),
-        inner_radii.len().saturating_sub(1),
-        outer_radii.len().saturating_sub(1),
+        Kernel::new(state.inner_size, state.inner_circ),
+        Kernel::new(state.outer_size, state.outer_circ),
     )
 }
 
-pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidKernelTable) {
-    let (inner_kernel, outer_kernel, inner_radius_max_index, outer_radius_max_index) =
-        state_to_kernels(state, kernel_table);
-
+fn define_egui(editor: &mut Editor, state: &mut State) {
     // define egui
     egui_macroquad::ui(|egui_ctx| {
         egui::Window::new("DEBUG")
@@ -71,54 +32,46 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
             .show(egui_ctx, |ui| {
                 ui.add(Label::new("TEST".to_string()));
                 ui.horizontal(|ui| {
-                    ui.label(format!("inner size: {}", inner_kernel.size));
+                    ui.label(format!("inner size: {}", state.inner_size));
                     if ui.button("-").clicked() {
-                        state.inner_size_index = state.inner_size_index.saturating_sub(1);
-                        state.inner_radius_index = 0;
+                        state.inner_size = state.inner_size.saturating_sub(1);
                     }
                     if ui.button("+").clicked() {
-                        state.inner_size_index = state.inner_size_index.saturating_add(1);
-                        state.inner_radius_index = 0;
+                        state.inner_size = state.inner_size.saturating_add(1);
                     }
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label(format!("outer size: {}", outer_kernel.size));
+                    ui.label(format!("outer size: {}", state.outer_size));
                     if ui.button("-").clicked() {
-                        state.outer_size_index = state.outer_size_index.saturating_sub(1);
-                        state.outer_radius_index = 0;
+                        state.outer_size = state.outer_size.saturating_sub(1);
                     }
                     if ui.button("+").clicked() {
-                        state.outer_size_index = state.outer_size_index.saturating_add(1);
-                        state.outer_radius_index = 0;
+                        state.outer_size = state.outer_size.saturating_add(1);
                     }
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label(format!("inner radius: {}", inner_kernel.radius));
+                    ui.label(format!("inner circ: {:.1}", state.inner_circ));
                     if ui.button("-").clicked() {
-                        state.inner_radius_index = state
-                            .inner_radius_index
-                            .saturating_sub(1)
-                            .min(inner_radius_max_index);
+                        state.inner_circ = (state.inner_circ - 0.1).max(0.0);
                     }
                     if ui.button("+").clicked() {
-                        state.inner_radius_index = state
-                            .inner_radius_index
-                            .saturating_add(1)
-                            .min(outer_radius_max_index);
+                        state.inner_circ = (state.inner_circ + 0.1).min(1.0);
                     }
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label(format!("outer radius: {}", outer_kernel.radius));
+                    ui.label(format!("outer circ: {:.1}", state.outer_circ));
                     if ui.button("-").clicked() {
-                        state.outer_radius_index = state.outer_radius_index.saturating_sub(1);
+                        state.outer_circ = (state.outer_circ - 0.1).max(0.0);
                     }
                     if ui.button("+").clicked() {
-                        state.outer_radius_index = state.outer_radius_index.saturating_add(1);
+                        state.outer_circ = (state.outer_circ + 0.1).min(1.0);
                     }
                 });
+
+                if ui.button("mutate").clicked() {}
             });
 
         // store remaining space for macroquad drawing
@@ -129,10 +82,10 @@ pub fn define_egui(editor: &mut Editor, state: &mut State, kernel_table: &ValidK
 
 #[derive(Debug)]
 struct State {
-    inner_radius_index: usize,
-    outer_radius_index: usize,
-    inner_size_index: usize,
-    outer_size_index: usize,
+    inner_circ: f32,
+    outer_circ: f32,
+    inner_size: usize,
+    outer_size: usize,
 }
 
 fn draw_thingy(walker: &CuteWalker, flag: bool) {
@@ -190,34 +143,33 @@ async fn main() {
     let mut editor = Editor::new(EditorPlayback::Paused);
     let map = Map::new(20, 20, BlockType::Hookable, Position::new(0, 0));
 
-    let init_kernel = Kernel::new(1, 0);
-    let mut walker = CuteWalker::new(
-        Position::new(10, 10),
-        vec![Position::new(15, 15)],
-        init_kernel.clone(),
-        init_kernel.clone(),
-    );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
-        inner_size_index: 0,
-        inner_radius_index: 0,
-        outer_size_index: 0,
-        outer_radius_index: 0,
+        inner_circ: 0.0,
+        outer_circ: 0.0,
+        inner_size: 3,
+        outer_size: 5,
     };
 
-    let kernel_table = ValidKernelTable::new(19);
+    let (inner_kernel, outer_kernel) = state_to_kernels(&mut state);
+    let mut walker = CuteWalker::new(
+        Position::new(10, 10),
+        vec![Position::new(10, 10)],
+        inner_kernel,
+        outer_kernel,
+    );
 
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
-        define_egui(&mut editor, &mut state, &kernel_table);
+        define_egui(&mut editor, &mut state);
         editor.set_cam(&map);
         editor.handle_user_inputs(&map);
         clear_background(GRAY);
         draw_walker(&walker);
 
-        let (inner_kernel, outer_kernel, _, _) = state_to_kernels(&mut state, &kernel_table);
+        let (inner_kernel, outer_kernel) = state_to_kernels(&mut state);
 
         walker.inner_kernel = outer_kernel.clone();
         draw_thingy(&walker, false);
