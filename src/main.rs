@@ -39,7 +39,7 @@ async fn main() {
     let spawn = Position::new(50, 50);
     let mut map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
     let mut rnd = Random::new("iMilchshake".to_string(), vec![6, 5, 4, 3]);
-    let config = GenerationConfig::new(3, 5, 0.5, 0.2);
+    let mut config = GenerationConfig::new(3, 5, 0.5, 0.2);
 
     let waypoints: Vec<Position> = vec![
         Position::new(250, 50),
@@ -84,7 +84,7 @@ async fn main() {
             }
         }
 
-        editor.define_egui(&walker);
+        editor.define_egui(&walker, &mut config);
         editor.set_cam(&map);
         editor.handle_user_inputs(&map);
 

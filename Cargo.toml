@@ -15,10 +15,16 @@ name = "twmap_test"
 path = "src/twmap_test.rs"
 
 [dependencies]
+# egui-macroquad = { git = "https://github.com/optozorax/egui-macroquad", default-features = false, rev="dfbdb967d6cf4e4726b84a568ec1b2bdc7e4f492" }
+# macroquad = "0.4.4"
+# egui = "0.25.0"
+egui_struct = { version = "0.4", default-features = false, features = [ "egui21" ] }
 egui-macroquad = "0.15.0"
+ 
 egui = "0.21.0"
 egui-miniquad = "0.14.0"
 macroquad = "0.3.25"
+
 ndarray = "0.15.6"
 rand = {version="0.8.5", features=['small_rng']}
 seahash = "4.1.0"

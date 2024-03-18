@@ -1,4 +1,6 @@
 use crate::{Kernel, KernelType, Map, Position, Random};
+use egui_struct::ConfigNum::*;
+use egui_struct::EguiStruct;
 
 // this walker is indeed very cute
 #[derive(Debug)]
@@ -13,11 +15,39 @@ pub struct CuteWalker {
     pub waypoints: Vec<Position>,
 }
 
+fn test(config: &mut GenerationConfig) {
+    if config.vec_len != config.test_vec.len() {
+        config
+            .test_vec
+            .resize_with(config.vec_len, Default::default);
+    }
+}
+
+fn test2<T: Default>(vec_len: usize, vec: &mut Vec<T>) {
+    if vec_len != vec.len() {
+        vec.resize_with(vec_len, Default::default);
+    }
+}
+
+#[derive(EguiStruct)]
 pub struct GenerationConfig {
+    #[eguis(config = "Slider(1,9)")]
     pub max_inner_size: usize,
+
+    #[eguis(config = "Slider(1,9)")]
     pub max_outer_size: usize,
+
+    #[eguis(config = "Slider(0.0,1.0)")]
     pub inner_rad_mut_prob: f32,
+
+    #[eguis(config = "Slider(0.0,1.0)")]
     pub inner_size_mut_prob: f32,
+
+    // #[eguis(on_change = (|s: &mut usize| {dbg!(*s)}))]
+    #[eguis(on_change_struct = (|s: &mut Self| test2(s.vec_len, &mut s.test_vec) ))]
+    pub vec_len: usize,
+
+    pub test_vec: Vec<Position>,
 }
 
 impl GenerationConfig {
@@ -36,6 +66,8 @@ impl GenerationConfig {
             max_outer_size,
             inner_rad_mut_prob,
             inner_size_mut_prob,
+            vec_len: 2,
+            test_vec: vec![Position::new(0, 1), Position::new(4, 2)],
         }
     }
 }

@@ -1,6 +1,8 @@
+use egui::RichText;
+use egui_struct::EguiStruct;
 use std::time::Instant;
 
-use crate::{CuteWalker, Map};
+use crate::{CuteWalker, GenerationConfig, Map};
 use egui::{epaint::Shadow, Color32, Frame, Label, Margin};
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
@@ -95,7 +97,7 @@ impl Editor {
         )
     }
 
-    pub fn define_egui(&mut self, walker: &CuteWalker) {
+    pub fn define_egui(&mut self, walker: &CuteWalker, config: &mut GenerationConfig) {
         // define egui
         egui_macroquad::ui(|egui_ctx| {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
@@ -111,6 +113,8 @@ impl Editor {
                     self.playback = EditorPlayback::SingleStep;
                 }
                 ui.separator();
+
+                config.show_top(ui, RichText::new("Data").heading(), None);
             });
 
             egui::Window::new("DEBUG")
@@ -198,7 +202,7 @@ impl Editor {
 
         if !egui_wants_mouse
             && is_mouse_button_down(MouseButton::Left)
-            && Editor::mouse_in_viewport(&self.cam.unwrap())
+            && Editor::mouse_in_viewport(&self.cam.as_ref().unwrap())
         {
             let mouse = mouse_position();
 
