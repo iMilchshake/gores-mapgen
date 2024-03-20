@@ -1,9 +1,10 @@
 use egui::RichText;
+use egui_struct::ConfigNum::*;
 use egui_struct::EguiStruct;
 use std::time::Instant;
 
-use crate::{CuteWalker, GenerationConfig, Map};
-use egui::{epaint::Shadow, Color32, Frame, Label, Margin};
+use crate::{BlockType, CuteWalker, Kernel, Map, Position, Random};
+use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
     is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position, mouse_wheel,
@@ -52,19 +53,157 @@ impl EditorPlayback {
         *self = EditorPlayback::Paused;
     }
 }
+
+fn update_vec_size<T: Default>(vec_len: usize, vec: &mut Vec<T>) {
+    if vec_len != vec.len() {
+        vec.resize_with(vec_len, Default::default);
+    }
+}
+
+pub fn vec_edit_widget<T, F>(
+    ui: &mut Ui,
+    vec: &mut Vec<T>,
+    edit_element: F,
+    label: &str,
+    collapsed: bool,
+) where
+    F: Fn(&mut Ui, &mut T),
+    T: Default,
+{
+    CollapsingHeader::new(label)
+        .default_open(!collapsed)
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                for (i, value) in vec.iter_mut().enumerate() {
+                    ui.horizontal(|ui| {
+                        ui.label(i.to_string());
+                        edit_element(ui, value);
+                    });
+                }
+
+                ui.horizontal(|ui| {
+                    if ui.button("+").clicked() {
+                        vec.push(Default::default());
+                    }
+
+                    if ui.button("-").clicked() && !vec.is_empty() {
+                        vec.pop();
+                    }
+                });
+            });
+        });
+}
+
+pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
+    ui.add(egui::DragValue::new(value));
+}
+
+pub fn edit_f32(ui: &mut Ui, value: &mut f32) {
+    ui.add(egui::Slider::new(value, 0.0..=1.0));
+}
+
+pub fn edit_string(ui: &mut Ui, value: &mut String) {
+    ui.add(egui::widgets::TextEdit::singleline(value));
+}
+
+pub fn edit_position(ui: &mut Ui, position: &mut Position) {
+    ui.horizontal(|ui| {
+        ui.label("x:");
+        ui.add(egui::widgets::DragValue::new(&mut position.x));
+        ui.label("y:");
+        ui.add(egui::widgets::DragValue::new(&mut position.y));
+    });
+}
+
+#[derive(Default)]
+pub struct TestStruct {
+    vec_usize: Vec<usize>,
+    vec_f32: Vec<f32>,
+    vec_str: Vec<String>,
+    vec_pos: Vec<Position>,
+}
+
+#[derive(EguiStruct)]
+pub struct GenerationConfig {
+    pub seed: String,
+
+    #[eguis(config = "Slider(1,9)")]
+    pub max_inner_size: usize,
+
+    #[eguis(config = "Slider(1,9)")]
+    pub max_outer_size: usize,
+
+    #[eguis(config = "Slider(0.0,1.0)")]
+    pub inner_rad_mut_prob: f32,
+
+    #[eguis(config = "Slider(0.0,1.0)")]
+    pub inner_size_mut_prob: f32,
+
+    #[eguis(on_change_struct = (|s: &mut Self| update_vec_size(s.waypoint_count, &mut s.waypoints)))]
+    pub waypoint_count: usize,
+
+    pub waypoints: Vec<Position>,
+}
+
+impl GenerationConfig {
+    pub fn new(
+        max_inner_size: usize,
+        max_outer_size: usize,
+        inner_rad_mut_prob: f32,
+        inner_size_mut_prob: f32,
+        waypoints: Vec<Position>,
+        seed: String,
+    ) -> GenerationConfig {
+        assert!(
+            max_outer_size - 2 >= max_inner_size,
+            "max_outer_size needs to be +2 of max_inner_size"
+        );
+        GenerationConfig {
+            max_inner_size,
+            max_outer_size,
+            inner_rad_mut_prob,
+            inner_size_mut_prob,
+            waypoint_count: waypoints.len(),
+            waypoints,
+            seed,
+        }
+    }
+}
+
 pub struct Editor {
     pub playback: EditorPlayback,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
+    pub config: GenerationConfig,
     zoom: f32,
     offset: Vec2,
     cam: Option<Camera2D>,
     last_mouse: Option<Vec2>,
 }
 
+pub struct Generator {
+    pub walker: CuteWalker,
+    pub map: Map,
+    pub rnd: Random,
+}
+
+impl Generator {
+    /// derive a initial generator state based on a GenerationConfig
+    pub fn new(config: &GenerationConfig) -> Generator {
+        let spawn = Position::new(50, 50);
+        let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
+        let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
+        let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
+        let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, &config);
+        let rnd = Random::new(config.seed.clone(), vec![6, 5, 4, 3]);
+
+        Generator { walker, map, rnd }
+    }
+}
+
 impl Editor {
-    pub fn new(initial_playback: EditorPlayback) -> Editor {
+    pub fn new(initial_playback: EditorPlayback, config: GenerationConfig) -> Editor {
         Editor {
             playback: initial_playback,
             canvas: None,
@@ -74,6 +213,7 @@ impl Editor {
             offset: Vec2::ZERO,
             cam: None,
             last_mouse: None,
+            config,
         }
     }
 
@@ -97,24 +237,44 @@ impl Editor {
         )
     }
 
-    pub fn define_egui(&mut self, walker: &CuteWalker, config: &mut GenerationConfig) {
+    pub fn define_egui(&mut self, gen: &mut Generator, test: &mut TestStruct) {
         // define egui
         egui_macroquad::ui(|egui_ctx| {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
-                ui.label("hello world");
+                ui.label(RichText::new("Control").heading());
 
-                // toggle pause
-                if ui.button("toggle").clicked() {
-                    self.playback.toggle();
-                }
+                ui.horizontal(|ui| {
+                    // toggle pause
+                    if self.playback.is_not_paused() {
+                        if ui.button("pause").clicked() {
+                            self.playback = EditorPlayback::Paused;
+                        }
+                    } else {
+                        if ui.button("play").clicked() {
+                            self.playback = EditorPlayback::Playing;
+                        }
+                    }
 
-                // pause, allow single step
-                if ui.button("single").clicked() {
-                    self.playback = EditorPlayback::SingleStep;
-                }
+                    // pause, allow single step
+                    if ui.button("single step").clicked() {
+                        self.playback = EditorPlayback::SingleStep;
+                    }
+
+                    if ui.button("reset generator").clicked() {
+                        self.playback = EditorPlayback::Paused;
+                        *gen = Generator::new(&self.config);
+                    }
+                });
+
                 ui.separator();
 
-                config.show_top(ui, RichText::new("Data").heading(), None);
+                vec_edit_widget(ui, &mut test.vec_usize, edit_usize, "usize", true);
+                vec_edit_widget(ui, &mut test.vec_f32, edit_f32, "f32", true);
+                vec_edit_widget(ui, &mut test.vec_str, edit_string, "string", true);
+                vec_edit_widget(ui, &mut test.vec_pos, edit_position, "position", true);
+
+                // self.config
+                //     .show_top(ui, RichText::new("Config").heading(), None);
             });
 
             egui::Window::new("DEBUG")
@@ -126,7 +286,7 @@ impl Editor {
                         "avg: {:}",
                         self.average_fps.round() as usize
                     )));
-                    ui.add(Label::new(format!("{:?}", walker)));
+                    ui.add(Label::new(format!("{:?}", gen.walker)));
                     ui.add(Label::new(format!("{:?}", self.playback)));
                 });
 

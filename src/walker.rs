@@ -1,6 +1,4 @@
-use crate::{Kernel, KernelType, Map, Position, Random};
-use egui_struct::ConfigNum::*;
-use egui_struct::EguiStruct;
+use crate::{GenerationConfig, Kernel, KernelType, Map, Position, Random};
 
 // this walker is indeed very cute
 #[derive(Debug)]
@@ -10,83 +8,23 @@ pub struct CuteWalker {
     pub inner_kernel: Kernel,
     pub outer_kernel: Kernel,
     pub goal: Option<Position>,
-
     pub goal_index: usize,
-    pub waypoints: Vec<Position>,
-}
-
-fn test(config: &mut GenerationConfig) {
-    if config.vec_len != config.test_vec.len() {
-        config
-            .test_vec
-            .resize_with(config.vec_len, Default::default);
-    }
-}
-
-fn test2<T: Default>(vec_len: usize, vec: &mut Vec<T>) {
-    if vec_len != vec.len() {
-        vec.resize_with(vec_len, Default::default);
-    }
-}
-
-#[derive(EguiStruct)]
-pub struct GenerationConfig {
-    #[eguis(config = "Slider(1,9)")]
-    pub max_inner_size: usize,
-
-    #[eguis(config = "Slider(1,9)")]
-    pub max_outer_size: usize,
-
-    #[eguis(config = "Slider(0.0,1.0)")]
-    pub inner_rad_mut_prob: f32,
-
-    #[eguis(config = "Slider(0.0,1.0)")]
-    pub inner_size_mut_prob: f32,
-
-    // #[eguis(on_change = (|s: &mut usize| {dbg!(*s)}))]
-    #[eguis(on_change_struct = (|s: &mut Self| test2(s.vec_len, &mut s.test_vec) ))]
-    pub vec_len: usize,
-
-    pub test_vec: Vec<Position>,
-}
-
-impl GenerationConfig {
-    pub fn new(
-        max_inner_size: usize,
-        max_outer_size: usize,
-        inner_rad_mut_prob: f32,
-        inner_size_mut_prob: f32,
-    ) -> GenerationConfig {
-        assert!(
-            max_outer_size - 2 >= max_inner_size,
-            "max_outer_size needs to be +2 of max_inner_size"
-        );
-        GenerationConfig {
-            max_inner_size,
-            max_outer_size,
-            inner_rad_mut_prob,
-            inner_size_mut_prob,
-            vec_len: 2,
-            test_vec: vec![Position::new(0, 1), Position::new(4, 2)],
-        }
-    }
 }
 
 impl CuteWalker {
     pub fn new(
         initial_pos: Position,
-        waypoints: Vec<Position>,
         inner_kernel: Kernel,
         outer_kernel: Kernel,
+        config: &GenerationConfig,
     ) -> CuteWalker {
         CuteWalker {
             pos: initial_pos,
             steps: 0,
             inner_kernel,
             outer_kernel,
-            goal: Some(waypoints.first().unwrap().clone()),
+            goal: Some(config.waypoints.first().unwrap().clone()),
             goal_index: 0,
-            waypoints,
         }
     }
 
@@ -94,8 +32,8 @@ impl CuteWalker {
         self.goal.as_ref().map(|goal| self.pos.eq(goal))
     }
 
-    pub fn next_waypoint(&mut self) -> Result<(), ()> {
-        if let Some(next_goal) = self.waypoints.get(self.goal_index + 1) {
+    pub fn next_waypoint(&mut self, config: &GenerationConfig) -> Result<(), ()> {
+        if let Some(next_goal) = config.waypoints.get(self.goal_index + 1) {
             self.goal_index += 1;
             self.goal = Some(next_goal.clone());
             Ok(())

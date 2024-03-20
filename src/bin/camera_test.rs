@@ -14,7 +14,6 @@ use rand_distr::num_traits::{Signed, Zero};
 const MAP_WIDTH: f32 = 600.0;
 const MAP_HEIGHT: f32 = 600.0;
 const ZOOM_FACTOR: f32 = 0.9;
-const SHIFT_FACTOR: f32 = 0.1;
 
 struct Editor {
     zoom: f32,

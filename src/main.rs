@@ -33,46 +33,48 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut editor = Editor::new(EditorPlayback::Paused);
+    let init_config = GenerationConfig::new(
+        3,
+        5,
+        0.5,
+        0.2,
+        vec![
+            Position::new(250, 50),
+            Position::new(250, 250),
+            Position::new(50, 250),
+            Position::new(50, 50),
+        ],
+        "iMilchshake".to_string(),
+    );
+    let mut editor = Editor::new(EditorPlayback::Paused, init_config);
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
+    let mut gen = Generator::new(&editor.config);
 
-    let spawn = Position::new(50, 50);
-    let mut map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
-    let mut rnd = Random::new("iMilchshake".to_string(), vec![6, 5, 4, 3]);
-    let mut config = GenerationConfig::new(3, 5, 0.5, 0.2);
-
-    let waypoints: Vec<Position> = vec![
-        Position::new(250, 50),
-        Position::new(250, 250),
-        Position::new(50, 250),
-        Position::new(50, 50),
-    ];
-
-    let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
-    let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
-    let mut walker = CuteWalker::new(spawn, waypoints, init_inner_kernel, init_outer_kernel);
+    let mut test = TestStruct::default();
 
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
-        // walker logic
+        // walker logic TODO: move this into Generator struct
         if editor.playback.is_not_paused() {
             for _ in 0..STEPS_PER_FRAME {
                 // check if walker has reached goal position
-                if walker.is_goal_reached() == Some(true) {
-                    walker.next_waypoint().unwrap_or_else(|_| {
-                        println!("pause due to reaching last checkpoint");
-                        editor.playback.pause();
-                    });
+                if gen.walker.is_goal_reached() == Some(true) {
+                    gen.walker
+                        .next_waypoint(&editor.config)
+                        .unwrap_or_else(|_| {
+                            println!("pause due to error fetching next checkpoint");
+                            editor.playback.pause();
+                        });
                 }
 
                 // randomly mutate kernel
-                walker.mutate_kernel(&config, &mut rnd);
+                gen.walker.mutate_kernel(&editor.config, &mut gen.rnd);
 
                 // perform one greedy step
-                if let Err(err) = walker.probabilistic_step(&mut map, &mut rnd) {
-                    println!("greedy step failed: '{:}' - pausing...", err);
+                if let Err(err) = gen.walker.probabilistic_step(&mut gen.map, &mut gen.rnd) {
+                    println!("walker step failed: '{:}' - pausing...", err);
                     editor.playback.pause();
                 }
 
@@ -84,16 +86,16 @@ async fn main() {
             }
         }
 
-        editor.define_egui(&walker, &mut config);
-        editor.set_cam(&map);
-        editor.handle_user_inputs(&map);
+        editor.define_egui(&mut gen, &mut test);
+        editor.set_cam(&gen.map);
+        editor.handle_user_inputs(&gen.map);
 
         clear_background(WHITE);
-        draw_grid_blocks(&map.grid);
-        draw_waypoints(&walker.waypoints);
-        draw_walker(&walker);
-        draw_walker_kernel(&walker, KernelType::Outer);
-        draw_walker_kernel(&walker, KernelType::Inner);
+        draw_grid_blocks(&gen.map.grid);
+        draw_waypoints(&editor.config.waypoints);
+        draw_walker(&gen.walker);
+        draw_walker_kernel(&gen.walker, KernelType::Outer);
+        draw_walker_kernel(&gen.walker, KernelType::Inner);
 
         egui_macroquad::draw();
 
