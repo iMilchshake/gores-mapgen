@@ -1,5 +1,4 @@
-use crate::CuteWalker;
-use crate::Position;
+use crate::{position::Position, walker::CuteWalker};
 use ndarray::Array2;
 use twmap::{GameLayer, GameTile, TileFlags, TilemapLayer, TwMap};
 
@@ -73,11 +72,6 @@ impl Map {
         }
 
         Ok(())
-    }
-
-    fn is_pos_in_bounds(&self, pos: Position) -> bool {
-        // we dont have to check for lower bound, because of usize
-        pos.x < self.width && pos.y < self.height
     }
 
     pub fn export(&self) {

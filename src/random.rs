@@ -1,4 +1,4 @@
-use crate::ShiftDirection;
+use crate::position::ShiftDirection;
 use rand::prelude::*;
 use rand::rngs::SmallRng;
 use rand_distr::WeightedAliasIndex;

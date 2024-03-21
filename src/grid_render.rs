@@ -1,5 +1,4 @@
-use crate::KernelType;
-use crate::{BlockType, CuteWalker, Position};
+use crate::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
 use macroquad::color::*;
 use macroquad::shapes::*;
 use ndarray::Array2;

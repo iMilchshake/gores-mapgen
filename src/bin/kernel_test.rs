@@ -1,18 +1,7 @@
-mod editor;
-mod fps_control;
-mod grid_render;
-mod kernel;
-mod map;
-mod position;
-mod random;
-mod walker;
-
-use crate::{
-    editor::*, fps_control::*, grid_render::*, kernel::Kernel, map::*, position::*, random::*,
-    walker::*,
+use gores_mapgen_rust::{
+    editor::*, fps_control::*, grid_render::*, kernel::*, map::*, position::*, walker::*,
 };
 
-use egui::Label;
 use macroquad::color::*;
 use macroquad::shapes::*;
 use macroquad::window::clear_background;

@@ -1,9 +1,13 @@
 use egui::RichText;
-use egui_struct::ConfigNum::*;
-use egui_struct::EguiStruct;
 use std::time::Instant;
 
-use crate::{BlockType, CuteWalker, Kernel, Map, Position, Random};
+use crate::{
+    kernel::Kernel,
+    map::{BlockType, Map},
+    position::Position,
+    random::Random,
+    walker::CuteWalker,
+};
 use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
@@ -51,12 +55,6 @@ impl EditorPlayback {
 
     pub fn pause(&mut self) {
         *self = EditorPlayback::Paused;
-    }
-}
-
-fn update_vec_size<T: Default>(vec_len: usize, vec: &mut Vec<T>) {
-    if vec_len != vec.len() {
-        vec.resize_with(vec_len, Default::default);
     }
 }
 
@@ -133,7 +131,6 @@ pub fn edit_position(ui: &mut Ui, position: &mut Position) {
     });
 }
 
-#[derive(EguiStruct)]
 pub struct GenerationConfig {
     pub seed: String,
     pub max_inner_size: usize,

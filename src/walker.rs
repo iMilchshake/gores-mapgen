@@ -1,4 +1,10 @@
-use crate::{GenerationConfig, Kernel, KernelType, Map, Position, Random};
+use crate::{
+    editor::GenerationConfig,
+    kernel::Kernel,
+    map::{KernelType, Map},
+    position::Position,
+    random::Random,
+};
 
 // this walker is indeed very cute
 #[derive(Debug)]

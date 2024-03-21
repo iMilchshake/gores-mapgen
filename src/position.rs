@@ -1,8 +1,7 @@
+use crate::map::Map;
 use std::usize;
 
 use egui_struct::EguiStruct;
-
-use crate::Map;
 
 // using my own position vector to meet ndarray's indexing standard using usize
 //
