@@ -66,6 +66,7 @@ pub fn vec_edit_widget<T, F>(
     edit_element: F,
     label: &str,
     collapsed: bool,
+    fixed_size: bool,
 ) where
     F: Fn(&mut Ui, &mut T),
     T: Default,
@@ -81,15 +82,17 @@ pub fn vec_edit_widget<T, F>(
                     });
                 }
 
-                ui.horizontal(|ui| {
-                    if ui.button("+").clicked() {
-                        vec.push(Default::default());
-                    }
+                if !fixed_size {
+                    ui.horizontal(|ui| {
+                        if ui.button("+").clicked() {
+                            vec.push(Default::default());
+                        }
 
-                    if ui.button("-").clicked() && !vec.is_empty() {
-                        vec.pop();
-                    }
-                });
+                        if ui.button("-").clicked() && !vec.is_empty() {
+                            vec.pop();
+                        }
+                    });
+                }
             });
         });
 }
@@ -130,14 +133,6 @@ pub fn edit_position(ui: &mut Ui, position: &mut Position) {
     });
 }
 
-#[derive(Default)]
-pub struct TestStruct {
-    vec_usize: Vec<usize>,
-    vec_f32: Vec<f32>,
-    vec_str: Vec<String>,
-    vec_pos: Vec<Position>,
-}
-
 #[derive(EguiStruct)]
 pub struct GenerationConfig {
     pub seed: String,
@@ -149,28 +144,22 @@ pub struct GenerationConfig {
     pub step_weights: Vec<i32>,
 }
 
-impl GenerationConfig {
-    pub fn new(
-        max_inner_size: usize,
-        max_outer_size: usize,
-        inner_rad_mut_prob: f32,
-        inner_size_mut_prob: f32,
-        waypoints: Vec<Position>,
-        seed: String,
-        step_weights: Vec<i32>,
-    ) -> GenerationConfig {
-        assert!(
-            max_outer_size - 2 >= max_inner_size,
-            "max_outer_size needs to be +2 of max_inner_size"
-        );
+impl Default for GenerationConfig {
+    // TODO: might make some sense to move waypoints somewhere else
+    fn default() -> GenerationConfig {
         GenerationConfig {
-            max_inner_size,
-            max_outer_size,
-            inner_rad_mut_prob,
-            inner_size_mut_prob,
-            waypoints,
-            seed,
-            step_weights,
+            seed: "iMilchshake".to_string(),
+            max_inner_size: 2,
+            max_outer_size: 4,
+            inner_rad_mut_prob: 0.1,
+            inner_size_mut_prob: 0.3,
+            waypoints: vec![
+                Position::new(250, 50),
+                Position::new(250, 250),
+                Position::new(50, 250),
+                Position::new(50, 50),
+            ],
+            step_weights: vec![6, 5, 4, 3],
         }
     }
 }
@@ -242,7 +231,7 @@ impl Editor {
         )
     }
 
-    pub fn define_egui(&mut self, gen: &mut Generator, test: &mut TestStruct) {
+    pub fn define_egui(&mut self, gen: &mut Generator) {
         // define egui
         egui_macroquad::ui(|egui_ctx| {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
@@ -272,13 +261,6 @@ impl Editor {
                 });
 
                 ui.separator();
-
-                // pub seed: String,
-                // pub max_inner_size: usize,
-                // pub max_outer_size: usize,
-                // pub inner_rad_mut_prob: f32,
-                // pub inner_size_mut_prob: f32,
-                // pub waypoints: Vec<Position>,
 
                 field_edit_widget(ui, &mut self.config.seed, edit_string, "seed");
                 field_edit_widget(
@@ -312,6 +294,7 @@ impl Editor {
                     edit_position,
                     "waypoints",
                     true,
+                    false,
                 );
 
                 vec_edit_widget(
@@ -320,6 +303,7 @@ impl Editor {
                     edit_i32,
                     "step weights",
                     false,
+                    true,
                 );
                 // self.config
                 //     .show_top(ui, RichText::new("Config").heading(), None);

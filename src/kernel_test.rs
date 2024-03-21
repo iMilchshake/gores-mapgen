@@ -30,7 +30,6 @@ fn define_egui(editor: &mut Editor, state: &mut State) {
         egui::Window::new("DEBUG")
             .frame(window_frame())
             .show(egui_ctx, |ui| {
-                ui.add(Label::new("TEST".to_string()));
                 ui.horizontal(|ui| {
                     ui.label(format!("inner size: {}", state.inner_size));
                     if ui.button("-").clicked() {
@@ -70,8 +69,6 @@ fn define_egui(editor: &mut Editor, state: &mut State) {
                         state.outer_circ = (state.outer_circ + 0.1).min(1.0);
                     }
                 });
-
-                if ui.button("mutate").clicked() {}
             });
 
         // store remaining space for macroquad drawing
@@ -140,7 +137,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
 
 #[macroquad::main("kernel_test")]
 async fn main() {
-    let mut editor = Editor::new(EditorPlayback::Paused);
+    let mut editor = Editor::new(EditorPlayback::Paused, GenerationConfig::default());
     let map = Map::new(20, 20, BlockType::Hookable, Position::new(0, 0));
 
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
@@ -155,9 +152,9 @@ async fn main() {
     let (inner_kernel, outer_kernel) = state_to_kernels(&mut state);
     let mut walker = CuteWalker::new(
         Position::new(10, 10),
-        vec![Position::new(10, 10)],
         inner_kernel,
         outer_kernel,
+        &GenerationConfig::default(),
     );
 
     loop {

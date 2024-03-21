@@ -33,25 +33,9 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let init_config = GenerationConfig::new(
-        3,
-        5,
-        0.5,
-        0.2,
-        vec![
-            Position::new(250, 50),
-            Position::new(250, 250),
-            Position::new(50, 250),
-            Position::new(50, 50),
-        ],
-        "iMilchshake".to_string(),
-        vec![6, 5, 4, 3],
-    );
-    let mut editor = Editor::new(EditorPlayback::Paused, init_config);
+    let mut editor = Editor::new(EditorPlayback::Paused, GenerationConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
     let mut gen = Generator::new(&editor.config);
-
-    let mut test = TestStruct::default();
 
     loop {
         fps_ctrl.on_frame_start();
@@ -87,7 +71,7 @@ async fn main() {
             }
         }
 
-        editor.define_egui(&mut gen, &mut test);
+        editor.define_egui(&mut gen);
         editor.set_cam(&gen.map);
         editor.handle_user_inputs(&gen.map);
 
