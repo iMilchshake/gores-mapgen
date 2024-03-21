@@ -45,6 +45,7 @@ async fn main() {
             Position::new(50, 50),
         ],
         "iMilchshake".to_string(),
+        vec![6, 5, 4, 3],
     );
     let mut editor = Editor::new(EditorPlayback::Paused, init_config);
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);

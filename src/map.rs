@@ -1,5 +1,3 @@
-
-
 use crate::CuteWalker;
 use crate::Position;
 use ndarray::Array2;

@@ -94,7 +94,22 @@ pub fn vec_edit_widget<T, F>(
         });
 }
 
+pub fn field_edit_widget<T, F>(ui: &mut Ui, value: &mut T, edit_element: F, label: &str)
+where
+    F: Fn(&mut Ui, &mut T),
+    T: Default,
+{
+    ui.vertical(|ui| {
+        ui.label(label);
+        edit_element(ui, value);
+    });
+}
+
 pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
+    ui.add(egui::DragValue::new(value));
+}
+
+pub fn edit_i32(ui: &mut Ui, value: &mut i32) {
     ui.add(egui::DragValue::new(value));
 }
 
@@ -126,23 +141,12 @@ pub struct TestStruct {
 #[derive(EguiStruct)]
 pub struct GenerationConfig {
     pub seed: String,
-
-    #[eguis(config = "Slider(1,9)")]
     pub max_inner_size: usize,
-
-    #[eguis(config = "Slider(1,9)")]
     pub max_outer_size: usize,
-
-    #[eguis(config = "Slider(0.0,1.0)")]
     pub inner_rad_mut_prob: f32,
-
-    #[eguis(config = "Slider(0.0,1.0)")]
     pub inner_size_mut_prob: f32,
-
-    #[eguis(on_change_struct = (|s: &mut Self| update_vec_size(s.waypoint_count, &mut s.waypoints)))]
-    pub waypoint_count: usize,
-
     pub waypoints: Vec<Position>,
+    pub step_weights: Vec<i32>,
 }
 
 impl GenerationConfig {
@@ -153,6 +157,7 @@ impl GenerationConfig {
         inner_size_mut_prob: f32,
         waypoints: Vec<Position>,
         seed: String,
+        step_weights: Vec<i32>,
     ) -> GenerationConfig {
         assert!(
             max_outer_size - 2 >= max_inner_size,
@@ -163,9 +168,9 @@ impl GenerationConfig {
             max_outer_size,
             inner_rad_mut_prob,
             inner_size_mut_prob,
-            waypoint_count: waypoints.len(),
             waypoints,
             seed,
+            step_weights,
         }
     }
 }
@@ -196,7 +201,7 @@ impl Generator {
         let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
         let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, &config);
-        let rnd = Random::new(config.seed.clone(), vec![6, 5, 4, 3]);
+        let rnd = Random::new(config.seed.clone(), config.step_weights.clone());
 
         Generator { walker, map, rnd }
     }
@@ -268,11 +273,54 @@ impl Editor {
 
                 ui.separator();
 
-                vec_edit_widget(ui, &mut test.vec_usize, edit_usize, "usize", true);
-                vec_edit_widget(ui, &mut test.vec_f32, edit_f32, "f32", true);
-                vec_edit_widget(ui, &mut test.vec_str, edit_string, "string", true);
-                vec_edit_widget(ui, &mut test.vec_pos, edit_position, "position", true);
+                // pub seed: String,
+                // pub max_inner_size: usize,
+                // pub max_outer_size: usize,
+                // pub inner_rad_mut_prob: f32,
+                // pub inner_size_mut_prob: f32,
+                // pub waypoints: Vec<Position>,
 
+                field_edit_widget(ui, &mut self.config.seed, edit_string, "seed");
+                field_edit_widget(
+                    ui,
+                    &mut self.config.max_inner_size,
+                    edit_usize,
+                    "max inner size",
+                );
+                field_edit_widget(
+                    ui,
+                    &mut self.config.max_outer_size,
+                    edit_usize,
+                    "max outer size",
+                );
+                field_edit_widget(
+                    ui,
+                    &mut self.config.inner_rad_mut_prob,
+                    edit_f32,
+                    "inner rad mut prob",
+                );
+                field_edit_widget(
+                    ui,
+                    &mut self.config.inner_size_mut_prob,
+                    edit_f32,
+                    "inner size mut prob",
+                );
+
+                vec_edit_widget(
+                    ui,
+                    &mut self.config.waypoints,
+                    edit_position,
+                    "waypoints",
+                    true,
+                );
+
+                vec_edit_widget(
+                    ui,
+                    &mut self.config.step_weights,
+                    edit_i32,
+                    "step weights",
+                    false,
+                );
                 // self.config
                 //     .show_top(ui, RichText::new("Config").heading(), None);
             });
