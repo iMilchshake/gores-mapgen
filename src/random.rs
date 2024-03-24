@@ -5,21 +5,36 @@ use rand_distr::WeightedAliasIndex;
 use seahash::hash;
 
 pub struct Random {
-    seed: String,
-    seed_u64: u64,
+    pub seed_str: Option<String>,
+    pub seed_hex: String,
+    pub seed_u64: u64,
     gen: SmallRng,
     weighted_dist: WeightedAliasIndex<i32>,
 }
 
 impl Random {
-    pub fn new(seed: String, weights: Vec<i32>) -> Random {
-        let seed_u64 = hash(seed.as_bytes());
+    pub fn new(seed_u64: u64, weights: Vec<i32>) -> Random {
         Random {
-            seed,
+            seed_str: None,
             seed_u64,
+            seed_hex: format!("{:X}", seed_u64),
             gen: SmallRng::seed_from_u64(seed_u64),
             weighted_dist: Random::get_weighted_dist(weights),
         }
+    }
+
+    pub fn from_str_seed(seed_str: String, weights: Vec<i32>) -> Random {
+        let seed_u64 = hash(seed_str.as_bytes());
+        let mut rnd = Random::new(seed_u64, weights);
+        rnd.seed_str = Some(seed_str);
+
+        rnd
+    }
+
+    pub fn from_previous_rnd(rnd: &mut Random, weights: Vec<i32>) -> Random {
+        let seed_u64 = rnd.gen.next_u64();
+
+        Random::new(seed_u64, weights)
     }
 
     fn get_weighted_dist(weights: Vec<i32>) -> WeightedAliasIndex<i32> {

@@ -1,4 +1,4 @@
-use gores_mapgen_rust::{editor::*, fps_control::*, grid_render::*, map::*};
+use gores_mapgen_rust::{editor::*, fps_control::*, grid_render::*, map::*, random::Random};
 
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
@@ -29,18 +29,27 @@ async fn main() {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
+        if editor.config.auto_generate && gen.walker.finished {
+            editor.playback = EditorPlayback::Playing;
+            let rnd = Random::from_previous_rnd(&mut gen.rnd, editor.config.step_weights.clone());
+            gen = Generator::new(&editor.config);
+            gen.rnd = rnd;
+        }
+
         // perform walker step
         for _ in 0..editor.steps_per_frame {
-            if editor.playback.is_not_paused() && !gen.walker.finished {
-                gen.step(&editor).unwrap_or_else(|err| {
-                    println!("Pause: {:}", err);
-                    editor.playback.pause();
-                });
+            if editor.playback == EditorPlayback::Paused || gen.walker.finished {
+                break;
+            }
 
-                // walker did a step using SingleStep -> now pause
-                if editor.playback == EditorPlayback::SingleStep {
-                    editor.playback.pause();
-                }
+            gen.step(&editor).unwrap_or_else(|err| {
+                println!("Pause: {:}", err);
+                editor.playback.pause();
+            });
+
+            // walker did a step using SingleStep -> now pause
+            if editor.playback == EditorPlayback::SingleStep {
+                editor.playback.pause();
             }
         }
 

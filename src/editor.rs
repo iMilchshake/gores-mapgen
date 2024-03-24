@@ -141,6 +141,7 @@ pub struct GenerationConfig {
     pub inner_size_mut_prob: f32,
     pub waypoints: Vec<Position>,
     pub step_weights: Vec<i32>,
+    pub auto_generate: bool,
 }
 
 impl Default for GenerationConfig {
@@ -159,6 +160,7 @@ impl Default for GenerationConfig {
                 Position::new(50, 50),
             ],
             step_weights: vec![6, 5, 4, 3],
+            auto_generate: false,
         }
     }
 }
@@ -177,7 +179,7 @@ impl Generator {
         let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
         let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
-        let rnd = Random::new(config.seed.clone(), config.step_weights.clone());
+        let rnd = Random::from_str_seed(config.seed.clone(), config.step_weights.clone());
 
         Generator { walker, map, rnd }
     }
@@ -277,6 +279,8 @@ impl Editor {
 
                 field_edit_widget(ui, &mut self.steps_per_frame, edit_usize, "steps_per_frame");
 
+                ui.checkbox(&mut self.config.auto_generate, "auto generate");
+
                 ui.separator();
 
                 field_edit_widget(ui, &mut self.config.seed, edit_string, "seed");
@@ -335,8 +339,11 @@ impl Editor {
                         "avg: {:}",
                         self.average_fps.round() as usize
                     )));
-                    ui.add(Label::new(format!("{:?}", gen.walker)));
-                    ui.add(Label::new(format!("{:?}", self.playback)));
+                    ui.add(Label::new(format!("playback: {:?}", self.playback)));
+                    ui.add(Label::new(format!(
+                        "seed: {:?}",
+                        (&gen.rnd.seed_hex, &gen.rnd.seed_u64, &gen.rnd.seed_str)
+                    )));
                 });
 
             // store remaining space for macroquad drawing
