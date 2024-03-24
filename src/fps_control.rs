@@ -11,6 +11,12 @@ pub struct FPSControl {
     min_frame_time: Option<Duration>,
 }
 
+impl Default for FPSControl {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FPSControl {
     pub fn new() -> FPSControl {
         FPSControl {

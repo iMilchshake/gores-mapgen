@@ -1,6 +1,8 @@
 use egui::RichText;
 use std::time::Instant;
 
+const STEPS_PER_FRAME: usize = 50;
+
 use crate::{
     kernel::Kernel,
     map::{BlockType, Map},
@@ -161,18 +163,6 @@ impl Default for GenerationConfig {
     }
 }
 
-pub struct Editor {
-    pub playback: EditorPlayback,
-    pub canvas: Option<egui::Rect>,
-    pub egui_wants_mouse: Option<bool>,
-    pub average_fps: f32,
-    pub config: GenerationConfig,
-    zoom: f32,
-    offset: Vec2,
-    cam: Option<Camera2D>,
-    last_mouse: Option<Vec2>,
-}
-
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
@@ -186,11 +176,40 @@ impl Generator {
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
         let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
         let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
-        let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, &config);
+        let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
         let rnd = Random::new(config.seed.clone(), config.step_weights.clone());
 
         Generator { walker, map, rnd }
     }
+
+    pub fn step(&mut self, editor: &Editor) -> Result<(), &'static str> {
+        // check if walker has reached goal position
+        if self.walker.is_goal_reached() == Some(true) {
+            self.walker.next_waypoint();
+        }
+
+        // randomly mutate kernel
+        self.walker.mutate_kernel(&editor.config, &mut self.rnd);
+
+        // perform one step
+        self.walker
+            .probabilistic_step(&mut self.map, &mut self.rnd)?;
+
+        Ok(())
+    }
+}
+
+pub struct Editor {
+    pub playback: EditorPlayback,
+    pub canvas: Option<egui::Rect>,
+    pub egui_wants_mouse: Option<bool>,
+    pub average_fps: f32,
+    pub config: GenerationConfig,
+    pub steps_per_frame: usize,
+    zoom: f32,
+    offset: Vec2,
+    cam: Option<Camera2D>,
+    last_mouse: Option<Vec2>,
 }
 
 impl Editor {
@@ -205,6 +224,7 @@ impl Editor {
             cam: None,
             last_mouse: None,
             config,
+            steps_per_frame: STEPS_PER_FRAME,
         }
     }
 
@@ -240,10 +260,8 @@ impl Editor {
                         if ui.button("pause").clicked() {
                             self.playback = EditorPlayback::Paused;
                         }
-                    } else {
-                        if ui.button("play").clicked() {
-                            self.playback = EditorPlayback::Playing;
-                        }
+                    } else if ui.button("play").clicked() {
+                        self.playback = EditorPlayback::Playing;
                     }
 
                     // pause, allow single step
@@ -251,11 +269,13 @@ impl Editor {
                         self.playback = EditorPlayback::SingleStep;
                     }
 
-                    if ui.button("reset generator").clicked() {
+                    if ui.button("reset").clicked() {
                         self.playback = EditorPlayback::Paused;
                         *gen = Generator::new(&self.config);
                     }
                 });
+
+                field_edit_widget(ui, &mut self.steps_per_frame, edit_usize, "steps_per_frame");
 
                 ui.separator();
 
@@ -391,7 +411,7 @@ impl Editor {
 
         if !egui_wants_mouse
             && is_mouse_button_down(MouseButton::Left)
-            && Editor::mouse_in_viewport(&self.cam.as_ref().unwrap())
+            && Editor::mouse_in_viewport(self.cam.as_ref().unwrap())
         {
             let mouse = mouse_position();
 

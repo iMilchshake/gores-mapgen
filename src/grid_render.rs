@@ -46,7 +46,7 @@ pub fn draw_walker_kernel(walker: &CuteWalker, kernel_type: KernelType) {
     let root_x = walker.pos.x.checked_sub(offset);
     let root_y = walker.pos.y.checked_sub(offset);
 
-    if root_x == None || root_y == None {
+    if root_x.is_none() || root_y.is_none() {
         return; // dont draw as the following draw operation would fail
                 // TODO: do this for each cell individually!
     }

@@ -4,7 +4,6 @@ use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
 
 const DISABLE_VSYNC: bool = true;
-const STEPS_PER_FRAME: usize = 50;
 
 fn window_conf() -> Conf {
     Conf {
@@ -30,32 +29,17 @@ async fn main() {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
-        // walker logic TODO: move this into Generator struct
-        if editor.playback.is_not_paused() {
-            for _ in 0..STEPS_PER_FRAME {
-                // check if walker has reached goal position
-                if gen.walker.is_goal_reached() == Some(true) {
-                    gen.walker
-                        .next_waypoint(&editor.config)
-                        .unwrap_or_else(|_| {
-                            println!("pause due to error fetching next checkpoint");
-                            editor.playback.pause();
-                        });
-                }
-
-                // randomly mutate kernel
-                gen.walker.mutate_kernel(&editor.config, &mut gen.rnd);
-
-                // perform one greedy step
-                if let Err(err) = gen.walker.probabilistic_step(&mut gen.map, &mut gen.rnd) {
-                    println!("walker step failed: '{:}' - pausing...", err);
+        // perform walker step
+        for _ in 0..editor.steps_per_frame {
+            if editor.playback.is_not_paused() && !gen.walker.finished {
+                gen.step(&editor).unwrap_or_else(|err| {
+                    println!("Pause: {:}", err);
                     editor.playback.pause();
-                }
+                });
 
                 // walker did a step using SingleStep -> now pause
                 if editor.playback == EditorPlayback::SingleStep {
                     editor.playback.pause();
-                    break; // skip following steps for this frame!
                 }
             }
         }

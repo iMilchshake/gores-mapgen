@@ -104,7 +104,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     draw_circle_lines(
         (walker.pos.x) as f32 + offset,
         (walker.pos.y) as f32 + offset,
-        (radius as f32).sqrt(),
+        radius.sqrt(),
         0.05,
         match flag {
             true => GREEN,
@@ -115,7 +115,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
     draw_circle_lines(
         (walker.pos.x) as f32 + offset,
         (walker.pos.y) as f32 + offset,
-        radius as f32,
+        radius,
         0.025,
         match flag {
             true => GREEN,

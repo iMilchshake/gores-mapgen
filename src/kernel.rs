@@ -11,7 +11,7 @@ pub struct Kernel {
 impl Kernel {
     pub fn new(size: usize, circularity: f32) -> Kernel {
         assert!(
-            0.0 <= circularity && circularity <= 1.0,
+            (0.0..=1.0).contains(&circularity),
             "circularity mut be in [0, 1]"
         );
         let radius = Kernel::circularity_to_radius(size, circularity);
@@ -31,9 +31,9 @@ impl Kernel {
 
     pub fn circularity_to_radius(kernel_size: usize, circularity: f32) -> f32 {
         let (min_radius, max_radius) = Kernel::get_valid_radius_bounds(kernel_size);
-        let radius = circularity * min_radius + (1.0 - circularity) * max_radius;
+        
 
-        radius
+        circularity * min_radius + (1.0 - circularity) * max_radius
     }
 
     pub fn get_valid_radius_bounds(size: usize) -> (f32, f32) {
