@@ -181,14 +181,14 @@ impl Generator {
         Generator { walker, map, rnd }
     }
 
-    pub fn step(&mut self, editor: &Editor) -> Result<(), &'static str> {
+    pub fn step(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
         // check if walker has reached goal position
         if self.walker.is_goal_reached() == Some(true) {
             self.walker.next_waypoint();
         }
 
         // randomly mutate kernel
-        self.walker.mutate_kernel(&editor.config, &mut self.rnd);
+        self.walker.mutate_kernel(config, &mut self.rnd);
 
         // perform one step
         self.walker
@@ -209,10 +209,12 @@ pub struct Editor {
     offset: Vec2,
     cam: Option<Camera2D>,
     last_mouse: Option<Vec2>,
+    pub gen: Generator,
 }
 
 impl Editor {
     pub fn new(config: GenerationConfig) -> Editor {
+        let gen = Generator::new(&config);
         Editor {
             state: EditorState::Paused(PausedState::Setup),
             canvas: None,
@@ -224,6 +226,7 @@ impl Editor {
             last_mouse: None,
             config,
             steps_per_frame: STEPS_PER_FRAME,
+            gen,
         }
     }
 
@@ -247,7 +250,7 @@ impl Editor {
         )
     }
 
-    pub fn define_egui(&mut self, gen: &mut Generator) {
+    pub fn define_egui(&mut self) {
         egui_macroquad::ui(|egui_ctx| {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
                 ui.label(RichText::new("Control").heading());
@@ -269,7 +272,6 @@ impl Editor {
 
                     if ui.button("reset").clicked() {
                         self.set_setup();
-                        *gen = Generator::new(&self.config);
                     }
                 });
 
@@ -340,7 +342,11 @@ impl Editor {
                     ui.add(Label::new(format!("playback: {:?}", self.state)));
                     ui.add(Label::new(format!(
                         "seed: {:?}",
-                        (&gen.rnd.seed_hex, &gen.rnd.seed_u64, &gen.rnd.seed_str)
+                        (
+                            &self.gen.rnd.seed_hex,
+                            &self.gen.rnd.seed_u64,
+                            &self.gen.rnd.seed_str
+                        )
                     )));
                 });
 
@@ -383,6 +389,7 @@ impl Editor {
 
     pub fn set_setup(&mut self) {
         self.state = EditorState::Paused(PausedState::Setup);
+        self.gen = Generator::new(&self.config);
     }
 
     pub fn set_stopped(&mut self) {
@@ -408,7 +415,8 @@ impl Editor {
         )));
     }
 
-    pub fn set_cam(&mut self, map: &Map) {
+    pub fn set_cam(&mut self) {
+        let map = &self.gen.map;
         let display_factor = self.get_display_factor(map);
         let x_view = display_factor * map.width as f32;
         let y_view = display_factor * map.height as f32;
@@ -426,7 +434,7 @@ impl Editor {
         self.cam = Some(cam);
     }
 
-    pub fn handle_user_inputs(&mut self, map: &Map) {
+    pub fn handle_user_inputs(&mut self) {
         if is_key_pressed(KeyCode::R) {
             self.zoom = 1.0;
             self.offset = Vec2::ZERO;
@@ -434,7 +442,7 @@ impl Editor {
 
         if is_key_pressed(KeyCode::E) {
             let t0 = Instant::now();
-            map.export();
+            self.gen.map.export();
             let time = Instant::now().duration_since(t0);
             dbg!(time);
         }
@@ -460,7 +468,7 @@ impl Editor {
             let mouse = mouse_position();
 
             if let Some(last_mouse) = self.last_mouse {
-                let display_factor = self.get_display_factor(map);
+                let display_factor = self.get_display_factor(&self.gen.map);
                 let local_delta = Vec2::new(mouse.0, mouse.1) - last_mouse;
                 self.offset += local_delta / (self.zoom * display_factor);
             }

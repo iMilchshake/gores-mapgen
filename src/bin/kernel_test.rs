@@ -127,8 +127,6 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
 #[macroquad::main("kernel_test")]
 async fn main() {
     let mut editor = Editor::new(GenerationConfig::default());
-    let map = Map::new(20, 20, BlockType::Hookable, Position::new(0, 0));
-
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
@@ -150,8 +148,8 @@ async fn main() {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
         define_egui(&mut editor, &mut state);
-        editor.set_cam(&map);
-        editor.handle_user_inputs(&map);
+        editor.set_cam();
+        editor.handle_user_inputs();
         clear_background(GRAY);
         draw_walker(&walker);
 

@@ -23,26 +23,26 @@ fn window_conf() -> Conf {
 async fn main() {
     let mut editor = Editor::new(GenerationConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
-    let mut gen = Generator::new(&editor.config);
 
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
-        if editor.config.auto_generate && gen.walker.finished {
+        if editor.config.auto_generate && editor.gen.walker.finished {
             editor.set_playing();
-            let rnd = Random::from_previous_rnd(&mut gen.rnd, editor.config.step_weights.clone());
-            gen = Generator::new(&editor.config);
-            gen.rnd = rnd;
+            let rnd =
+                Random::from_previous_rnd(&mut editor.gen.rnd, editor.config.step_weights.clone());
+            editor.gen = Generator::new(&editor.config);
+            editor.gen.rnd = rnd;
         }
 
         // perform walker step
         for _ in 0..editor.steps_per_frame {
-            if editor.is_paused() || gen.walker.finished {
+            if editor.is_paused() || editor.gen.walker.finished {
                 break;
             }
 
-            gen.step(&editor).unwrap_or_else(|err| {
+            editor.gen.step(&editor.config).unwrap_or_else(|err| {
                 println!("Pause: {:}", err);
                 editor.set_stopped();
             });
@@ -53,16 +53,16 @@ async fn main() {
             }
         }
 
-        editor.define_egui(&mut gen);
-        editor.set_cam(&gen.map);
-        editor.handle_user_inputs(&gen.map);
+        editor.define_egui();
+        editor.set_cam();
+        editor.handle_user_inputs();
 
         clear_background(WHITE);
-        draw_grid_blocks(&gen.map.grid);
+        draw_grid_blocks(&editor.gen.map.grid);
         draw_waypoints(&editor.config.waypoints);
-        draw_walker(&gen.walker);
-        draw_walker_kernel(&gen.walker, KernelType::Outer);
-        draw_walker_kernel(&gen.walker, KernelType::Inner);
+        draw_walker(&editor.gen.walker);
+        draw_walker_kernel(&editor.gen.walker, KernelType::Outer);
+        draw_walker_kernel(&editor.gen.walker, KernelType::Inner);
 
         egui_macroquad::draw();
 
