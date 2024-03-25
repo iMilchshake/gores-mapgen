@@ -21,7 +21,7 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut editor = Editor::new(EditorPlayback::Paused, GenerationConfig::default());
+    let mut editor = Editor::new(GenerationConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
     let mut gen = Generator::new(&editor.config);
 
@@ -30,7 +30,7 @@ async fn main() {
         editor.on_frame_start();
 
         if editor.config.auto_generate && gen.walker.finished {
-            editor.playback = EditorPlayback::Playing;
+            editor.set_playing();
             let rnd = Random::from_previous_rnd(&mut gen.rnd, editor.config.step_weights.clone());
             gen = Generator::new(&editor.config);
             gen.rnd = rnd;
@@ -38,18 +38,18 @@ async fn main() {
 
         // perform walker step
         for _ in 0..editor.steps_per_frame {
-            if editor.playback == EditorPlayback::Paused || gen.walker.finished {
+            if editor.is_paused() || gen.walker.finished {
                 break;
             }
 
             gen.step(&editor).unwrap_or_else(|err| {
                 println!("Pause: {:}", err);
-                editor.playback.pause();
+                editor.set_stopped();
             });
 
             // walker did a step using SingleStep -> now pause
-            if editor.playback == EditorPlayback::SingleStep {
-                editor.playback.pause();
+            if editor.is_single_setp() {
+                editor.set_stopped();
             }
         }
 

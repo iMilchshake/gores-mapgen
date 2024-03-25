@@ -126,7 +126,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
 
 #[macroquad::main("kernel_test")]
 async fn main() {
-    let mut editor = Editor::new(EditorPlayback::Paused, GenerationConfig::default());
+    let mut editor = Editor::new(GenerationConfig::default());
     let map = Map::new(20, 20, BlockType::Hookable, Position::new(0, 0));
 
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);

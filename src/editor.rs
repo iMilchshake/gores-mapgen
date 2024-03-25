@@ -34,30 +34,27 @@ pub fn window_frame() -> Frame {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum EditorPlayback {
-    Paused,
-    SingleStep,
-    Playing,
+enum EditorState {
+    Playing(PlayingState),
+    Paused(PausedState),
 }
 
-impl EditorPlayback {
-    pub fn is_not_paused(&self) -> bool {
-        match self {
-            EditorPlayback::Paused => false,
-            EditorPlayback::Playing | EditorPlayback::SingleStep => true,
-        }
-    }
+#[derive(PartialEq, Debug)]
+enum PlayingState {
+    /// keep generating (default)
+    Continuous,
 
-    pub fn toggle(&mut self) {
-        *self = match self {
-            EditorPlayback::Paused => EditorPlayback::Playing,
-            EditorPlayback::Playing | EditorPlayback::SingleStep => EditorPlayback::Paused,
-        };
-    }
+    /// only perform one generation step
+    SingleStep,
+}
 
-    pub fn pause(&mut self) {
-        *self = EditorPlayback::Paused;
-    }
+#[derive(PartialEq, Debug)]
+enum PausedState {
+    /// temporarily stopped/paused generation
+    Stopped,
+
+    /// dont start generation yet to allow setup configuration
+    Setup,
 }
 
 pub fn vec_edit_widget<T, F>(
@@ -202,7 +199,7 @@ impl Generator {
 }
 
 pub struct Editor {
-    pub playback: EditorPlayback,
+    state: EditorState,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
@@ -215,9 +212,9 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new(initial_playback: EditorPlayback, config: GenerationConfig) -> Editor {
+    pub fn new(config: GenerationConfig) -> Editor {
         Editor {
-            playback: initial_playback,
+            state: EditorState::Paused(PausedState::Setup),
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
@@ -251,28 +248,27 @@ impl Editor {
     }
 
     pub fn define_egui(&mut self, gen: &mut Generator) {
-        // define egui
         egui_macroquad::ui(|egui_ctx| {
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
                 ui.label(RichText::new("Control").heading());
 
                 ui.horizontal(|ui| {
                     // toggle pause
-                    if self.playback.is_not_paused() {
-                        if ui.button("pause").clicked() {
-                            self.playback = EditorPlayback::Paused;
+                    if !self.is_paused() {
+                        if ui.button("stop").clicked() {
+                            self.set_stopped();
                         }
                     } else if ui.button("play").clicked() {
-                        self.playback = EditorPlayback::Playing;
+                        self.set_playing();
                     }
 
                     // pause, allow single step
                     if ui.button("single step").clicked() {
-                        self.playback = EditorPlayback::SingleStep;
+                        self.set_single_step();
                     }
 
                     if ui.button("reset").clicked() {
-                        self.playback = EditorPlayback::Paused;
+                        self.set_setup();
                         *gen = Generator::new(&self.config);
                     }
                 });
@@ -318,14 +314,16 @@ impl Editor {
                     false,
                 );
 
-                vec_edit_widget(
-                    ui,
-                    &mut self.config.step_weights,
-                    edit_i32,
-                    "step weights",
-                    false,
-                    true,
-                );
+                ui.add_visible_ui(self.is_setup(), |ui| {
+                    vec_edit_widget(
+                        ui,
+                        &mut self.config.step_weights,
+                        edit_i32,
+                        "step weights",
+                        false,
+                        true,
+                    );
+                });
                 // self.config
                 //     .show_top(ui, RichText::new("Config").heading(), None);
             });
@@ -339,7 +337,7 @@ impl Editor {
                         "avg: {:}",
                         self.average_fps.round() as usize
                     )));
-                    ui.add(Label::new(format!("playback: {:?}", self.playback)));
+                    ui.add(Label::new(format!("playback: {:?}", self.state)));
                     ui.add(Label::new(format!(
                         "seed: {:?}",
                         (&gen.rnd.seed_hex, &gen.rnd.seed_u64, &gen.rnd.seed_str)
@@ -350,6 +348,45 @@ impl Editor {
             self.canvas = Some(egui_ctx.available_rect());
             self.egui_wants_mouse = Some(egui_ctx.wants_pointer_input());
         });
+    }
+
+    pub fn is_playing(&self) -> bool {
+        matches!(self.state, EditorState::Playing(_))
+    }
+
+    pub fn is_paused(&self) -> bool {
+        matches!(self.state, EditorState::Paused(_))
+    }
+
+    pub fn is_setup(&self) -> bool {
+        matches!(self.state, EditorState::Paused(PausedState::Setup))
+    }
+
+    pub fn is_single_setp(&self) -> bool {
+        matches!(self.state, EditorState::Playing(PlayingState::SingleStep))
+    }
+
+    pub fn toggle(&mut self) {
+        match self.state {
+            EditorState::Paused(_) => self.set_playing(),
+            EditorState::Playing(_) => self.set_stopped(),
+        };
+    }
+
+    pub fn set_playing(&mut self) {
+        self.state = EditorState::Playing(PlayingState::Continuous);
+    }
+
+    pub fn set_single_step(&mut self) {
+        self.state = EditorState::Playing(PlayingState::SingleStep);
+    }
+
+    pub fn set_setup(&mut self) {
+        self.state = EditorState::Paused(PausedState::Setup);
+    }
+
+    pub fn set_stopped(&mut self) {
+        self.state = EditorState::Paused(PausedState::Stopped);
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {
