@@ -37,6 +37,14 @@ impl Random {
         Random::new(seed_u64, weights)
     }
 
+    pub fn random_u64(&mut self) -> u64 {
+        self.gen.next_u64()
+    }
+
+    pub fn str_seed_to_u64(seed_str: &String) -> u64 {
+        hash(seed_str.as_bytes())
+    }
+
     fn get_weighted_dist(weights: Vec<i32>) -> WeightedAliasIndex<i32> {
         // sadly WeightedAliasIndex is initialized using a Vec. So im manually checking for the
         // correct size. I feel like there must be a better way also the current apprach allows

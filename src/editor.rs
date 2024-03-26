@@ -131,7 +131,6 @@ pub fn edit_position(ui: &mut Ui, position: &mut Position) {
 }
 
 pub struct GenerationConfig {
-    pub seed: String,
     pub max_inner_size: usize,
     pub max_outer_size: usize,
     pub inner_rad_mut_prob: f32,
@@ -139,13 +138,13 @@ pub struct GenerationConfig {
     pub waypoints: Vec<Position>,
     pub step_weights: Vec<i32>,
     pub auto_generate: bool,
+    pub fixed_seed: bool,
 }
 
 impl Default for GenerationConfig {
     // TODO: might make some sense to move waypoints somewhere else
     fn default() -> GenerationConfig {
         GenerationConfig {
-            seed: "iMilchshake".to_string(),
             max_inner_size: 2,
             max_outer_size: 4,
             inner_rad_mut_prob: 0.1,
@@ -158,6 +157,7 @@ impl Default for GenerationConfig {
             ],
             step_weights: vec![6, 5, 4, 3],
             auto_generate: false,
+            fixed_seed: false,
         }
     }
 }
@@ -170,13 +170,13 @@ pub struct Generator {
 
 impl Generator {
     /// derive a initial generator state based on a GenerationConfig
-    pub fn new(config: &GenerationConfig) -> Generator {
+    pub fn new(config: &GenerationConfig, seed: u64) -> Generator {
         let spawn = Position::new(50, 50);
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
         let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
         let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
-        let rnd = Random::from_str_seed(config.seed.clone(), config.step_weights.clone());
+        let rnd = Random::new(seed, config.step_weights.clone());
 
         Generator { walker, map, rnd }
     }
@@ -210,11 +210,12 @@ pub struct Editor {
     cam: Option<Camera2D>,
     last_mouse: Option<Vec2>,
     pub gen: Generator,
+    user_str_seed: String,
 }
 
 impl Editor {
     pub fn new(config: GenerationConfig) -> Editor {
-        let gen = Generator::new(&config);
+        let gen = Generator::new(&config, 0); // TODO: set this?
         Editor {
             state: EditorState::Paused(PausedState::Setup),
             canvas: None,
@@ -227,6 +228,7 @@ impl Editor {
             config,
             steps_per_frame: STEPS_PER_FRAME,
             gen,
+            user_str_seed: "iMilchshake".to_string(),
         }
     }
 
@@ -257,12 +259,18 @@ impl Editor {
 
                 ui.horizontal(|ui| {
                     // toggle pause
-                    if !self.is_paused() {
-                        if ui.button("stop").clicked() {
+                    if self.is_setup() {
+                        if ui.button("start").clicked() {
+                            self.set_playing();
+                        }
+                    } else if self.is_paused() {
+                        if ui.button("resume").clicked() {
+                            self.set_playing();
+                        }
+                    } else {
+                        if ui.button("pause").clicked() {
                             self.set_stopped();
                         }
-                    } else if ui.button("play").clicked() {
-                        self.set_playing();
                     }
 
                     // pause, allow single step
@@ -270,8 +278,10 @@ impl Editor {
                         self.set_single_step();
                     }
 
-                    if ui.button("reset").clicked() {
-                        self.set_setup();
+                    if !self.is_setup() {
+                        if ui.button("setup").clicked() {
+                            self.set_setup();
+                        }
                     }
                 });
 
@@ -280,8 +290,14 @@ impl Editor {
                 ui.checkbox(&mut self.config.auto_generate, "auto generate");
 
                 ui.separator();
+                ui.checkbox(&mut self.config.fixed_seed, "fixed seed");
+                if self.is_setup() {
+                    field_edit_widget(ui, &mut self.user_str_seed, edit_string, "str seed");
+                } else {
+                    ui.label(&self.gen.rnd.seed_hex);
+                }
+                ui.separator();
 
-                field_edit_widget(ui, &mut self.config.seed, edit_string, "seed");
                 field_edit_widget(
                     ui,
                     &mut self.config.max_inner_size,
@@ -380,20 +396,42 @@ impl Editor {
     }
 
     pub fn set_playing(&mut self) {
+        if self.is_setup() {
+            self.on_start();
+        }
         self.state = EditorState::Playing(PlayingState::Continuous);
     }
 
     pub fn set_single_step(&mut self) {
+        if self.is_setup() {
+            self.on_start();
+        }
         self.state = EditorState::Playing(PlayingState::SingleStep);
     }
 
     pub fn set_setup(&mut self) {
         self.state = EditorState::Paused(PausedState::Setup);
-        self.gen = Generator::new(&self.config);
     }
 
     pub fn set_stopped(&mut self) {
         self.state = EditorState::Paused(PausedState::Stopped);
+    }
+
+    fn on_start(&mut self) {
+        let seed_u64 = if !self.user_str_seed.is_empty() {
+            // generate new seed based on user string
+            let seed_u64 = Random::str_seed_to_u64(&self.user_str_seed);
+            if !self.config.fixed_seed {
+                self.user_str_seed = String::new();
+            }
+            seed_u64
+        } else if self.config.fixed_seed {
+            self.gen.rnd.seed_u64 // re use last seed
+        } else {
+            self.gen.rnd.random_u64() // generate new seed from previous generator
+        };
+
+        self.gen = Generator::new(&self.config, seed_u64);
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {
