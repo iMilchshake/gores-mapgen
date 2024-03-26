@@ -2,6 +2,8 @@ use crate::{position::Position, walker::CuteWalker};
 use ndarray::Array2;
 use twmap::{GameLayer, GameTile, TileFlags, TilemapLayer, TwMap};
 
+const CHUNK_SIZE: usize = 5;
+
 #[derive(Debug, Clone, Copy)]
 pub enum BlockType {
     Empty,
@@ -20,6 +22,9 @@ pub struct Map {
     pub height: usize,
     pub width: usize,
     pub spawn: Position,
+
+    pub chunk_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
+    pub chunk_size: usize,
 }
 
 impl Map {
@@ -29,6 +34,11 @@ impl Map {
             width,
             height,
             spawn,
+            chunk_edited: Array2::from_elem(
+                (width.div_ceil(CHUNK_SIZE), height.div_ceil(CHUNK_SIZE)),
+                false,
+            ),
+            chunk_size: CHUNK_SIZE,
         }
     }
 
@@ -68,13 +78,20 @@ impl Map {
                     (KernelType::Outer, BlockType::Empty) => BlockType::Empty,
                 };
                 self.grid[absolute_pos.as_index()] = new_type;
+
+                let chunk_pos = self.pos_to_chunk_pos(absolute_pos);
+                self.chunk_edited[chunk_pos.as_index()] = true;
             }
         }
 
         Ok(())
     }
 
-    pub fn export(&self) {
+    fn pos_to_chunk_pos(&self, pos: Position) -> Position {
+        Position::new(pos.x / CHUNK_SIZE, pos.y / CHUNK_SIZE)
+    }
+
+    pub fn export(&self, name: String) {
         let mut map = TwMap::parse_file("test.map").expect("parsing failed");
         map.load().expect("loading failed");
 
@@ -102,6 +119,6 @@ impl Map {
         game_layer[self.spawn.as_index()] = GameTile::new(192, TileFlags::empty());
 
         // save map
-        map.save_file("test_out.map").expect("saving failed");
+        map.save_file(name + ".map").expect("saving failed");
     }
 }

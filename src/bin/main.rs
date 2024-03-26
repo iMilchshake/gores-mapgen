@@ -1,4 +1,4 @@
-use gores_mapgen_rust::{editor::*, fps_control::*, grid_render::*, map::*, random::Random};
+use gores_mapgen_rust::{editor::*, fps_control::*, grid_render::*, map::*};
 
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
@@ -22,7 +22,7 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut editor = Editor::new(GenerationConfig::default());
-    let mut fps_ctrl = FPSControl::new().with_max_fps(60);
+    let mut fps_ctrl = FPSControl::new(); //.with_max_fps(60);
 
     loop {
         fps_ctrl.on_frame_start();
@@ -63,8 +63,13 @@ async fn main() {
         editor.handle_user_inputs();
 
         clear_background(WHITE);
-        draw_grid_blocks(&editor.gen.map.grid);
+        // draw_grid_blocks(&editor.gen.map.grid);
         draw_waypoints(&editor.config.waypoints);
+        draw_chunked_grid(
+            &editor.gen.map.grid,
+            &editor.gen.map.chunk_edited,
+            editor.gen.map.chunk_size,
+        );
         draw_walker(&editor.gen.walker);
         draw_walker_kernel(&editor.gen.walker, KernelType::Outer);
         draw_walker_kernel(&editor.gen.walker, KernelType::Inner);

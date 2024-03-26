@@ -10,7 +10,7 @@ use crate::{
     random::Random,
     walker::CuteWalker,
 };
-use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Response, Ui};
+use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
     is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position, mouse_wheel,
@@ -22,7 +22,7 @@ use macroquad::window::{screen_height, screen_width};
 use rand_distr::num_traits::Zero;
 
 const ZOOM_FACTOR: f32 = 0.9;
-const AVG_FPS_FACTOR: f32 = 0.25; // how much current fps is weighted into the rolling average
+const AVG_FPS_FACTOR: f32 = 0.025; // how much current fps is weighted into the rolling average
 
 pub fn window_frame() -> Frame {
     Frame {
@@ -154,11 +154,30 @@ impl Default for GenerationConfig {
             max_outer_size: 4,
             inner_rad_mut_prob: 0.1,
             inner_size_mut_prob: 0.3,
+            // waypoints: vec![
+            //     Position::new(250, 50),
+            //     Position::new(250, 250),
+            //     Position::new(50, 250),
+            //     Position::new(50, 50),
+            // ],
             waypoints: vec![
-                Position::new(250, 50),
-                Position::new(250, 250),
+                Position::new(850, 50),
+                Position::new(850, 150),
+                Position::new(50, 150),
                 Position::new(50, 250),
-                Position::new(50, 50),
+                Position::new(850, 250),
+                Position::new(850, 350),
+                Position::new(50, 350),
+                Position::new(50, 450),
+                Position::new(850, 450),
+                Position::new(850, 550),
+                Position::new(50, 550),
+                Position::new(50, 650),
+                Position::new(850, 650),
+                Position::new(850, 750),
+                Position::new(50, 750),
+                Position::new(50, 850),
+                Position::new(850, 850),
             ],
             step_weights: vec![6, 5, 4, 3],
             auto_generate: false,
@@ -177,7 +196,7 @@ impl Generator {
     /// derive a initial generator state based on a GenerationConfig
     pub fn new(config: &GenerationConfig, seed: u64) -> Generator {
         let spawn = Position::new(50, 50);
-        let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
+        let map = Map::new(900, 900, BlockType::Hookable, spawn.clone());
         let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
         let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
@@ -490,7 +509,8 @@ impl Editor {
 
         if is_key_pressed(KeyCode::E) {
             let t0 = Instant::now();
-            self.gen.map.export();
+            let name: String = self.gen.rnd.seed_hex.clone();
+            self.gen.map.export(name);
             let time = Instant::now().duration_since(t0);
             dbg!(time);
         }

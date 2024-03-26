@@ -3,7 +3,8 @@ use macroquad::color::*;
 use macroquad::shapes::*;
 use ndarray::Array2;
 
-pub fn draw_grid_blocks(grid: &Array2<BlockType>) {
+/// Unoptimized drawing of a grid. Usage of draw_chunked_grid is preferred.
+pub fn draw_grid(grid: &Array2<BlockType>) {
     for ((x, y), value) in grid.indexed_iter() {
         draw_rectangle(
             x as f32,
@@ -16,6 +17,49 @@ pub fn draw_grid_blocks(grid: &Array2<BlockType>) {
                 _ => Color::new(0.0, 0.0, 0.0, 0.1),
             },
         );
+    }
+}
+
+/// Optimized variant of draw_grid using chunking. If a chunk has not been edited after
+/// initialization, the entire chunk is drawn using a single rectangle. Otherwise, each block is
+/// drawn individually as in the unoptimized variant.
+pub fn draw_chunked_grid(
+    grid: &Array2<BlockType>,
+    chunks_edited: &Array2<bool>,
+    chunk_size: usize,
+) {
+    for ((x_chunk, y_chunk), chunk_edited) in chunks_edited.indexed_iter() {
+        if *chunk_edited {
+            let x_start = x_chunk * chunk_size;
+            let y_start = y_chunk * chunk_size;
+            let x_end = usize::min((x_chunk + 1) * chunk_size, grid.shape()[0]);
+            let y_end = usize::min((y_chunk + 1) * chunk_size, grid.shape()[1]);
+
+            for x in x_start..x_end {
+                for y in y_start..y_end {
+                    let value = grid[[x, y]];
+                    draw_rectangle(
+                        x as f32,
+                        y as f32,
+                        1.0,
+                        1.0,
+                        match value {
+                            BlockType::Hookable => BROWN,
+                            BlockType::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
+                            _ => Color::new(0.0, 0.0, 0.0, 0.1),
+                        },
+                    );
+                }
+            }
+        } else {
+            draw_rectangle(
+                (x_chunk * chunk_size) as f32,
+                (y_chunk * chunk_size) as f32,
+                chunk_size as f32,
+                chunk_size as f32,
+                BROWN,
+            );
+        }
     }
 }
 

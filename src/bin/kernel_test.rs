@@ -1,5 +1,5 @@
 use gores_mapgen_rust::{
-    editor::*, fps_control::*, grid_render::*, kernel::*, map::*, position::*, walker::*,
+    editor::*, fps_control::*, grid_render::*, kernel::*, position::*, walker::*,
 };
 
 use macroquad::color::*;
