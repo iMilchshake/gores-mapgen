@@ -1,4 +1,4 @@
-use egui::RichText;
+use egui::{InnerResponse, RichText};
 use std::time::Instant;
 
 const STEPS_PER_FRAME: usize = 50;
@@ -10,7 +10,7 @@ use crate::{
     random::Random,
     walker::CuteWalker,
 };
-use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
+use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Response, Ui};
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
     is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position, mouse_wheel,
@@ -94,7 +94,12 @@ pub fn vec_edit_widget<T, F>(
         });
 }
 
-pub fn field_edit_widget<T, F>(ui: &mut Ui, value: &mut T, edit_element: F, label: &str)
+pub fn field_edit_widget<T, F>(
+    ui: &mut Ui,
+    value: &mut T,
+    edit_element: F,
+    label: &str,
+) -> InnerResponse<()>
 where
     F: Fn(&mut Ui, &mut T),
     T: Default,
@@ -102,7 +107,7 @@ where
     ui.vertical(|ui| {
         ui.label(label);
         edit_element(ui, value);
-    });
+    })
 }
 
 pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
@@ -211,6 +216,7 @@ pub struct Editor {
     last_mouse: Option<Vec2>,
     pub gen: Generator,
     user_str_seed: String,
+    pub instant: bool,
 }
 
 impl Editor {
@@ -229,6 +235,7 @@ impl Editor {
             steps_per_frame: STEPS_PER_FRAME,
             gen,
             user_str_seed: "iMilchshake".to_string(),
+            instant: false,
         }
     }
 
@@ -285,16 +292,18 @@ impl Editor {
                     }
                 });
 
-                field_edit_widget(ui, &mut self.steps_per_frame, edit_usize, "steps_per_frame");
+                ui.horizontal(|ui| {
+                    ui.add_enabled_ui(!self.instant, |ui| {
+                        field_edit_widget(ui, &mut self.steps_per_frame, edit_usize, "speed");
+                    });
+                    ui.checkbox(&mut self.instant, "instant")
+                });
 
                 ui.checkbox(&mut self.config.auto_generate, "auto generate");
 
-                ui.separator();
                 ui.checkbox(&mut self.config.fixed_seed, "fixed seed");
                 if self.is_setup() {
                     field_edit_widget(ui, &mut self.user_str_seed, edit_string, "str seed");
-                } else {
-                    ui.label(&self.gen.rnd.seed_hex);
                 }
                 ui.separator();
 
@@ -323,16 +332,17 @@ impl Editor {
                     "inner size mut prob",
                 );
 
-                vec_edit_widget(
-                    ui,
-                    &mut self.config.waypoints,
-                    edit_position,
-                    "waypoints",
-                    true,
-                    false,
-                );
-
+                // only show these in setup mode
                 ui.add_visible_ui(self.is_setup(), |ui| {
+                    vec_edit_widget(
+                        ui,
+                        &mut self.config.waypoints,
+                        edit_position,
+                        "waypoints",
+                        true,
+                        false,
+                    );
+
                     vec_edit_widget(
                         ui,
                         &mut self.config.step_weights,

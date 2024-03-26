@@ -23,23 +23,26 @@ fn window_conf() -> Conf {
 async fn main() {
     let mut editor = Editor::new(GenerationConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
-    let mut seed = String::new();
 
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
-        if editor.config.auto_generate && editor.gen.walker.finished {
-            // let rnd =
-            //     Random::from_previous_rnd(&mut editor.gen.rnd, editor.config.step_weights.clone());
-            // editor.gen = Generator::new(&editor.config);
-            // editor.gen.rnd = rnd;
+        if editor.gen.walker.finished {
             editor.set_setup();
-            editor.set_playing();
+
+            if editor.config.auto_generate {
+                editor.set_playing();
+            }
         }
 
         // perform walker step
-        for _ in 0..editor.steps_per_frame {
+        let steps = match editor.instant {
+            true => usize::max_value(),
+            false => editor.steps_per_frame,
+        };
+
+        for _ in 0..steps {
             if editor.is_paused() || editor.gen.walker.finished {
                 break;
             }
