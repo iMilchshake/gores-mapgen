@@ -3,13 +3,7 @@ use std::time::Instant;
 
 const STEPS_PER_FRAME: usize = 50;
 
-use crate::{
-    kernel::Kernel,
-    map::{BlockType, Map},
-    position::Position,
-    random::Random,
-    walker::CuteWalker,
-};
+use crate::{generator::Generator, map::Map, position::Position, random::Random};
 use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
@@ -183,42 +177,6 @@ impl Default for GenerationConfig {
             auto_generate: false,
             fixed_seed: false,
         }
-    }
-}
-
-pub struct Generator {
-    pub walker: CuteWalker,
-    pub map: Map,
-    pub rnd: Random,
-}
-
-impl Generator {
-    /// derive a initial generator state based on a GenerationConfig
-    pub fn new(config: &GenerationConfig, seed: u64) -> Generator {
-        let spawn = Position::new(50, 50);
-        let map = Map::new(900, 900, BlockType::Hookable, spawn.clone());
-        let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
-        let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
-        let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
-        let rnd = Random::new(seed, config.step_weights.clone());
-
-        Generator { walker, map, rnd }
-    }
-
-    pub fn step(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
-        // check if walker has reached goal position
-        if self.walker.is_goal_reached() == Some(true) {
-            self.walker.next_waypoint();
-        }
-
-        // randomly mutate kernel
-        self.walker.mutate_kernel(config, &mut self.rnd);
-
-        // perform one step
-        self.walker
-            .probabilistic_step(&mut self.map, &mut self.rnd)?;
-
-        Ok(())
     }
 }
 

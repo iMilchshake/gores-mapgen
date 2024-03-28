@@ -1,22 +1,33 @@
 use crate::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
-use macroquad::color::*;
+use macroquad::color::colors;
+use macroquad::color::Color;
 use macroquad::shapes::*;
 use ndarray::Array2;
 
-/// Unoptimized drawing of a grid. Usage of draw_chunked_grid is preferred.
-pub fn draw_grid(grid: &Array2<BlockType>) {
+fn blocktype_to_color(value: &BlockType) -> Color {
+    match value {
+        BlockType::Hookable => colors::BROWN,
+        BlockType::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
+        BlockType::Empty => Color::new(0.0, 0.0, 0.0, 0.1),
+    }
+}
+
+/// Unoptimized drawing of a grid with dynamic colormap.
+pub fn draw_grid<T, F>(grid: &Array2<T>, to_color: F)
+where
+    F: Fn(&T) -> Color,
+{
     for ((x, y), value) in grid.indexed_iter() {
-        draw_rectangle(
-            x as f32,
-            y as f32,
-            1.0,
-            1.0,
-            match value {
-                BlockType::Hookable => BROWN,
-                BlockType::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
-                _ => Color::new(0.0, 0.0, 0.0, 0.1),
-            },
-        );
+        draw_rectangle(x as f32, y as f32, 1.0, 1.0, to_color(value));
+    }
+}
+
+/// Drawing of a boolean grid. Only draw cells with true values. Useful for debugging.
+pub fn draw_bool_grid(grid: &Array2<bool>, color: Color) {
+    for ((x, y), value) in grid.indexed_iter() {
+        if *value {
+            draw_rectangle(x as f32, y as f32, 1.0, 1.0, color);
+        }
     }
 }
 
@@ -38,17 +49,7 @@ pub fn draw_chunked_grid(
             for x in x_start..x_end {
                 for y in y_start..y_end {
                     let value = grid[[x, y]];
-                    draw_rectangle(
-                        x as f32,
-                        y as f32,
-                        1.0,
-                        1.0,
-                        match value {
-                            BlockType::Hookable => BROWN,
-                            BlockType::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
-                            _ => Color::new(0.0, 0.0, 0.0, 0.1),
-                        },
-                    );
+                    draw_rectangle(x as f32, y as f32, 1.0, 1.0, blocktype_to_color(&value));
                 }
             }
         } else {
@@ -57,7 +58,7 @@ pub fn draw_chunked_grid(
                 (y_chunk * chunk_size) as f32,
                 chunk_size as f32,
                 chunk_size as f32,
-                BROWN,
+                blocktype_to_color(&BlockType::Hookable), // assumed that initial value is hookable
             );
         }
     }
@@ -70,13 +71,13 @@ pub fn draw_walker(walker: &CuteWalker) {
         1.0,
         1.0,
         2.0,
-        YELLOW,
+        colors::YELLOW,
     );
     draw_circle(
         walker.pos.x as f32 + 0.5,
         walker.pos.y as f32 + 0.5,
         0.25,
-        BLUE,
+        colors::BLUE,
     )
 }
 
@@ -113,6 +114,6 @@ pub fn draw_walker_kernel(walker: &CuteWalker, kernel_type: KernelType) {
 
 pub fn draw_waypoints(waypoints: &Vec<Position>) {
     for pos in waypoints.iter() {
-        draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, 1.0, RED)
+        draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, 1.0, colors::RED)
     }
 }

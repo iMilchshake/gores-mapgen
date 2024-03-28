@@ -1,5 +1,6 @@
 pub mod editor;
 pub mod fps_control;
+pub mod generator;
 pub mod grid_render;
 pub mod kernel;
 pub mod map;

@@ -2,6 +2,7 @@ use gores_mapgen_rust::{editor::*, fps_control::*, grid_render::*, map::*};
 
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
+use ndarray::Array2;
 
 const DISABLE_VSYNC: bool = true;
 
@@ -24,13 +25,20 @@ async fn main() {
     let mut editor = Editor::new(GenerationConfig::default());
     let mut fps_ctrl = FPSControl::new(); //.with_max_fps(60);
 
+    let mut edge_bugs: Option<Array2<bool>> = None;
+
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
         if editor.gen.walker.finished {
+            // perform post processing
+            edge_bugs = Some(editor.gen.fix_edge_bugs());
+
+            // switch into setup mode for next map
             editor.set_setup();
 
+            // optionally, start generating next map right away
             if editor.config.auto_generate {
                 editor.set_playing();
             }
@@ -73,6 +81,10 @@ async fn main() {
         draw_walker(&editor.gen.walker);
         draw_walker_kernel(&editor.gen.walker, KernelType::Outer);
         draw_walker_kernel(&editor.gen.walker, KernelType::Inner);
+
+        if let Some(edge_bugs) = &edge_bugs {
+            draw_bool_grid(edge_bugs, Color::new(1.0, 0.0, 0.0, 0.1));
+        }
 
         egui_macroquad::draw();
 
