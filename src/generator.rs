@@ -48,23 +48,33 @@ impl Generator {
     /// configurations do not ensure a min. 1-block freeze padding consistently.
     pub fn fix_edge_bugs(&mut self) -> Array2<bool> {
         let mut edge_bug = Array2::from_elem((self.map.width, self.map.height), false);
+        let width = self.map.width;
+        let height = self.map.height;
 
-        for ((x, y), value) in self.map.grid.indexed_iter() {
-            if *value == BlockType::Empty {
-                for dx in 0..=2 {
-                    for dy in 0..=2 {
-                        if dx == 1 || dy == 1 {
-                            continue;
-                        }
+        for x in 0..width {
+            for y in 0..height {
+                let value = &self.map.grid[[x, y]];
+                if *value == BlockType::Empty {
+                    for dx in 0..=2 {
+                        for dy in 0..=2 {
+                            if dx == 1 || dy == 1 {
+                                continue;
+                            }
 
-                        let neighbor_x = x + dx - 1;
-                        let neighbor_y = y + dy - 1;
-                        if let Some(neighbor_value) = self.map.grid.get((neighbor_x, neighbor_y)) {
-                            if *neighbor_value == BlockType::Hookable {
-                                edge_bug[[x, y]] = true;
-                                break;
+                            let neighbor_x = x + dx - 1; // TODO: deal with overflow?
+                            let neighbor_y = y + dy - 1;
+                            if neighbor_x < width && neighbor_y < height {
+                                let neighbor_value = &self.map.grid[[neighbor_x, neighbor_y]];
+                                if *neighbor_value == BlockType::Hookable {
+                                    edge_bug[[x, y]] = true;
+                                    break;
+                                }
                             }
                         }
+                    }
+
+                    if edge_bug[[x, y]] {
+                        self.map.grid[[x, y]] = BlockType::Freeze;
                     }
                 }
             }

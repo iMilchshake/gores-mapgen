@@ -31,7 +31,8 @@ async fn main() {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
-        if editor.gen.walker.finished {
+        // this is called ONCE after map was generated
+        if editor.gen.walker.finished && !editor.is_setup() {
             // perform post processing
             edge_bugs = Some(editor.gen.fix_edge_bugs());
 
