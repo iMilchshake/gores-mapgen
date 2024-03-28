@@ -109,7 +109,7 @@ impl Map {
 
         // modify game layer
         for ((x, y), value) in self.grid.indexed_iter() {
-            game_layer[[x, y]] = match value {
+            game_layer[[y, x]] = match value {
                 BlockType::Empty => GameTile::new(0, TileFlags::empty()),
                 BlockType::Hookable => GameTile::new(1, TileFlags::empty()),
                 BlockType::Freeze => GameTile::new(9, TileFlags::empty()),
