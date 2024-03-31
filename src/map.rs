@@ -16,7 +16,7 @@ pub enum KernelType {
     Inner,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Map {
     pub grid: Array2<BlockType>,
     pub height: usize,

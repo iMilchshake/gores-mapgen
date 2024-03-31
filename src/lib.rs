@@ -7,3 +7,5 @@ pub mod map;
 pub mod position;
 pub mod random;
 pub mod walker;
+
+pub mod playtest_debug;

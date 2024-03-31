@@ -3,6 +3,7 @@ use std::time::Instant;
 
 const STEPS_PER_FRAME: usize = 50;
 
+use crate::playtest_debug::PlaytestDebug;
 use crate::{generator::Generator, map::Map, position::Position, random::Random};
 use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 use macroquad::camera::{set_camera, Camera2D};
@@ -440,6 +441,12 @@ impl Editor {
     }
 
     pub fn handle_user_inputs(&mut self) {
+        if is_key_pressed(KeyCode::P) {
+            dbg!("PLAYTEST");
+            let playtest = PlaytestDebug::new();
+            playtest.playtest(&self.gen.map.clone());
+        }
+
         if is_key_pressed(KeyCode::R) {
             self.zoom = 1.0;
             self.offset = Vec2::ZERO;
