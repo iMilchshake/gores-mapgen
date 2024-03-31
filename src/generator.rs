@@ -7,7 +7,7 @@ use crate::{
     walker::CuteWalker,
 };
 
-use ndarray::Array2;
+use ndarray::{s, Array2};
 
 pub struct Generator {
     pub walker: CuteWalker,
@@ -19,7 +19,7 @@ impl Generator {
     /// derive a initial generator state based on a GenerationConfig
     pub fn new(config: &GenerationConfig, seed: u64) -> Generator {
         let spawn = Position::new(50, 50);
-        let map = Map::new(900, 900, BlockType::Hookable, spawn.clone());
+        let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
         let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
         let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
@@ -81,5 +81,31 @@ impl Generator {
         }
 
         edge_bug
+    }
+
+    pub fn generate_room(&mut self, pos: &Position, margin: usize) {
+        let start_x = pos.x.saturating_sub(margin);
+        let start_y = pos.y.saturating_sub(margin);
+        let end_x = (pos.x + margin + 1).min(self.map.width);
+        let end_y = (pos.y + margin + 1).min(self.map.height);
+
+        let valid = start_x < end_x && start_y < end_y;
+
+        if valid {
+            let mut view = self.map.grid.slice_mut(s![start_x..end_x, start_y..end_y]);
+            view.map_inplace(|elem| *elem = BlockType::Empty);
+
+            let platform = margin.saturating_sub(1); // also corresponds to a 'margin'
+
+            dbg!(&platform);
+
+            let mut view = self.map.grid.slice_mut(s![
+                pos.x - platform..pos.x + platform + 1,
+                pos.y + 1..pos.y + 2
+            ]);
+
+            dbg!(&view);
+            view.map_inplace(|elem| *elem = BlockType::Hookable);
+        }
     }
 }

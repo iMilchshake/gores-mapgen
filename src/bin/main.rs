@@ -36,6 +36,9 @@ async fn main() {
             // perform post processing
             edge_bugs = Some(editor.gen.fix_edge_bugs());
 
+            // place rooms
+            editor.gen.generate_room(&editor.gen.map.spawn.clone(), 3);
+
             // switch into setup mode for next map
             editor.set_setup();
 
