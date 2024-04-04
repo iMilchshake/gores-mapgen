@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 default-run = "main"
 
+# [features]
+# ddnet_bridge = ["dep:regex", "dep:telnet"]
+
 [[bin]]
 name = "camera_test"
 
@@ -12,6 +15,10 @@ name = "kernel_test"
 
 [[bin]]
 name = "twmap_test"
+
+[[bin]]
+name = "ddnet_bridge"
+# required-features = ["ddnet_bridge"]
 
 [dependencies]
 # egui-macroquad = { git = "https://github.com/optozorax/egui-macroquad", default-features = false, rev="dfbdb967d6cf4e4726b84a568ec1b2bdc7e4f492" }
@@ -30,6 +37,15 @@ seahash = "4.1.0"
 rand_distr = "0.4.3"
 itertools = "0.12.1"
 twmap = "0.12.0"
+telnet = "0.2.1"
+regex = "1.10.4"
+# regex = { version = "1.10.4", optional = true }
+# telnet = { version = "0.2.1", optional = true }
+
+
+
+[dev-dependencies]
+telnet = { version = "0.2.1"}
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
