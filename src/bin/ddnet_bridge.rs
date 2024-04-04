@@ -3,6 +3,8 @@ use std::{thread::sleep, time::Duration};
 use telnet::{Event, Telnet};
 
 const EXPORT: bool = false;
+const TELNET_BUFFER: usize = 256;
+const TELNET_DELAY: f32 = 1.0;
 
 #[derive(Debug)]
 struct Vote {
@@ -11,10 +13,44 @@ struct Vote {
     vote_reason: String,
 }
 
-impl Vote {
-    pub fn handle(&self) {
-        if self.vote_name == "generate" {
-            println!("[DEBUG] Generating Map...")
+impl Vote {}
+
+struct Econ {
+    telnet: Telnet,
+}
+
+impl Econ {
+    pub fn new(port: u16) -> Econ {
+        Econ {
+            telnet: Telnet::connect(("localhost", port), TELNET_BUFFER)
+                .expect("cant connect to econ!"),
+        }
+    }
+
+    pub fn read(&mut self) -> Option<String> {
+        let event = self.telnet.read_nonblocking().expect("telnet read error");
+
+        if let Event::Data(buffer) = event {
+            Some(String::from_utf8_lossy(&buffer).replace("\0", ""))
+        } else {
+            None
+        }
+    }
+
+    pub fn send_command(&mut self, mut command: String) {
+        command.push('\n');
+        self.telnet
+            .write(command.as_bytes())
+            .expect("telnet write error");
+    }
+
+    pub fn handle_vote(&mut self, vote: &Vote) {
+        if vote.vote_name == "generate" {
+            println!("[DEBUG] Generating Map...");
+
+            // TODO: Actually generate map here ...
+
+            self.send_command("say [DEBUG] Generating Map...".to_string());
         }
     }
 }
@@ -22,30 +58,21 @@ impl Vote {
 fn main() {
     // this regex detects all possible chat messages involving votes
     let vote_regex = Regex::new(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I chat: \*\*\* (Vote passed|Vote failed|'(.+?)' called .+ option '(.+?)' \((.+?)\))\n").unwrap();
-
-    // ddnet econ connection using telnet
-    let mut econ = Telnet::connect(("localhost", 16321), 256).expect("cant connect to econ!");
-
+    let mut econ = Econ::new(16321);
     let mut pending_vote: Option<Vote> = None;
 
     loop {
-        let event = econ.read_nonblocking().expect("telnet read error");
-
-        if let Event::Data(buffer) = event {
-            let ascii_data = String::from_utf8_lossy(&buffer);
-            let ascii_data = ascii_data.replace("\0", "");
-
+        if let Some(data) = econ.read() {
             #[cfg(EXPORT)]
             println!("[RECV DEBUG]: {:?}", ascii_data);
 
-            if ascii_data == "Enter password:\n" {
-                let password = "a\n".as_bytes();
-                econ.write(&password).expect("write error");
+            if data == "Enter password:\n" {
+                econ.send_command("a".to_string()); // TODO: actually add password
                 println!("[AUTH] Sending login");
-            } else if ascii_data.starts_with("Authentication successful") {
+            } else if data.starts_with("Authentication successful") {
                 println!("[AUTH] Success");
             } else {
-                let result = vote_regex.captures_iter(&ascii_data);
+                let result = vote_regex.captures_iter(&data);
 
                 for mat in result {
                     let _date = mat.get(1).unwrap();
@@ -56,7 +83,7 @@ fn main() {
                         match message {
                             "Vote passed" => {
                                 println!("[VOTE]: Success");
-                                pending_vote.as_ref().unwrap().handle();
+                                econ.handle_vote(pending_vote.as_ref().unwrap());
                             }
                             "Vote failed" => {
                                 pending_vote = None;
@@ -86,9 +113,7 @@ fn main() {
             }
         }
 
-        sleep(Duration::from_secs_f32(0.01));
-
-        // Do something else ...
+        sleep(Duration::from_secs_f32(TELNET_DELAY));
     }
 }
 
