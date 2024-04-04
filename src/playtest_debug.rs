@@ -15,14 +15,16 @@ pub struct PlaytestDebug {
 
 impl PlaytestDebug {
     pub fn new() -> PlaytestDebug {
+        let maps = PathBuf::from(env::var("HOME").unwrap()).join(".local/share/ddnet/maps");
         PlaytestDebug {
             ddnet: "DDNet".to_string(),
             ddnet_server: "DDNet-Server".to_string(),
-            maps: PathBuf::from("/home/tobi/.local/share/ddnet/maps"),
+            maps,
         }
     }
 
     pub fn playtest(&self, map: &Map) {
+        dbg!(&self);
         let cwd = env::current_dir().unwrap();
         map.export("playtest".to_string());
         let map_path = cwd.join("playtest.map");
