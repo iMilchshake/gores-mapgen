@@ -1,10 +1,31 @@
+use clap::Parser;
 use regex::Regex;
-use std::{thread::sleep, time::Duration};
+use std::{process::exit, thread::sleep, time::Duration};
 use telnet::{Event, Telnet};
 
-const EXPORT: bool = false;
-const TELNET_BUFFER: usize = 256;
-const TELNET_DELAY: f32 = 1.0;
+#[derive(Parser, Debug)]
+#[command(name = "DDNet Bridge")]
+#[command(version = "0.1a")]
+#[command(about = "Detect DDNet-Server votes via econ to trigger map generations", long_about = None)]
+struct Args {
+    /// ec_password
+    econ_pass: String,
+
+    /// ec_port
+    econ_port: u16,
+
+    /// telnet buffer size (amount of bytes/chars)
+    #[arg(default_value_t = 256, long, short('b'))]
+    telnet_buffer: usize,
+
+    /// interval (in seconds) in which telnet messages are received in buffer
+    #[arg(default_value_t = 0.5, long, short('i'))]
+    telnet_interval: f32,
+
+    /// debug to console
+    #[arg(short, long)]
+    debug: bool,
+}
 
 #[derive(Debug)]
 struct Vote {
@@ -13,17 +34,17 @@ struct Vote {
     vote_reason: String,
 }
 
-impl Vote {}
-
 struct Econ {
     telnet: Telnet,
 }
 
 impl Econ {
-    pub fn new(port: u16) -> Econ {
+    pub fn new(port: u16, buffer_size: usize) -> Econ {
         Econ {
-            telnet: Telnet::connect(("localhost", port), TELNET_BUFFER)
-                .expect("cant connect to econ!"),
+            telnet: Telnet::connect(("localhost", port), buffer_size).unwrap_or_else(|err| {
+                println!("Coulnt establish connection\nError: {:?}", err);
+                exit(1);
+            }),
         }
     }
 
@@ -37,7 +58,7 @@ impl Econ {
         }
     }
 
-    pub fn send_command(&mut self, mut command: String) {
+    pub fn send_rcon_cmd(&mut self, mut command: String) {
         command.push('\n');
         self.telnet
             .write(command.as_bytes())
@@ -50,27 +71,37 @@ impl Econ {
 
             // TODO: Actually generate map here ...
 
-            self.send_command("say [DEBUG] Generating Map...".to_string());
+            self.send_rcon_cmd("say [DEBUG] Generating Map...".to_string());
         }
     }
 }
 
 fn main() {
+    let args = Args::parse();
+
+    if args.debug {
+        dbg!(&args);
+    }
+
     // this regex detects all possible chat messages involving votes
     let vote_regex = Regex::new(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I chat: \*\*\* (Vote passed|Vote failed|'(.+?)' called .+ option '(.+?)' \((.+?)\))\n").unwrap();
-    let mut econ = Econ::new(16321);
+    let mut econ = Econ::new(args.econ_port, args.telnet_buffer);
     let mut pending_vote: Option<Vote> = None;
 
     loop {
         if let Some(data) = econ.read() {
-            #[cfg(EXPORT)]
-            println!("[RECV DEBUG]: {:?}", ascii_data);
+            if args.debug {
+                println!("[RECV DEBUG]: {:?}", data);
+            }
 
             if data == "Enter password:\n" {
-                econ.send_command("a".to_string()); // TODO: actually add password
+                econ.send_rcon_cmd(args.econ_pass.clone());
                 println!("[AUTH] Sending login");
             } else if data.starts_with("Authentication successful") {
                 println!("[AUTH] Success");
+            } else if data.starts_with("Wrong password") {
+                println!("[AUTH] Wrong Password!");
+                std::process::exit(1);
             } else {
                 let result = vote_regex.captures_iter(&data);
 
@@ -113,9 +144,6 @@ fn main() {
             }
         }
 
-        sleep(Duration::from_secs_f32(TELNET_DELAY));
+        sleep(Duration::from_secs_f32(args.telnet_interval));
     }
 }
-
-// this matches server and client
-//  (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I (chat|server): (?:ClientID=(\d) |(\d):(-?\d):(.+?):(.+?))(.+?)\\n

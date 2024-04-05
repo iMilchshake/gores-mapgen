@@ -39,6 +39,7 @@ itertools = "0.12.1"
 twmap = "0.12.0"
 telnet = "0.2.1"
 regex = "1.10.4"
+clap = { version = "4.5.4", features = ["derive"] }
 # regex = { version = "1.10.4", optional = true }
 # telnet = { version = "0.2.1", optional = true }
 
