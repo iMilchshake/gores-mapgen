@@ -16,6 +16,8 @@ pub struct CuteWalker {
     pub goal: Option<Position>,
     pub goal_index: usize,
     pub waypoints: Vec<Position>,
+
+    /// indicates whether walker has reached the last waypoint
     pub finished: bool,
 }
 

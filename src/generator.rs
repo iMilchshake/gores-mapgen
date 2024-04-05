@@ -34,19 +34,21 @@ impl Generator {
             self.walker.next_waypoint();
         }
 
-        // randomly mutate kernel
-        self.walker.mutate_kernel(config, &mut self.rnd);
+        if !self.walker.finished {
+            // randomly mutate kernel
+            self.walker.mutate_kernel(config, &mut self.rnd);
 
-        // perform one step
-        self.walker
-            .probabilistic_step(&mut self.map, &mut self.rnd)?;
+            // perform one step
+            self.walker
+                .probabilistic_step(&mut self.map, &mut self.rnd)?;
+        }
 
         Ok(())
     }
 
     /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
     /// configurations do not ensure a min. 1-block freeze padding consistently.
-    pub fn fix_edge_bugs(&mut self) -> Array2<bool> {
+    fn fix_edge_bugs(&mut self) -> Array2<bool> {
         let mut edge_bug = Array2::from_elem((self.map.width, self.map.height), false);
         let width = self.map.width;
         let height = self.map.height;
@@ -83,7 +85,7 @@ impl Generator {
         edge_bug
     }
 
-    pub fn generate_room(&mut self, pos: &Position, margin: usize) {
+    fn generate_room(&mut self, pos: &Position, margin: usize) {
         let start_x = pos.x.saturating_sub(margin);
         let start_y = pos.y.saturating_sub(margin);
         let end_x = (pos.x + margin + 1).min(self.map.width);
@@ -97,15 +99,35 @@ impl Generator {
 
             let platform = margin.saturating_sub(1); // also corresponds to a 'margin'
 
-            dbg!(&platform);
-
             let mut view = self.map.grid.slice_mut(s![
                 pos.x - platform..pos.x + platform + 1,
                 pos.y + 1..pos.y + 2
             ]);
-
-            dbg!(&view);
             view.map_inplace(|elem| *elem = BlockType::Hookable);
         }
+    }
+
+    pub fn post_processing(&mut self) {
+        self.fix_edge_bugs();
+        self.generate_room(&self.map.spawn.clone(), 3);
+    }
+
+    /// Generates an entire map with a single function call. This function is used by the CLI.
+    /// It is important to keep this function up to date with the editor generation, so that
+    /// fixed seed map generations result in the same map.
+    pub fn generate_map(max_steps: usize, seed: u64) -> Result<Map, &'static str> {
+        let config = GenerationConfig::default();
+        let mut gen = Generator::new(&config, seed);
+
+        for _ in 0..max_steps {
+            if gen.walker.finished {
+                break;
+            }
+            gen.step(&config)?;
+        }
+
+        gen.post_processing();
+
+        Ok(gen.map)
     }
 }

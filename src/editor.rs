@@ -178,7 +178,7 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(config: GenerationConfig) -> Editor {
-        let gen = Generator::new(&config, 0); // TODO: set this?
+        let gen = Generator::new(&config, 0); // TODO: overwritten anyways? Option?
         Editor {
             state: EditorState::Paused(PausedState::Setup),
             canvas: None,
@@ -231,10 +231,8 @@ impl Editor {
                         if ui.button("resume").clicked() {
                             self.set_playing();
                         }
-                    } else {
-                        if ui.button("pause").clicked() {
-                            self.set_stopped();
-                        }
+                    } else if ui.button("pause").clicked() {
+                        self.set_stopped();
                     }
 
                     // pause, allow single step
@@ -242,10 +240,8 @@ impl Editor {
                         self.set_single_step();
                     }
 
-                    if !self.is_setup() {
-                        if ui.button("setup").clicked() {
-                            self.set_setup();
-                        }
+                    if !self.is_setup() && ui.button("setup").clicked() {
+                        self.set_setup();
                     }
                 });
 
