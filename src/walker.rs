@@ -89,10 +89,15 @@ impl CuteWalker {
         if rnd.with_probability(config.inner_size_mut_prob) {
             inner_size = rnd.random_kernel_size(config.max_inner_size);
             modified = true;
+        } else {
+            rnd.skip();
         }
+
         if rnd.with_probability(config.inner_rad_mut_prob) {
             inner_circularity = *rnd.pick_element(&vec![0.0, 0.1, 0.2, 0.6, 0.8]);
             modified = true;
+        } else {
+            rnd.skip();
         }
 
         if inner_size <= 2 {

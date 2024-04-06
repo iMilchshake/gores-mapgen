@@ -8,7 +8,7 @@ pub struct Random {
     pub seed_str: Option<String>,
     pub seed_hex: String,
     pub seed_u64: u64,
-    gen: SmallRng,
+    pub gen: SmallRng,
     weighted_dist: WeightedAliasIndex<i32>,
 }
 
@@ -37,6 +37,22 @@ impl Random {
         Random::new(seed_u64, weights)
     }
 
+    pub fn in_range_inclusive(&mut self, low: usize, high: usize) -> usize {
+        assert!(high > low, "no valid range");
+        let n = (high - low) + 1;
+        let rnd_value = self.gen.next_u64() as usize;
+
+        low + (rnd_value % n)
+    }
+
+    pub fn in_range_exclusive(&mut self, low: usize, high: usize) -> usize {
+        assert!(high - 1 > low, "no valid range");
+        let n = high - low;
+        let rnd_value = self.gen.next_u64() as usize;
+
+        low + (rnd_value % n)
+    }
+
     pub fn random_u64(&mut self) -> u64 {
         self.gen.next_u64()
     }
@@ -60,20 +76,32 @@ impl Random {
     }
 
     pub fn with_probability(&mut self, probability: f32) -> bool {
-        self.gen.gen_bool(probability.into())
+        if probability == 1.0 {
+            self.skip();
+            true
+        } else if probability == 0.0 {
+            self.skip();
+            false
+        } else {
+            (self.gen.next_u64() as f32) < (u64::max_value() as f32 * probability)
+        }
     }
 
-    /// TODO: is this broken?
+    /// this can be used to skip a gen step to ensure that a value is consumed in any case
+    pub fn skip(&mut self) {
+        self.gen.next_u64();
+    }
+
     pub fn pick_element<'a, T>(&'a mut self, values: &'a Vec<T>) -> &T {
-        &values[self.gen.gen_range(0..values.len())]
+        &values[self.in_range_exclusive(0, values.len())]
     }
 
     pub fn random_circularity(&mut self) -> f32 {
-        self.gen.gen_range(0.0..=1.0)
+        self.gen.next_u64() as f32 / u64::max_value() as f32
     }
 
     pub fn random_kernel_size(&mut self, max_size: usize) -> usize {
         assert!(max_size >= 1);
-        self.gen.gen_range(1..=max_size)
+        self.in_range_inclusive(1, max_size)
     }
 }
