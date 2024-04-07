@@ -106,7 +106,8 @@ impl CuteWalker {
         }
 
         if rnd.with_probability(config.inner_rad_mut_prob) {
-            inner_circ = *rnd.pick_element(&vec![0.0, 0.1, 0.2, 0.6, 0.8]);
+            inner_circ = *rnd.pick_element(&vec![0.0, 0.1, 0.2, 0.6, 0.8]); // TODO: also, this is
+                                                                            // terrible
             modified = true;
         } else {
             rnd.skip();
@@ -128,6 +129,7 @@ impl CuteWalker {
         outer_size = usize::max(outer_size, inner_size);
 
         // constraint 3: both sizes should be either odd or even
+        // TODO: this can (iteratively) lead to outer_size > max_outer_size
         if (outer_size - inner_size) % 2 == 1 {
             outer_size += 1;
         }

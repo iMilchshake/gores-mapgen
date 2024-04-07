@@ -21,7 +21,7 @@ impl Generator {
         let spawn = Position::new(50, 50);
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
         let init_inner_kernel = Kernel::new(config.inner_size.1, 0.0);
-        let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
+        let init_outer_kernel = Kernel::new(config.outer_size.1, 0.1);
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
         let rnd = Random::new(seed, config.step_weights.clone());
 

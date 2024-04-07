@@ -143,7 +143,6 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
 pub struct GenerationConfig {
     pub inner_size: (usize, usize),
     pub outer_size: (usize, usize),
-    pub max_outer_size: usize,
     pub inner_rad_mut_prob: f32,
     pub inner_size_mut_prob: f32,
     pub outer_rad_mut_prob: f32,
@@ -158,9 +157,8 @@ impl Default for GenerationConfig {
     // TODO: might make some sense to move waypoints somewhere else
     fn default() -> GenerationConfig {
         GenerationConfig {
-            inner_size: (3, 5),
-            outer_size: (3, 7),
-            max_outer_size: 5,
+            inner_size: (2, 3),
+            outer_size: (2, 5),
             inner_rad_mut_prob: 0.25,
             inner_size_mut_prob: 0.5,
             outer_rad_mut_prob: 0.25,
@@ -170,7 +168,7 @@ impl Default for GenerationConfig {
                 Position::new(250, 250),
                 Position::new(50, 250),
             ],
-            step_weights: vec![20, 8, 7, 10],
+            step_weights: vec![20, 9, 8, 10],
             auto_generate: false,
             fixed_seed: false,
         }

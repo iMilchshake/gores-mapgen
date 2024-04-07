@@ -86,24 +86,10 @@ impl Econ {
             // generate map in a blocking manner
             generate_and_export_map(seed);
 
-            self.send_rcon_cmd("say [DEBUG] Done...".to_string());
+            // reload map
+            self.send_rcon_cmd("reload".to_string());
 
-            // copy map to server maps folder
-            let cwd = env::current_dir().unwrap();
-            let map_path = cwd.join("random_map.map");
-            let maps_path = PathBuf::from("/home/tobi/.local/share/ddnet/maps/random_map.map");
-            match fs::copy(map_path, maps_path) {
-                Ok(_) => {
-                    self.send_rcon_cmd("reload".to_string());
-                    self.send_rcon_cmd("say [DEBUG] Map...".to_string());
-                }
-                Err(err) => {
-                    println!(
-                        "[DEBUG] Coulnt copy map to /maps folder due to Error:\n{:?}",
-                        err
-                    );
-                }
-            }
+            self.send_rcon_cmd("say [DEBUG] Done...".to_string());
         }
     }
 }

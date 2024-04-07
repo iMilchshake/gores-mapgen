@@ -1,5 +1,6 @@
 use crate::{position::Position, walker::CuteWalker};
 use ndarray::Array2;
+use std::path::PathBuf;
 use twmap::{GameLayer, GameTile, TileFlags, TilemapLayer, TwMap};
 
 const CHUNK_SIZE: usize = 5;
@@ -25,6 +26,21 @@ pub struct Map {
 
     pub chunk_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
     pub chunk_size: usize,
+}
+
+fn get_maps_path() -> PathBuf {
+    if cfg!(target_os = "windows") {
+        dirs::data_dir().unwrap().join("Teeworlds").join("maps")
+    } else if cfg!(target_os = "linux") {
+        dirs::home_dir()
+            .unwrap()
+            .join(".local")
+            .join("share")
+            .join("ddnet")
+            .join("maps")
+    } else {
+        panic!("Unsupported operating system");
+    }
 }
 
 impl Map {
@@ -116,9 +132,12 @@ impl Map {
             };
         }
 
+        // set spawn at initial position TODO:
         game_layer[self.spawn.as_index()] = GameTile::new(192, TileFlags::empty());
 
         // save map
-        map.save_file(name + ".map").expect("saving failed");
+        let map_path = get_maps_path().join(name + ".map");
+        println!("exporting map to {:?}", &map_path);
+        map.save_file(map_path).expect("saving failed");
     }
 }
