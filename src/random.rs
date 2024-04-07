@@ -23,6 +23,12 @@ impl Random {
         }
     }
 
+    /// derive a u64 seed from entropy
+    pub fn get_random_seed() -> u64 {
+        let mut tmp_rng = SmallRng::from_entropy();
+        tmp_rng.next_u64()
+    }
+
     pub fn from_str_seed(seed_str: String, weights: Vec<i32>) -> Random {
         let seed_u64 = hash(seed_str.as_bytes());
         let mut rnd = Random::new(seed_u64, weights);
@@ -31,6 +37,7 @@ impl Random {
         rnd
     }
 
+    /// uses another rnd struct to derive initial seed for a new rnd struct
     pub fn from_previous_rnd(rnd: &mut Random, weights: Vec<i32>) -> Random {
         let seed_u64 = rnd.gen.next_u64();
 

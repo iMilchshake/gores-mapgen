@@ -1,8 +1,8 @@
 use clap::Parser;
 use gores_mapgen_rust::generator::Generator;
+use gores_mapgen_rust::random::Random;
 
 use regex::Regex;
-use std::env;
 use std::{fs, path::PathBuf, process::exit};
 use telnet::{Event, Telnet};
 
@@ -72,16 +72,13 @@ impl Econ {
     pub fn handle_vote(&mut self, vote: &Vote) {
         if vote.vote_name == "generate" {
             println!("[GEN] Generating Map...");
-            self.send_rcon_cmd("say [GEN] Generating Map...".to_string());
 
-            let seed: u64 = match vote.vote_reason.parse::<u64>() {
-                Ok(val) => val,
-                Err(err) => {
-                    println!("[GEN] parsing error: {:?}", err);
-                    self.send_rcon_cmd("say [DEBUG] invalid seed, using 1337".to_string());
-                    1337
-                }
-            };
+            let seed = vote
+                .vote_reason
+                .parse::<u64>()
+                .unwrap_or_else(|_| Random::get_random_seed());
+
+            self.send_rcon_cmd("say [GEN] Generating Map, seed=".to_string() + &seed.to_string());
 
             // generate map in a blocking manner
             generate_and_export_map(seed);
