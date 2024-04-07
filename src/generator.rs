@@ -20,7 +20,7 @@ impl Generator {
     pub fn new(config: &GenerationConfig, seed: u64) -> Generator {
         let spawn = Position::new(50, 50);
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
-        let init_inner_kernel = Kernel::new(config.max_inner_size, 0.0);
+        let init_inner_kernel = Kernel::new(config.inner_size.1, 0.0);
         let init_outer_kernel = Kernel::new(config.max_outer_size, 0.1);
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
         let rnd = Random::new(seed, config.step_weights.clone());
@@ -57,7 +57,7 @@ impl Generator {
                 if *value == BlockType::Empty {
                     for dx in 0..=2 {
                         for dy in 0..=2 {
-                            if dx == 1 || dy == 1 {
+                            if dx == 1 && dy == 1 {
                                 continue;
                             }
 
@@ -67,7 +67,7 @@ impl Generator {
                                 let neighbor_value = &self.map.grid[[neighbor_x, neighbor_y]];
                                 if *neighbor_value == BlockType::Hookable {
                                     edge_bug[[x, y]] = true;
-                                    break;
+                                    // break;
                                 }
                             }
                         }

@@ -8,7 +8,7 @@ pub struct Random {
     pub seed_str: Option<String>,
     pub seed_hex: String,
     pub seed_u64: u64,
-    pub gen: SmallRng,
+    gen: SmallRng,
     weighted_dist: WeightedAliasIndex<i32>,
 }
 
@@ -38,7 +38,7 @@ impl Random {
     }
 
     pub fn in_range_inclusive(&mut self, low: usize, high: usize) -> usize {
-        assert!(high > low, "no valid range");
+        assert!(high >= low, "no valid range");
         let n = (high - low) + 1;
         let rnd_value = self.gen.next_u64() as usize;
 
@@ -46,7 +46,7 @@ impl Random {
     }
 
     pub fn in_range_exclusive(&mut self, low: usize, high: usize) -> usize {
-        assert!(high - 1 > low, "no valid range");
+        assert!(high > low, "no valid range");
         let n = high - low;
         let rnd_value = self.gen.next_u64() as usize;
 
@@ -98,10 +98,5 @@ impl Random {
 
     pub fn random_circularity(&mut self) -> f32 {
         self.gen.next_u64() as f32 / u64::max_value() as f32
-    }
-
-    pub fn random_kernel_size(&mut self, max_size: usize) -> usize {
-        assert!(max_size >= 1);
-        self.in_range_inclusive(1, max_size)
     }
 }
