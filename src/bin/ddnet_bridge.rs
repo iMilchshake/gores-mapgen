@@ -3,7 +3,7 @@ use gores_mapgen_rust::generator::Generator;
 use gores_mapgen_rust::random::Random;
 
 use regex::Regex;
-use std::{fs, path::PathBuf, process::exit};
+use std::process::exit;
 use telnet::{Event, Telnet};
 
 #[derive(Parser, Debug)]
@@ -20,10 +20,6 @@ struct Args {
     /// telnet buffer size (amount of bytes/chars)
     #[arg(default_value_t = 256, long, short('b'))]
     telnet_buffer: usize,
-
-    /// interval (in seconds) in which telnet messages are received in buffer
-    #[arg(default_value_t = 0.5, long, short('i'))]
-    telnet_interval: f32,
 
     /// debug to console
     #[arg(short, long)]
@@ -86,7 +82,7 @@ impl Econ {
             // reload map
             self.send_rcon_cmd("reload".to_string());
 
-            self.send_rcon_cmd("say [DEBUG] Done...".to_string());
+            self.send_rcon_cmd("say [GEN] Done...".to_string());
         }
     }
 }
@@ -107,10 +103,6 @@ fn generate_and_export_map(seed: u64) {
 
 fn main() {
     let args = Args::parse();
-
-    if args.debug {
-        dbg!(&args);
-    }
 
     // this regex detects all possible chat messages involving votes
     let vote_regex = Regex::new(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I chat: \*\*\* (Vote passed|Vote failed|'(.+?)' called .+ option '(.+?)' \((.+?)\))\n").unwrap();
@@ -166,14 +158,12 @@ fn main() {
                                     vote_reason,
                                 });
                             }
-                            // panic if for some holy reason something else matched the regex``
+                            // panic if for some holy reason something else matched the regex
                             _ => panic!(),
                         }
                     }
                 }
             }
         }
-
-        // sleep(Duration::from_secs_f32(args.telnet_interval));
     }
 }
