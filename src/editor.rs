@@ -129,11 +129,25 @@ pub fn edit_position(ui: &mut Ui, position: &mut Position) {
     });
 }
 
+pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
+    ui.horizontal(|ui| {
+        ui.label("min:");
+        ui.add(egui::widgets::DragValue::new(&mut values.0).clamp_range(0..=values.1));
+        ui.label("max:");
+        ui.add(
+            egui::widgets::DragValue::new(&mut values.1).clamp_range(values.0..=usize::max_value()),
+        );
+    });
+}
+
 pub struct GenerationConfig {
-    pub max_inner_size: usize,
+    pub inner_size: (usize, usize),
+    pub outer_size: (usize, usize),
     pub max_outer_size: usize,
     pub inner_rad_mut_prob: f32,
     pub inner_size_mut_prob: f32,
+    pub outer_rad_mut_prob: f32,
+    pub outer_size_mut_prob: f32,
     pub waypoints: Vec<Position>,
     pub step_weights: Vec<i32>,
     pub auto_generate: bool,
@@ -144,10 +158,13 @@ impl Default for GenerationConfig {
     // TODO: might make some sense to move waypoints somewhere else
     fn default() -> GenerationConfig {
         GenerationConfig {
-            max_inner_size: 3,
+            inner_size: (3, 5),
+            outer_size: (3, 7),
             max_outer_size: 5,
             inner_rad_mut_prob: 0.25,
             inner_size_mut_prob: 0.5,
+            outer_rad_mut_prob: 0.25,
+            outer_size_mut_prob: 0.5,
             waypoints: vec![
                 Position::new(250, 50),
                 Position::new(250, 250),
@@ -262,15 +279,15 @@ impl Editor {
 
                 field_edit_widget(
                     ui,
-                    &mut self.config.max_inner_size,
-                    edit_usize,
-                    "max inner size",
+                    &mut self.config.inner_size,
+                    edit_range_usize,
+                    "inner size range",
                 );
                 field_edit_widget(
                     ui,
-                    &mut self.config.max_outer_size,
-                    edit_usize,
-                    "max outer size",
+                    &mut self.config.outer_size,
+                    edit_range_usize,
+                    "outer size range",
                 );
                 field_edit_widget(
                     ui,
@@ -283,6 +300,19 @@ impl Editor {
                     &mut self.config.inner_size_mut_prob,
                     edit_f32,
                     "inner size mut prob",
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut self.config.outer_rad_mut_prob,
+                    edit_f32,
+                    "outer rad mut prob",
+                );
+                field_edit_widget(
+                    ui,
+                    &mut self.config.outer_size_mut_prob,
+                    edit_f32,
+                    "outer size mut prob",
                 );
 
                 // only show these in setup mode

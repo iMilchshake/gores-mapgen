@@ -84,26 +84,59 @@ impl CuteWalker {
 
     pub fn mutate_kernel(&mut self, config: &GenerationConfig, rnd: &mut Random) {
         let mut inner_size = self.inner_kernel.size;
-        let mut inner_circularity = self.inner_kernel.circularity;
+        let mut inner_circ = self.inner_kernel.circularity;
+        let mut outer_size = self.outer_kernel.size;
+        let mut outer_circ = self.outer_kernel.circularity;
+
         let mut modified = false;
 
         // mutate inner kernel
         if rnd.with_probability(config.inner_size_mut_prob) {
-            inner_size = rnd.random_kernel_size(config.max_inner_size);
+            inner_size = rnd.in_range_inclusive(config.inner_size.0, config.inner_size.1);
             modified = true;
-        }
-        if rnd.with_probability(config.inner_rad_mut_prob) {
-            inner_circularity = *rnd.pick_element(&vec![0.0, 0.1, 0.2, 0.6, 0.8]);
-            modified = true;
+        } else {
+            rnd.skip();
         }
 
-        if inner_size <= 2 {
-            inner_circularity = 0.0;
+        if rnd.with_probability(config.outer_size_mut_prob) {
+            outer_size = rnd.in_range_inclusive(config.outer_size.0, config.outer_size.1);
+            modified = true;
+        } else {
+            rnd.skip();
         }
+
+        if rnd.with_probability(config.inner_rad_mut_prob) {
+            inner_circ = *rnd.pick_element(&vec![0.0, 0.1, 0.2, 0.6, 0.8]);
+            modified = true;
+        } else {
+            rnd.skip();
+        }
+
+        if rnd.with_probability(config.outer_rad_mut_prob) {
+            outer_circ = *rnd.pick_element(&vec![0.0, 0.1, 0.2, 0.6, 0.8]);
+            modified = true;
+        } else {
+            rnd.skip();
+        }
+
+        // constraint 1: small circles must be fully rect
+        if inner_size <= 3 {
+            inner_circ = 0.0;
+        }
+
+        // constraint 2: outer size cannot be smaller than inner
+        outer_size = usize::max(outer_size, inner_size);
+
+        // constraint 3: both sizes should be either odd or even
+        if (outer_size - inner_size) % 2 == 1 {
+            outer_size += 1;
+        }
+
+        dbg!((&inner_size, &outer_size));
 
         if modified {
-            self.inner_kernel = Kernel::new(inner_size, inner_circularity);
-            self.outer_kernel = Kernel::new(inner_size + 2, inner_circularity)
+            self.inner_kernel = Kernel::new(inner_size, inner_circ);
+            self.outer_kernel = Kernel::new(outer_size, outer_circ);
         }
     }
 }
