@@ -1,8 +1,11 @@
-use gores_mapgen_rust::{editor::*, fps_control::*, grid_render::*, map::*};
+use std::env;
+
+use gores_mapgen_rust::{
+    editor::*, fps_control::*, generator::GenerationConfig, grid_render::*, map::*,
+};
 
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
-
 
 const DISABLE_VSYNC: bool = true;
 
@@ -23,7 +26,7 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut editor = Editor::new(GenerationConfig::default());
-    let mut fps_ctrl = FPSControl::new(); //.with_max_fps(60);
+    let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     // let mut edge_bugs: Option<Array2<bool>> = None;
 
@@ -31,17 +34,9 @@ async fn main() {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
-        // this is called ONCE after map was generated
-        if editor.gen.walker.finished && !editor.is_setup() {
-            editor.gen.post_processing();
-
-            // switch into setup mode for next map
-            editor.set_setup();
-
-            // optionally, start generating next map right away
-            if editor.config.auto_generate {
-                editor.set_playing();
-            }
+        // optionally, start generating next map right away
+        if editor.is_paused() && editor.auto_generate {
+            editor.set_playing();
         }
 
         // perform walker step
@@ -64,6 +59,14 @@ async fn main() {
             if editor.is_single_setp() {
                 editor.set_stopped();
             }
+        }
+
+        // this is called ONCE after map was generated
+        if editor.gen.walker.finished && !editor.is_setup() {
+            editor.gen.post_processing();
+
+            // switch into setup mode for next map
+            editor.set_setup();
         }
 
         editor.define_egui();

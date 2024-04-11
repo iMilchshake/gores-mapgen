@@ -1,5 +1,5 @@
 use crate::{
-    editor::GenerationConfig,
+    generator::GenerationConfig,
     kernel::Kernel,
     map::{KernelType, Map},
     position::Position,
@@ -92,14 +92,16 @@ impl CuteWalker {
 
         // mutate inner kernel
         if rnd.with_probability(config.inner_size_mut_prob) {
-            inner_size = rnd.in_range_inclusive(config.inner_size.0, config.inner_size.1);
+            inner_size =
+                rnd.in_range_inclusive(config.inner_size_bounds.0, config.inner_size_bounds.1);
             modified = true;
         } else {
             rnd.skip();
         }
 
         if rnd.with_probability(config.outer_size_mut_prob) {
-            outer_size = rnd.in_range_inclusive(config.outer_size.0, config.outer_size.1);
+            outer_size =
+                rnd.in_range_inclusive(config.outer_size_bounds.0, config.outer_size_bounds.1);
             modified = true;
         } else {
             rnd.skip();
@@ -133,8 +135,6 @@ impl CuteWalker {
         if (outer_size - inner_size) % 2 == 1 {
             outer_size += 1;
         }
-
-        dbg!((&inner_size, &outer_size));
 
         if modified {
             self.inner_kernel = Kernel::new(inner_size, inner_circ);

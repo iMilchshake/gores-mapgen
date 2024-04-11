@@ -1,9 +1,13 @@
 use egui::{InnerResponse, RichText};
-use std::time::Instant;
 
 const STEPS_PER_FRAME: usize = 50;
 
-use crate::{generator::Generator, map::Map, position::Position, random::Random};
+use crate::{
+    generator::{GenerationConfig, Generator},
+    map::Map,
+    position::Position,
+    random::Random,
+};
 use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
@@ -140,41 +144,6 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
     });
 }
 
-pub struct GenerationConfig {
-    pub inner_size: (usize, usize),
-    pub outer_size: (usize, usize),
-    pub inner_rad_mut_prob: f32,
-    pub inner_size_mut_prob: f32,
-    pub outer_rad_mut_prob: f32,
-    pub outer_size_mut_prob: f32,
-    pub waypoints: Vec<Position>,
-    pub step_weights: Vec<i32>,
-    pub auto_generate: bool,
-    pub fixed_seed: bool,
-}
-
-impl Default for GenerationConfig {
-    // TODO: might make some sense to move waypoints somewhere else
-    fn default() -> GenerationConfig {
-        GenerationConfig {
-            inner_size: (2, 3),
-            outer_size: (2, 5),
-            inner_rad_mut_prob: 0.25,
-            inner_size_mut_prob: 0.5,
-            outer_rad_mut_prob: 0.25,
-            outer_size_mut_prob: 0.5,
-            waypoints: vec![
-                Position::new(250, 50),
-                Position::new(250, 250),
-                Position::new(50, 250),
-            ],
-            step_weights: vec![20, 9, 8, 10],
-            auto_generate: false,
-            fixed_seed: false,
-        }
-    }
-}
-
 pub struct Editor {
     state: EditorState,
     pub canvas: Option<egui::Rect>,
@@ -189,6 +158,12 @@ pub struct Editor {
     pub gen: Generator,
     user_str_seed: String,
     pub instant: bool,
+
+    /// whether to keep generating after a map is generated
+    pub auto_generate: bool,
+
+    /// whether to keep using the same seed for next generations
+    pub fixed_seed: bool,
 }
 
 impl Editor {
@@ -208,6 +183,8 @@ impl Editor {
             gen,
             user_str_seed: "iMilchshake".to_string(),
             instant: false,
+            auto_generate: false,
+            fixed_seed: false,
         }
     }
 
@@ -237,23 +214,27 @@ impl Editor {
                 ui.label(RichText::new("Control").heading());
 
                 ui.horizontal(|ui| {
-                    // toggle pause
-                    if self.is_setup() {
-                        if ui.button("start").clicked() {
-                            self.set_playing();
+                    // instant+auto generate will result in setup state before any new frame is
+                    // rendered. therefore, disable these elements so user doesnt expect them to
+                    // work.
+                    let enable_playback_control = !self.instant || !self.auto_generate;
+                    ui.add_enabled_ui(enable_playback_control, |ui| {
+                        if self.is_setup() {
+                            if ui.button("start").clicked() {
+                                self.set_playing();
+                            }
+                        } else if self.is_paused() {
+                            if ui.button("resume").clicked() {
+                                self.set_playing();
+                            }
+                        } else if ui.button("pause").clicked() {
+                            self.set_stopped();
                         }
-                    } else if self.is_paused() {
-                        if ui.button("resume").clicked() {
-                            self.set_playing();
-                        }
-                    } else if ui.button("pause").clicked() {
-                        self.set_stopped();
-                    }
 
-                    // pause, allow single step
-                    if ui.button("single step").clicked() {
-                        self.set_single_step();
-                    }
+                        if ui.button("single step").clicked() {
+                            self.set_single_step();
+                        }
+                    });
 
                     if !self.is_setup() && ui.button("setup").clicked() {
                         self.set_setup();
@@ -267,9 +248,9 @@ impl Editor {
                     ui.checkbox(&mut self.instant, "instant")
                 });
 
-                ui.checkbox(&mut self.config.auto_generate, "auto generate");
+                ui.checkbox(&mut self.auto_generate, "auto generate");
 
-                ui.checkbox(&mut self.config.fixed_seed, "fixed seed");
+                ui.checkbox(&mut self.fixed_seed, "fixed seed");
                 if self.is_setup() {
                     field_edit_widget(ui, &mut self.user_str_seed, edit_string, "str seed");
                 }
@@ -277,13 +258,13 @@ impl Editor {
 
                 field_edit_widget(
                     ui,
-                    &mut self.config.inner_size,
+                    &mut self.config.inner_size_bounds,
                     edit_range_usize,
                     "inner size range",
                 );
                 field_edit_widget(
                     ui,
-                    &mut self.config.outer_size,
+                    &mut self.config.outer_size_bounds,
                     edit_range_usize,
                     "outer size range",
                 );
@@ -355,6 +336,7 @@ impl Editor {
                             &self.gen.rnd.seed_str
                         )
                     )));
+                    ui.add(Label::new(format!("config: {:?}", &self.config)));
                 });
 
             // store remaining space for macroquad drawing
@@ -412,12 +394,12 @@ impl Editor {
         let seed_u64 = if !self.user_str_seed.is_empty() {
             // generate new seed based on user string
             let seed_u64 = Random::str_seed_to_u64(&self.user_str_seed);
-            if !self.config.fixed_seed {
+            if !self.fixed_seed {
                 self.user_str_seed = String::new();
             }
             seed_u64
-        } else if self.config.fixed_seed {
-            self.gen.rnd.seed_u64 // re use last seed
+        } else if self.fixed_seed {
+            self.gen.rnd.seed_u64 // re-use last seed
         } else {
             self.gen.rnd.random_u64() // generate new seed from previous generator
         };

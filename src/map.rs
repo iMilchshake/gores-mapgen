@@ -1,6 +1,6 @@
 use crate::{position::Position, walker::CuteWalker};
 use ndarray::Array2;
-use std::path::PathBuf;
+use std::{path::PathBuf};
 use twmap::{GameLayer, GameTile, TileFlags, TilemapLayer, TwMap};
 
 const CHUNK_SIZE: usize = 5;
