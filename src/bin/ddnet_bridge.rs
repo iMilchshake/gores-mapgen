@@ -1,9 +1,10 @@
 use clap::Parser;
+use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use gores_mapgen_rust::generator::Generator;
 use gores_mapgen_rust::random::Random;
 
 use regex::Regex;
-use std::process::exit;
+use std::{path::PathBuf, process::exit, str::FromStr, time::Duration};
 use telnet::{Event, Telnet};
 
 #[derive(Parser, Debug)]
@@ -22,8 +23,11 @@ struct Args {
     telnet_buffer: usize,
 
     /// debug to console
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = false)]
     debug: bool,
+
+    /// path to maps folder
+    maps: PathBuf,
 }
 
 #[derive(Debug)]
@@ -39,11 +43,17 @@ struct Econ {
 
 impl Econ {
     pub fn new(port: u16, buffer_size: usize) -> Econ {
+        let address = SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::from_str("127.0.0.1").expect("Invalid address")),
+            port,
+        );
+
         Econ {
-            telnet: Telnet::connect(("localhost", port), buffer_size).unwrap_or_else(|err| {
-                println!("Coulnt establish telnet connection\nError: {:?}", err);
-                exit(1);
-            }),
+            telnet: Telnet::connect_timeout(&address, buffer_size, Duration::from_secs(10))
+                .unwrap_or_else(|err| {
+                    println!("Coulnt establish telnet connection\nError: {:?}", err);
+                    exit(1);
+                }),
         }
     }
 
@@ -65,7 +75,7 @@ impl Econ {
             .expect("telnet write error");
     }
 
-    pub fn handle_vote(&mut self, vote: &Vote) {
+    pub fn handle_vote(&mut self, vote: &Vote, args: &Args) {
         if vote.vote_name == "generate" {
             println!("[GEN] Generating Map...");
 
@@ -74,29 +84,26 @@ impl Econ {
                 .parse::<u64>()
                 .unwrap_or_else(|_| Random::get_random_seed());
 
+            let map_path = args.maps.canonicalize().unwrap().join("random_map.map");
+
             self.send_rcon_cmd("say [GEN] Generating Map, seed=".to_string() + &seed.to_string());
 
             // generate map in a blocking manner
-            generate_and_export_map(seed);
-
-            // reload map
-            self.send_rcon_cmd("reload".to_string());
-
-            self.send_rcon_cmd("say [GEN] Done...".to_string());
-        }
-    }
-}
-
-fn generate_and_export_map(seed: u64) {
-    println!("[GEN] Starting Map Generation!");
-    match Generator::generate_map(30_000, seed) {
-        Ok(map) => {
-            println!("[GEN] Finished Map Generation!");
-            map.export("random_map".to_string());
-            println!("[GEN] Map was exported");
-        }
-        Err(err) => {
-            println!("[GEN] Generation Error: {:?}", err);
+            println!("[GEN] Starting Map Generation!");
+            match Generator::generate_map(30_000, seed) {
+                Ok(map) => {
+                    println!("[GEN] Finished Map Generation!");
+                    map.export(&map_path);
+                    println!("[GEN] Map was exported");
+                    self.send_rcon_cmd("change_map random_map".to_string());
+                    self.send_rcon_cmd("reload".to_string());
+                    self.send_rcon_cmd("say [GEN] Done...".to_string());
+                }
+                Err(err) => {
+                    println!("[GEN] Generation Error: {:?}", err);
+                    self.send_rcon_cmd("say [GEN] Failed :( ".to_string());
+                }
+            }
         }
     }
 }
@@ -135,7 +142,7 @@ fn main() {
                         match message {
                             "Vote passed" => {
                                 println!("[VOTE]: Success");
-                                econ.handle_vote(pending_vote.as_ref().unwrap());
+                                econ.handle_vote(pending_vote.as_ref().unwrap(), &args);
                             }
                             "Vote failed" => {
                                 pending_vote = None;

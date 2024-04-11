@@ -107,7 +107,7 @@ impl Map {
         Position::new(pos.x / CHUNK_SIZE, pos.y / CHUNK_SIZE)
     }
 
-    pub fn export(&self, name: String) {
+    pub fn export(&self, path: &PathBuf) {
         let mut map = TwMap::parse_file("test.map").expect("parsing failed");
         map.load().expect("loading failed");
 
@@ -136,8 +136,7 @@ impl Map {
         game_layer[self.spawn.as_index()] = GameTile::new(192, TileFlags::empty());
 
         // save map
-        let map_path = get_maps_path().join(name + ".map");
-        println!("exporting map to {:?}", &map_path);
-        map.save_file(map_path).expect("saving failed");
+        println!("exporting map to {:?}", &path);
+        map.save_file(path).expect("saving failed");
     }
 }

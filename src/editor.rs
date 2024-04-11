@@ -469,13 +469,13 @@ impl Editor {
             self.offset = Vec2::ZERO;
         }
 
-        if is_key_pressed(KeyCode::E) {
-            let t0 = Instant::now();
-            let name: String = self.gen.rnd.seed_hex.clone();
-            self.gen.map.export(name);
-            let time = Instant::now().duration_since(t0);
-            dbg!(time);
-        }
+        // if is_key_pressed(KeyCode::E) {
+        //     let t0 = Instant::now();
+        //     let name: String = self.gen.rnd.seed_hex.clone();
+        //     self.gen.map.export(name);
+        //     let time = Instant::now().duration_since(t0);
+        //     dbg!(time);
+        // }
 
         // handle mouse inputs
         let mouse_wheel_y = mouse_wheel().1;
