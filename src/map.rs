@@ -1,6 +1,6 @@
 use crate::{position::Position, walker::CuteWalker};
 use ndarray::Array2;
-use std::{path::PathBuf};
+use std::path::PathBuf;
 use twmap::{GameLayer, GameTile, TileFlags, TilemapLayer, TwMap};
 
 const CHUNK_SIZE: usize = 5;
@@ -133,7 +133,7 @@ impl Map {
         }
 
         // set spawn at initial position TODO:
-        game_layer[self.spawn.as_index()] = GameTile::new(192, TileFlags::empty());
+        game_layer[[self.spawn.y, self.spawn.x]] = GameTile::new(192, TileFlags::empty());
 
         // save map
         println!("exporting map to {:?}", &path);

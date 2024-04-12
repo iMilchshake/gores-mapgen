@@ -46,9 +46,11 @@ impl Default for GenerationConfig {
             outer_rad_mut_prob: 0.25,
             outer_size_mut_prob: 0.5,
             waypoints: vec![
-                Position::new(250, 50),
                 Position::new(250, 250),
-                Position::new(50, 250),
+                Position::new(250, 150),
+                Position::new(50, 150),
+                Position::new(50, 50),
+                Position::new(250, 50),
             ],
             step_weights: vec![20, 11, 10, 9],
         }
@@ -63,7 +65,7 @@ pub struct Generator {
 impl Generator {
     /// derive a initial generator state based on a GenerationConfig
     pub fn new(config: &GenerationConfig, seed: u64) -> Generator {
-        let spawn = Position::new(50, 50);
+        let spawn = Position::new(50, 250);
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
         let init_inner_kernel = Kernel::new(config.inner_size_bounds.1, 0.0);
         let init_outer_kernel = Kernel::new(config.outer_size_bounds.1, 0.1);
