@@ -3,10 +3,7 @@ use egui::{InnerResponse, RichText};
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
-    generator::{GenerationConfig, Generator},
-    map::Map,
-    position::Position,
-    random::Random,
+    config::GenerationConfig, generator::Generator, map::Map, position::Position, random::Random,
 };
 use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 use macroquad::camera::{set_camera, Camera2D};

@@ -1,4 +1,5 @@
 use crate::{
+    config::GenerationConfig,
     kernel::Kernel,
     map::{BlockType, Map},
     position::Position,
@@ -8,54 +9,6 @@ use crate::{
 
 use ndarray::{s, Array2};
 
-#[derive(Debug)]
-pub struct GenerationConfig {
-    /// (min, max) values for inner kernel
-    pub inner_size_bounds: (usize, usize),
-
-    /// (min, max) values for outer kernel
-    pub outer_size_bounds: (usize, usize),
-
-    /// probability for mutating inner radius
-    pub inner_rad_mut_prob: f32,
-
-    /// probability for mutating inner size
-    pub inner_size_mut_prob: f32,
-
-    /// probability for mutating outer radius
-    pub outer_rad_mut_prob: f32,
-
-    /// probability for mutating outer size
-    pub outer_size_mut_prob: f32,
-
-    /// probability weighting for random selection from best to worst towards next goal
-    pub step_weights: Vec<i32>,
-
-    // ------- TODO: these should go somewhere else -----
-    pub waypoints: Vec<Position>,
-}
-
-impl Default for GenerationConfig {
-    // TODO: might make some sense to move waypoints somewhere else
-    fn default() -> GenerationConfig {
-        GenerationConfig {
-            inner_size_bounds: (3, 3),
-            outer_size_bounds: (1, 5),
-            inner_rad_mut_prob: 0.25,
-            inner_size_mut_prob: 0.5,
-            outer_rad_mut_prob: 0.25,
-            outer_size_mut_prob: 0.5,
-            waypoints: vec![
-                Position::new(250, 250),
-                Position::new(250, 150),
-                Position::new(50, 150),
-                Position::new(50, 50),
-                Position::new(250, 50),
-            ],
-            step_weights: vec![20, 11, 10, 9],
-        }
-    }
-}
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,

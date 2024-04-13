@@ -1,13 +1,13 @@
+use serde::{Deserialize, Serialize};
+
 use crate::map::Map;
 use std::usize;
-
-use egui_struct::EguiStruct;
 
 // using my own position vector to meet ndarray's indexing standard using usize
 //
 // while glam has nice performance benefits, the amount of expensive operations
 // on the position vector will be very limited, so this should be fine..
-#[derive(Debug, Default, PartialEq, Clone, EguiStruct)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Position {
     pub x: usize,
     pub y: usize,

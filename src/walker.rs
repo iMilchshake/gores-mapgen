@@ -1,5 +1,5 @@
 use crate::{
-    generator::GenerationConfig,
+    config::GenerationConfig,
     kernel::Kernel,
     map::{KernelType, Map},
     position::Position,
