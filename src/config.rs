@@ -9,10 +9,16 @@ use std::io::Write;
 #[folder = "configs/"]
 pub struct Configs;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(default = "GenerationConfig::migrate_default")]
 #[serde(deny_unknown_fields)]
 pub struct GenerationConfig {
+    /// name of the preset
+    pub name: String,
+
+    /// this can contain any description of the generation preset
+    pub description: Option<String>,
+
     /// (min, max) values for inner kernel
     pub inner_size_bounds: (usize, usize),
 
@@ -40,6 +46,7 @@ pub struct GenerationConfig {
 
 impl GenerationConfig {
     pub fn save(&self) {
+        // TODO: derive file name from preset name
         let mut file = File::create("config.json").expect("failed to create config file");
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
         file.write_all(serialized.as_bytes())
@@ -63,11 +70,28 @@ impl GenerationConfig {
 
         GenerationConfig::default()
     }
+
+    pub fn get_configs() -> Vec<GenerationConfig> {
+        let mut configs = Vec::new();
+
+        configs.push(GenerationConfig::default());
+
+        for file_name in Configs::iter() {
+            let file = Configs::get(&file_name).unwrap();
+            let data = std::str::from_utf8(&file.data).unwrap();
+            let config: GenerationConfig = serde_json::from_str(&data).unwrap();
+            configs.push(config);
+        }
+
+        configs
+    }
 }
 
 impl Default for GenerationConfig {
     fn default() -> GenerationConfig {
         GenerationConfig {
+            name: "default".to_string(),
+            description: None,
             inner_size_bounds: (3, 3),
             outer_size_bounds: (1, 5),
             inner_rad_mut_prob: 0.25,

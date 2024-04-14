@@ -6,8 +6,6 @@ use gores_mapgen_rust::{
 
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
-use rust_embed::RustEmbed;
-use serde::Serialize;
 
 const DISABLE_VSYNC: bool = true;
 
@@ -27,17 +25,7 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // let test_cfg = GenerationConfig::load();
-    // dbg!(test_cfg);
-
-    for file_name in Configs::iter() {
-        dbg!(&file_name);
-        let file = Configs::get(&file_name).unwrap();
-        let data = std::str::from_utf8(&file.data).unwrap();
-        println!("{}", data);
-    }
-
-    exit(0);
+    GenerationConfig::default().save();
 
     let mut editor = Editor::new(GenerationConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);

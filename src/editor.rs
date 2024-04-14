@@ -1,3 +1,4 @@
+use egui::style::Selection;
 use egui::{InnerResponse, RichText};
 
 const STEPS_PER_FRAME: usize = 50;
@@ -143,6 +144,7 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
 
 pub struct Editor {
     state: EditorState,
+    configs: Vec<GenerationConfig>,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
@@ -165,9 +167,11 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(config: GenerationConfig) -> Editor {
+        let configs: Vec<GenerationConfig> = GenerationConfig::get_configs();
         let gen = Generator::new(&config, 0); // TODO: overwritten anyways? Option?
         Editor {
             state: EditorState::Paused(PausedState::Setup),
+            configs,
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
@@ -251,6 +255,16 @@ impl Editor {
                 if self.is_setup() {
                     field_edit_widget(ui, &mut self.user_str_seed, edit_string, "str seed");
                 }
+                ui.separator();
+
+                egui::ComboBox::from_label("preset")
+                    .selected_text(format!("{:}", self.config.name.clone()))
+                    .show_ui(ui, |ui| {
+                        for cfg in self.configs.iter() {
+                            ui.selectable_value(&mut self.config, cfg.clone(), &cfg.name);
+                        }
+                    });
+
                 ui.separator();
 
                 field_edit_widget(
