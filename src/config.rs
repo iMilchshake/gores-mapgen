@@ -45,9 +45,10 @@ pub struct GenerationConfig {
 }
 
 impl GenerationConfig {
+    /// stores GenerationConfig in cwd as <name>.json
     pub fn save(&self) {
-        // TODO: derive file name from preset name
-        let mut file = File::create("config.json").expect("failed to create config file");
+        let file_name = self.name.clone() + ".json";
+        let mut file = File::create(file_name).expect("failed to create config file");
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
         file.write_all(serialized.as_bytes())
             .expect("failed to write to config file");
