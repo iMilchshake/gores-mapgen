@@ -25,8 +25,6 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    GenerationConfig::default().save();
-
     let mut editor = Editor::new(GenerationConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 

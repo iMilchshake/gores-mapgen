@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 
 #[derive(RustEmbed)]
 #[folder = "configs/"]
@@ -46,17 +47,15 @@ pub struct GenerationConfig {
 
 impl GenerationConfig {
     /// stores GenerationConfig in cwd as <name>.json
-    pub fn save(&self) {
-        let file_name = self.name.clone() + ".json";
-        let mut file = File::create(file_name).expect("failed to create config file");
+    pub fn save(&self, path: &str) {
+        let mut file = File::create(path).expect("failed to create config file");
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
         file.write_all(serialized.as_bytes())
             .expect("failed to write to config file");
     }
 
-    pub fn load() -> GenerationConfig {
-        let serialized_from_file =
-            fs::read_to_string("config.json").expect("failed to read config file");
+    pub fn load(path: &str) -> GenerationConfig {
+        let serialized_from_file = fs::read_to_string(path).expect("failed to read config file");
         let deserialized: GenerationConfig =
             serde_json::from_str(&serialized_from_file).expect("failed to deserialize config file");
 

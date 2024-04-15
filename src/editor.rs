@@ -1,4 +1,6 @@
 use std::env;
+use std::path::PathBuf;
+use std::str::FromStr;
 
 use egui::{InnerResponse, RichText};
 use tinyfiledialogs;
@@ -226,11 +228,6 @@ impl Editor {
 
     pub fn define_egui(&mut self) {
         egui_macroquad::ui(|egui_ctx| {
-            egui_ctx.input(|i| {
-                dbg!(&i.raw.hovered_files);
-                dbg!(&i.raw.dropped_files);
-            });
-
             egui::SidePanel::right("right_panel").show(egui_ctx, |ui| {
                 ui.label(RichText::new("Control").heading());
 
@@ -282,19 +279,29 @@ impl Editor {
                 ui.horizontal(|ui| {
                     if ui.button("load file").clicked() {
                         let cwd = env::current_dir().unwrap();
-                        dbg!(&cwd);
-                        let res = tinyfiledialogs::open_file_dialog(
+                        if let Some(path_in) = tinyfiledialogs::open_file_dialog(
                             "load config",
                             &cwd.to_string_lossy(),
-                            Some((&["json"], "JSON Configs (*.json)")),
-                        );
-
-                        if let Some(path) = res {
-                            dbg!(&path);
+                            None,
+                        ) {
+                            self.config = GenerationConfig::load(&path_in);
                         }
                     }
                     if ui.button("save file").clicked() {
-                        self.config.save();
+                        let cwd = env::current_dir().unwrap();
+
+                        let initial_path = cwd
+                            .join(self.config.name.clone() + ".json")
+                            .to_string_lossy()
+                            .to_string();
+
+                        dbg!(&initial_path);
+
+                        if let Some(path_out) =
+                            tinyfiledialogs::save_file_dialog("save config", &initial_path)
+                        {
+                            self.config.save(&path_out);
+                        }
                     };
                 });
 
