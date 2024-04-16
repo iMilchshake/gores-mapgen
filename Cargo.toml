@@ -2,10 +2,14 @@
 name = "gores-mapgen-rust"
 version = "0.1.0"
 edition = "2021"
-default-run = "main"
+default-run = "gores-generator"
 
 # [features]
 # ddnet_bridge = ["dep:regex", "dep:telnet"]
+
+[[bin]]
+name = "gores-generator"
+path = "src/main.rs"
 
 [[bin]]
 name = "camera_test"
