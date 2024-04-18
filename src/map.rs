@@ -162,14 +162,29 @@ impl Map {
         pos.x < self.width && pos.y < self.height
     }
 
-    pub fn set_area(&mut self, top_left: &Position, bot_right: &Position, value: &BlockType) {
+    // TODO: right now override is hardcoded to overide empty AND freeze. i might need some
+    // distiction here in the future :)
+    pub fn set_area(
+        &mut self,
+        top_left: &Position,
+        bot_right: &Position,
+        value: &BlockType,
+        overide: bool,
+    ) {
         let valid_area = self.pos_in_bounds(top_left) && self.pos_in_bounds(bot_right);
 
         if valid_area {
             let mut view = self
                 .grid
                 .slice_mut(s![top_left.x..bot_right.x, top_left.y..bot_right.y]);
-            view.map_inplace(|elem| *elem = value.clone());
+            view.map_inplace(|current_value| {
+                if overide
+                    || *current_value == BlockType::Empty
+                    || *current_value == BlockType::Freeze
+                {
+                    *current_value = value.clone();
+                }
+            });
         }
     }
 }

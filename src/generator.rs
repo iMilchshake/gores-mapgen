@@ -85,31 +85,54 @@ impl Generator {
         edge_bug
     }
 
-    fn generate_room(&mut self, pos: &Position, margin: usize) {
-        let start_x = pos.x.saturating_sub(margin);
-        let start_y = pos.y.saturating_sub(margin);
-        let end_x = (pos.x + margin + 1).min(self.map.width);
-        let end_y = (pos.y + margin + 1).min(self.map.height);
+    fn generate_room(&mut self, pos: &Position, margin: usize, zone_type: &BlockType) {
+        // TODO: ensure valid position?
 
-        let valid = start_x < end_x && start_y < end_y;
+        // carve room
+        self.map.set_area(
+            &Position::new(pos.x - margin, pos.y - margin),
+            &Position::new(pos.x + margin + 1, pos.y + margin + 1),
+            &BlockType::Empty,
+            true,
+        );
 
-        if valid {
-            let mut view = self.map.grid.slice_mut(s![start_x..end_x, start_y..end_y]);
-            view.map_inplace(|elem| *elem = BlockType::Empty);
+        // set platform
+        self.map.set_area(
+            &Position::new(pos.x - (margin - 2), pos.y),
+            &Position::new(pos.x + (margin - 2) + 1, pos.y + 1),
+            &BlockType::Hookable,
+            true,
+        );
 
-            let platform_margin = margin.saturating_sub(1);
-
-            let mut view = self.map.grid.slice_mut(s![
-                pos.x - platform_margin..pos.x + platform_margin + 1,
-                pos.y + 1..pos.y + 2
-            ]);
-            view.map_inplace(|elem| *elem = BlockType::Hookable);
+        // set spawns
+        if *zone_type == BlockType::Start {
+            self.map.set_area(
+                &Position::new(pos.x - (margin - 2), pos.y - 1),
+                &Position::new(pos.x + (margin - 2) + 1, pos.y),
+                &BlockType::Spawn,
+                true,
+            );
         }
+
+        // set start/finish line TODO: only right/left so far
+        self.map.set_area(
+            &Position::new(pos.x + margin + 1, pos.y - margin),
+            &Position::new(pos.x + margin + 2, pos.y + margin + 1),
+            zone_type,
+            false,
+        );
+        self.map.set_area(
+            &Position::new(pos.x - margin - 1, pos.y - margin),
+            &Position::new(pos.x - margin, pos.y + margin + 1),
+            zone_type,
+            false,
+        );
     }
 
     pub fn post_processing(&mut self) {
         self.fix_edge_bugs();
-        self.generate_room(&self.map.spawn.clone(), 3);
+        self.generate_room(&self.map.spawn.clone(), 4, &BlockType::Start);
+        self.generate_room(&self.walker.pos.clone(), 4, &BlockType::Finish);
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.
