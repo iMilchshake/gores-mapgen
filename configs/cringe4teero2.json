@@ -1,23 +1,23 @@
 {
-  "name": "config2",
+  "name": "cringe4teero2",
   "description": null,
   "inner_size_bounds": [
     3,
     3
   ],
   "outer_size_bounds": [
-    3,
-    5
+    0,
+    4
   ],
-  "inner_rad_mut_prob": 0.25,
-  "inner_size_mut_prob": 0.5,
-  "outer_rad_mut_prob": 0.25,
-  "outer_size_mut_prob": 0.5,
+  "inner_rad_mut_prob": 0.45,
+  "inner_size_mut_prob": 1.0,
+  "outer_rad_mut_prob": 0.45,
+  "outer_size_mut_prob": 1.0,
   "step_weights": [
     20,
-    11,
-    10,
-    9
+    9,
+    8,
+    4
   ],
   "waypoints": [
     {
