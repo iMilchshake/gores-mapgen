@@ -2,7 +2,7 @@
 use std::env;
 
 use gores_mapgen_rust::{
-    editor::*, fps_control::*, generator::GenerationConfig, grid_render::*, map::*,
+    config::Configs, config::GenerationConfig, editor::*, fps_control::*, grid_render::*, map::*,
 };
 
 use macroquad::{color::*, miniquad, window::*};
@@ -52,8 +52,8 @@ async fn main() {
             }
 
             editor.gen.step(&editor.config).unwrap_or_else(|err| {
-                println!("Pause: {:}", err);
-                editor.set_stopped();
+                println!("Abort due to error: {:}", err);
+                editor.set_setup();
             });
 
             // walker did a step using SingleStep -> now pause

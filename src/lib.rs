@@ -1,3 +1,4 @@
+pub mod config;
 pub mod editor;
 pub mod fps_control;
 pub mod generator;

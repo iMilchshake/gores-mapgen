@@ -1,12 +1,15 @@
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::{env, isize};
+
 use egui::{InnerResponse, RichText};
+use tinyfiledialogs;
 
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
-    generator::{GenerationConfig, Generator},
-    map::Map,
-    position::Position,
-    random::Random,
+    config::GenerationConfig, generator::Generator, map::Map, position::Position, random::Random,
 };
 use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 use macroquad::camera::{set_camera, Camera2D};
@@ -97,23 +100,31 @@ pub fn field_edit_widget<T, F>(
     value: &mut T,
     edit_element: F,
     label: &str,
+    vertical: bool,
 ) -> InnerResponse<()>
 where
     F: Fn(&mut Ui, &mut T),
     T: Default,
 {
-    ui.vertical(|ui| {
-        ui.label(label);
-        edit_element(ui, value);
-    })
+    if vertical {
+        ui.vertical(|ui| {
+            ui.label(label);
+            edit_element(ui, value);
+        })
+    } else {
+        ui.horizontal(|ui| {
+            ui.label(label);
+            edit_element(ui, value);
+        })
+    }
 }
 
 pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
     ui.add(egui::DragValue::new(value));
 }
 
-pub fn edit_i32(ui: &mut Ui, value: &mut i32) {
-    ui.add(egui::DragValue::new(value));
+pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
+    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::max_value()));
 }
 
 pub fn edit_f32(ui: &mut Ui, value: &mut f32) {
@@ -121,7 +132,8 @@ pub fn edit_f32(ui: &mut Ui, value: &mut f32) {
 }
 
 pub fn edit_string(ui: &mut Ui, value: &mut String) {
-    ui.add(egui::widgets::TextEdit::singleline(value));
+    let text_edit = egui::TextEdit::singleline(value).desired_width(100.0);
+    ui.add(text_edit);
 }
 
 pub fn edit_position(ui: &mut Ui, position: &mut Position) {
@@ -146,6 +158,7 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
 
 pub struct Editor {
     state: EditorState,
+    configs: HashMap<String, GenerationConfig>,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
@@ -164,13 +177,18 @@ pub struct Editor {
 
     /// whether to keep using the same seed for next generations
     pub fixed_seed: bool,
+
+    /// whether to show the GenerationConfig settings
+    edit_preset: bool,
 }
 
 impl Editor {
     pub fn new(config: GenerationConfig) -> Editor {
+        let configs: HashMap<String, GenerationConfig> = GenerationConfig::get_configs();
         let gen = Generator::new(&config, 0); // TODO: overwritten anyways? Option?
         Editor {
             state: EditorState::Paused(PausedState::Setup),
+            configs,
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
@@ -185,6 +203,7 @@ impl Editor {
             instant: false,
             auto_generate: false,
             fixed_seed: false,
+            edit_preset: false,
         }
     }
 
@@ -243,79 +262,131 @@ impl Editor {
 
                 ui.horizontal(|ui| {
                     ui.add_enabled_ui(!self.instant, |ui| {
-                        field_edit_widget(ui, &mut self.steps_per_frame, edit_usize, "speed");
+                        field_edit_widget(ui, &mut self.steps_per_frame, edit_usize, "speed", true);
                     });
-                    ui.checkbox(&mut self.instant, "instant")
+                    ui.vertical(|ui| {
+                        ui.checkbox(&mut self.instant, "instant");
+                        ui.checkbox(&mut self.auto_generate, "auto generate");
+                    });
                 });
 
-                ui.checkbox(&mut self.auto_generate, "auto generate");
-
-                ui.checkbox(&mut self.fixed_seed, "fixed seed");
                 if self.is_setup() {
-                    field_edit_widget(ui, &mut self.user_str_seed, edit_string, "str seed");
+                    field_edit_widget(ui, &mut self.user_str_seed, edit_string, "str seed", true);
+                    ui.checkbox(&mut self.fixed_seed, "fixed seed");
                 }
                 ui.separator();
 
-                field_edit_widget(
-                    ui,
-                    &mut self.config.inner_size_bounds,
-                    edit_range_usize,
-                    "inner size range",
-                );
-                field_edit_widget(
-                    ui,
-                    &mut self.config.outer_size_bounds,
-                    edit_range_usize,
-                    "outer size range",
-                );
-                field_edit_widget(
-                    ui,
-                    &mut self.config.inner_rad_mut_prob,
-                    edit_f32,
-                    "inner rad mut prob",
-                );
-                field_edit_widget(
-                    ui,
-                    &mut self.config.inner_size_mut_prob,
-                    edit_f32,
-                    "inner size mut prob",
-                );
+                ui.label("load/save config files:");
+                ui.horizontal(|ui| {
+                    if ui.button("load file").clicked() {
+                        let cwd = env::current_dir().unwrap();
+                        if let Some(path_in) = tinyfiledialogs::open_file_dialog(
+                            "load config",
+                            &cwd.to_string_lossy(),
+                            None,
+                        ) {
+                            self.config = GenerationConfig::load(&path_in);
+                        }
+                    }
+                    if ui.button("save file").clicked() {
+                        let cwd = env::current_dir().unwrap();
 
-                field_edit_widget(
-                    ui,
-                    &mut self.config.outer_rad_mut_prob,
-                    edit_f32,
-                    "outer rad mut prob",
-                );
-                field_edit_widget(
-                    ui,
-                    &mut self.config.outer_size_mut_prob,
-                    edit_f32,
-                    "outer size mut prob",
-                );
+                        let initial_path = cwd
+                            .join(self.config.name.clone() + ".json")
+                            .to_string_lossy()
+                            .to_string();
 
-                // only show these in setup mode
-                ui.add_visible_ui(self.is_setup(), |ui| {
-                    vec_edit_widget(
-                        ui,
-                        &mut self.config.waypoints,
-                        edit_position,
-                        "waypoints",
-                        true,
-                        false,
-                    );
+                        dbg!(&initial_path);
 
-                    vec_edit_widget(
-                        ui,
-                        &mut self.config.step_weights,
-                        edit_i32,
-                        "step weights",
-                        false,
-                        true,
-                    );
+                        if let Some(path_out) =
+                            tinyfiledialogs::save_file_dialog("save config", &initial_path)
+                        {
+                            self.config.save(&path_out);
+                        }
+                    };
                 });
-                // self.config
-                //     .show_top(ui, RichText::new("Config").heading(), None);
+
+                ui.label("load predefined configs:");
+                egui::ComboBox::from_label("")
+                    //.selected_text(format!("{:}", self.config.name.clone()))
+                    .show_ui(ui, |ui| {
+                        for (name, cfg) in self.configs.iter() {
+                            ui.selectable_value(&mut self.config, cfg.clone(), name);
+                        }
+                    });
+
+                ui.checkbox(&mut self.edit_preset, "show config");
+
+                if self.edit_preset {
+                    ui.separator();
+
+                    field_edit_widget(ui, &mut self.config.name, edit_string, "name", false);
+
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.inner_size_bounds,
+                        edit_range_usize,
+                        "inner size range",
+                        true,
+                    );
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.outer_size_bounds,
+                        edit_range_usize,
+                        "outer size range",
+                        true,
+                    );
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.inner_rad_mut_prob,
+                        edit_f32,
+                        "inner rad mut prob",
+                        true,
+                    );
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.inner_size_mut_prob,
+                        edit_f32,
+                        "inner size mut prob",
+                        true,
+                    );
+
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.outer_rad_mut_prob,
+                        edit_f32,
+                        "outer rad mut prob",
+                        true,
+                    );
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.outer_size_mut_prob,
+                        edit_f32,
+                        "outer size mut prob",
+                        true,
+                    );
+
+                    // only show these in setup mode
+                    ui.add_visible_ui(self.is_setup(), |ui| {
+                        vec_edit_widget(
+                            ui,
+                            &mut self.config.waypoints,
+                            edit_position,
+                            "waypoints",
+                            true,
+                            false,
+                        );
+
+                        vec_edit_widget(
+                            ui,
+                            &mut self.config.step_weights,
+                            edit_pos_i32,
+                            "step weights",
+                            false,
+                            true,
+                        );
+                    });
+                }
             });
 
             egui::Window::new("DEBUG")

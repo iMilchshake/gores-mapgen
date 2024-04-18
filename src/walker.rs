@@ -1,5 +1,5 @@
 use crate::{
-    generator::GenerationConfig,
+    config::GenerationConfig,
     kernel::Kernel,
     map::{KernelType, Map},
     position::Position,
@@ -125,6 +125,9 @@ impl CuteWalker {
         // constraint 1: small circles must be fully rect
         if inner_size <= 3 {
             inner_circ = 0.0;
+        }
+        if outer_size <= 3 {
+            outer_circ = 0.0;
         }
 
         // constraint 2: outer size cannot be smaller than inner
