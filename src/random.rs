@@ -77,9 +77,11 @@ impl Random {
     }
 
     /// sample a shift based on weight distribution
-    pub fn sample_move(&mut self, shifts: [ShiftDirection; 4]) -> ShiftDirection {
+    pub fn sample_move(&mut self, shifts: &[ShiftDirection; 4]) -> ShiftDirection {
         let index = self.weighted_dist.sample(&mut self.gen);
-        *shifts.get(index).expect("out of bounds")
+        let shift = shifts.get(index).expect("out of bounds");
+
+        shift.clone()
     }
 
     pub fn with_probability(&mut self, probability: f32) -> bool {

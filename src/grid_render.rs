@@ -9,6 +9,9 @@ fn blocktype_to_color(value: &BlockType) -> Color {
         BlockType::Hookable => colors::BROWN,
         BlockType::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
         BlockType::Empty => Color::new(0.0, 0.0, 0.0, 0.1),
+        BlockType::Finish => Color::new(1.0, 0.1, 0.1, 1.0),
+        BlockType::Start => Color::new(0.1, 1.0, 0.1, 1.0),
+        BlockType::Spawn => Color::new(0.5, 0.5, 0.0, 1.0),
     }
 }
 
@@ -48,7 +51,7 @@ pub fn draw_chunked_grid(
 
             for x in x_start..x_end {
                 for y in y_start..y_end {
-                    let value = grid[[x, y]];
+                    let value = &grid[[x, y]];
                     draw_rectangle(x as f32, y as f32, 1.0, 1.0, blocktype_to_color(&value));
                 }
             }

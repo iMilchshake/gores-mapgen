@@ -1,15 +1,32 @@
 use crate::{position::Position, walker::CuteWalker};
-use ndarray::Array2;
+use ndarray::{s, Array2};
 use std::path::PathBuf;
 use twmap::{GameLayer, GameTile, TileFlags, TilemapLayer, TwMap};
 
 const CHUNK_SIZE: usize = 5;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BlockType {
     Empty,
     Hookable,
     Freeze,
+    Spawn,
+    Start,
+    Finish,
+}
+
+impl BlockType {
+    /// maps BlockType to tw game layer id for map export
+    fn to_tw_game_id(&self) -> u8 {
+        match self {
+            BlockType::Empty => 0,
+            BlockType::Hookable => 1,
+            BlockType::Freeze => 9,
+            BlockType::Spawn => 192,
+            BlockType::Start => 33,
+            BlockType::Finish => 34,
+        }
+    }
 }
 
 pub enum KernelType {
@@ -83,17 +100,24 @@ impl Map {
         for ((kernel_x, kernel_y), kernel_active) in kernel.vector.indexed_iter() {
             let absolute_pos = Position::new(root_pos.x + kernel_x, root_pos.y + kernel_y);
             if *kernel_active {
-                let current_type = self.grid[absolute_pos.as_index()];
+                let current_type = &self.grid[absolute_pos.as_index()];
+
                 let new_type = match (&kernel_type, current_type) {
                     // inner kernel removes everything
-                    (KernelType::Inner, _) => BlockType::Empty,
+                    (KernelType::Inner, BlockType::Hookable) => Some(BlockType::Empty),
+                    (KernelType::Inner, BlockType::Freeze) => Some(BlockType::Empty),
 
                     // outer kernel will turn hookables to freeze
-                    (KernelType::Outer, BlockType::Hookable) => BlockType::Freeze,
-                    (KernelType::Outer, BlockType::Freeze) => BlockType::Freeze,
-                    (KernelType::Outer, BlockType::Empty) => BlockType::Empty,
+                    (KernelType::Outer, BlockType::Hookable) => Some(BlockType::Freeze),
+                    (KernelType::Outer, BlockType::Freeze) => Some(BlockType::Freeze),
+
+                    // ignore everything else
+                    (_, _) => None,
                 };
-                self.grid[absolute_pos.as_index()] = new_type;
+
+                if let Some(new_type) = new_type {
+                    self.grid[absolute_pos.as_index()] = new_type;
+                }
 
                 let chunk_pos = self.pos_to_chunk_pos(absolute_pos);
                 self.chunk_edited[chunk_pos.as_index()] = true;
@@ -125,18 +149,27 @@ impl Map {
 
         // modify game layer
         for ((x, y), value) in self.grid.indexed_iter() {
-            game_layer[[y, x]] = match value {
-                BlockType::Empty => GameTile::new(0, TileFlags::empty()),
-                BlockType::Hookable => GameTile::new(1, TileFlags::empty()),
-                BlockType::Freeze => GameTile::new(9, TileFlags::empty()),
-            };
+            game_layer[[y, x]] = GameTile::new(value.to_tw_game_id(), TileFlags::empty())
         }
-
-        // set spawn at initial position TODO:
-        game_layer[[self.spawn.y, self.spawn.x]] = GameTile::new(192, TileFlags::empty());
 
         // save map
         println!("exporting map to {:?}", &path);
         map.save_file(path).expect("saving failed");
+    }
+
+    pub fn pos_in_bounds(&self, pos: &Position) -> bool {
+        // we dont have to check for lower bound, because of usize
+        pos.x < self.width && pos.y < self.height
+    }
+
+    pub fn set_area(&mut self, top_left: &Position, bot_right: &Position, value: &BlockType) {
+        let valid_area = self.pos_in_bounds(top_left) && self.pos_in_bounds(bot_right);
+
+        if valid_area {
+            let mut view = self
+                .grid
+                .slice_mut(s![top_left.x..bot_right.x, top_left.y..bot_right.y]);
+            view.map_inplace(|elem| *elem = value.clone());
+        }
     }
 }

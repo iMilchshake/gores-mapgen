@@ -97,10 +97,10 @@ impl Generator {
             let mut view = self.map.grid.slice_mut(s![start_x..end_x, start_y..end_y]);
             view.map_inplace(|elem| *elem = BlockType::Empty);
 
-            let platform = margin.saturating_sub(1); // also corresponds to a 'margin'
+            let platform_margin = margin.saturating_sub(1);
 
             let mut view = self.map.grid.slice_mut(s![
-                pos.x - platform..pos.x + platform + 1,
+                pos.x - platform_margin..pos.x + platform_margin + 1,
                 pos.y + 1..pos.y + 2
             ]);
             view.map_inplace(|elem| *elem = BlockType::Hookable);

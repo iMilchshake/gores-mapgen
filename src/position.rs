@@ -13,7 +13,7 @@ pub struct Position {
     pub y: usize,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum ShiftDirection {
     Up,
     Right,
@@ -30,7 +30,7 @@ impl Position {
         [self.x, self.y]
     }
 
-    pub fn shift(&mut self, shift: ShiftDirection, map: &Map) -> Result<(), &'static str> {
+    pub fn shift(&mut self, shift: &ShiftDirection, map: &Map) -> Result<(), &'static str> {
         if !self.is_shift_valid(&shift, map) {
             return Err("invalid shift");
         }
@@ -91,7 +91,7 @@ impl Position {
 
         shifts.sort_by_cached_key(|shift| {
             let mut shifted_pos = self.clone();
-            if let Ok(()) = shifted_pos.shift(*shift, map) {
+            if let Ok(()) = shifted_pos.shift(shift, map) {
                 shifted_pos.distance_squared(goal)
             } else {
                 // assign maximum distance to invalid shifts

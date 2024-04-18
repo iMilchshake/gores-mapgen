@@ -65,10 +65,10 @@ impl CuteWalker {
 
         let goal = self.goal.as_ref().ok_or("Error: Goal is None")?;
         let shifts = self.pos.get_rated_shifts(goal, map);
-        let sampled_shift = rnd.sample_move(shifts);
+        let sampled_shift = rnd.sample_move(&shifts);
 
         // apply that shift
-        self.pos.shift(sampled_shift, map)?;
+        self.pos.shift(&sampled_shift, map)?;
         self.steps += 1;
 
         // remove blocks using a kernel at current position
