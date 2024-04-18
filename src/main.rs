@@ -1,4 +1,5 @@
-use std::process::exit;
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+use std::env;
 
 use gores_mapgen_rust::{
     config::Configs, config::GenerationConfig, editor::*, fps_control::*, grid_render::*, map::*,
