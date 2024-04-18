@@ -51,8 +51,8 @@ async fn main() {
             }
 
             editor.gen.step(&editor.config).unwrap_or_else(|err| {
-                println!("Pause: {:}", err);
-                editor.set_stopped();
+                println!("Abort due to error: {:}", err);
+                editor.set_setup();
             });
 
             // walker did a step using SingleStep -> now pause

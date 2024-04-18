@@ -126,6 +126,9 @@ impl CuteWalker {
         if inner_size <= 3 {
             inner_circ = 0.0;
         }
+        if outer_size <= 3 {
+            outer_circ = 0.0;
+        }
 
         // constraint 2: outer size cannot be smaller than inner
         outer_size = usize::max(outer_size, inner_size);

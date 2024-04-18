@@ -1,17 +1,17 @@
 use crate::position::Position;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
 
 #[derive(RustEmbed)]
 #[folder = "configs/"]
 pub struct Configs;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(default = "GenerationConfig::migrate_default")]
+#[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct GenerationConfig {
     /// name of the preset
@@ -62,25 +62,14 @@ impl GenerationConfig {
         deserialized
     }
 
-    /// returns the same value as default(). Used together with serde default to achieve implicit
-    /// config migration using default values. Prints a warning indicating that a implicit
-    /// migration happened.
-    pub fn migrate_default() -> GenerationConfig {
-        println!("[WARNING]: Default values of GenerationConfig have been used for implicit config migration. Consider manually migrating all configurations.");
-
-        GenerationConfig::default()
-    }
-
-    pub fn get_configs() -> Vec<GenerationConfig> {
-        let mut configs = Vec::new();
-
-        configs.push(GenerationConfig::default());
+    pub fn get_configs() -> HashMap<String, GenerationConfig> {
+        let mut configs = HashMap::new();
 
         for file_name in Configs::iter() {
             let file = Configs::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
             let config: GenerationConfig = serde_json::from_str(&data).unwrap();
-            configs.push(config);
+            configs.insert(config.name.clone(), config);
         }
 
         configs

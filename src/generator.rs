@@ -115,8 +115,11 @@ impl Generator {
     /// Generates an entire map with a single function call. This function is used by the CLI.
     /// It is important to keep this function up to date with the editor generation, so that
     /// fixed seed map generations result in the same map.
-    pub fn generate_map(max_steps: usize, seed: u64) -> Result<Map, &'static str> {
-        let config = GenerationConfig::default();
+    pub fn generate_map(
+        max_steps: usize,
+        seed: u64,
+        config: &GenerationConfig,
+    ) -> Result<Map, &'static str> {
         let mut gen = Generator::new(&config, seed);
 
         for _ in 0..max_steps {

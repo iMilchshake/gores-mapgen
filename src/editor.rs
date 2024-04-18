@@ -1,6 +1,7 @@
-use std::env;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::{env, isize};
 
 use egui::{InnerResponse, RichText};
 use tinyfiledialogs;
@@ -122,8 +123,8 @@ pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
     ui.add(egui::DragValue::new(value));
 }
 
-pub fn edit_i32(ui: &mut Ui, value: &mut i32) {
-    ui.add(egui::DragValue::new(value));
+pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
+    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::max_value()));
 }
 
 pub fn edit_f32(ui: &mut Ui, value: &mut f32) {
@@ -157,7 +158,7 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
 
 pub struct Editor {
     state: EditorState,
-    configs: Vec<GenerationConfig>,
+    configs: HashMap<String, GenerationConfig>,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
@@ -183,7 +184,7 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(config: GenerationConfig) -> Editor {
-        let configs: Vec<GenerationConfig> = GenerationConfig::get_configs();
+        let configs: HashMap<String, GenerationConfig> = GenerationConfig::get_configs();
         let gen = Generator::new(&config, 0); // TODO: overwritten anyways? Option?
         Editor {
             state: EditorState::Paused(PausedState::Setup),
@@ -309,8 +310,8 @@ impl Editor {
                 egui::ComboBox::from_label("")
                     //.selected_text(format!("{:}", self.config.name.clone()))
                     .show_ui(ui, |ui| {
-                        for cfg in self.configs.iter() {
-                            ui.selectable_value(&mut self.config, cfg.clone(), &cfg.name);
+                        for (name, cfg) in self.configs.iter() {
+                            ui.selectable_value(&mut self.config, cfg.clone(), name);
                         }
                     });
 
@@ -379,7 +380,7 @@ impl Editor {
                         vec_edit_widget(
                             ui,
                             &mut self.config.step_weights,
-                            edit_i32,
+                            edit_pos_i32,
                             "step weights",
                             false,
                             true,
