@@ -9,6 +9,21 @@ use std::{path::PathBuf, process::exit, str::FromStr, time::Duration};
 use telnet::{Event, Telnet};
 
 #[derive(Parser, Debug)]
+#[command(name = "DDNet Bridge")]
+#[command(version = "0.1a")]
+#[command(about = "Detect DDNet-Server votes via econ to trigger map generations", long_about = None)]
+enum Command {
+    #[clap(name = "start", about = "start the ddnet bridge")]
+    StartBridge(BridgeArgs),
+
+    #[clap(
+        name = "presets",
+        about = "print a list of available generation configs"
+    )]
+    ListPresets,
+}
+
+#[derive(Parser, Debug)]
 struct BridgeArgs {
     /// ec_password
     econ_pass: String,
@@ -26,20 +41,6 @@ struct BridgeArgs {
 
     /// path to maps folder
     maps: PathBuf,
-}
-
-#[derive(Parser, Debug)]
-#[command(name = "DDNet Bridge")]
-#[command(version = "0.1a")]
-#[command(about = "Detect DDNet-Server votes via econ to trigger map generations", long_about = None)]
-enum Command {
-    /// Your new subcommand description here
-    #[clap(name = "start", about = "Description of your new subcommand")]
-    StartBridge(BridgeArgs),
-
-    /// Your new subcommand description here
-    #[clap(name = "presets", about = "Description of your new subcommand")]
-    ListPresets,
 }
 
 #[derive(Debug)]
@@ -70,7 +71,6 @@ impl Econ {
     }
 
     pub fn read(&mut self) -> Option<String> {
-        // let event = self.telnet.read_nonblocking().expect("telnet read error");
         let event = self.telnet.read().expect("telnet read error");
 
         if let Event::Data(buffer) = event {
@@ -140,84 +140,86 @@ fn generate_and_change_map(
     }
 }
 
-fn main() {
-    let cmd = Command::parse();
+fn start_bridge(args: &BridgeArgs) {
+    // this regex detects all possible chat messages involving votes
+    let vote_regex = Regex::new(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I chat: \*\*\* (Vote passed|Vote failed|'(.+?)' called .+ option '(.+?)' \((.+?)\))\n").unwrap();
+    let mut econ = Econ::new(args.econ_port, args.telnet_buffer);
+    let mut pending_vote: Option<Vote> = None;
+    let configs = GenerationConfig::get_configs();
+    let mut auth = false;
 
-    if let Command::StartBridge(args) = cmd {
-        // this regex detects all possible chat messages involving votes
-        let vote_regex = Regex::new(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I chat: \*\*\* (Vote passed|Vote failed|'(.+?)' called .+ option '(.+?)' \((.+?)\))\n").unwrap();
-        let mut econ = Econ::new(args.econ_port, args.telnet_buffer);
-        let mut pending_vote: Option<Vote> = None;
-        let configs = GenerationConfig::get_configs();
+    loop {
+        if let Some(data) = econ.read() {
+            if args.debug {
+                println!("[RECV DEBUG]: {:?}", data);
+            }
 
-        loop {
-            if let Some(data) = econ.read() {
-                if args.debug {
-                    println!("[RECV DEBUG]: {:?}", data);
-                }
+            if data == "Enter password:\n" {
+                econ.send_rcon_cmd(args.econ_pass.clone());
+                println!("[AUTH] Sending login");
+            } else if data.starts_with("Authentication successful") {
+                println!("[AUTH] Success");
+                println!("[GEN] Generating initial map");
+                auth = true;
+                generate_and_change_map(&args, 42, &GenerationConfig::default(), &mut econ);
+            } else if data.starts_with("Wrong password") {
+                println!("[AUTH] Wrong Password!");
+                std::process::exit(1);
+            } else if auth {
+                let result = vote_regex.captures_iter(&data);
 
-                if data == "Enter password:\n" {
-                    econ.send_rcon_cmd(args.econ_pass.clone());
-                    println!("[AUTH] Sending login");
-                } else if data.starts_with("Authentication successful") {
-                    println!("[AUTH] Success");
-                    println!("[GEN] Generating initial map");
-                    generate_and_change_map(&args, 42, &GenerationConfig::default(), &mut econ);
-                } else if data.starts_with("Wrong password") {
-                    println!("[AUTH] Wrong Password!");
-                    std::process::exit(1);
-                } else {
-                    let result = vote_regex.captures_iter(&data);
+                for mat in result {
+                    let _date = mat.get(1).unwrap();
+                    let message = mat.get(2);
 
-                    for mat in result {
-                        let _date = mat.get(1).unwrap();
-                        let message = mat.get(2);
-
-                        // determine vote event type
-                        if let Some(message) = message.map(|v| v.as_str()) {
-                            match message {
-                                "Vote passed" => {
-                                    println!("[VOTE]: Success");
-                                    econ.handle_vote(
-                                        pending_vote.as_ref().unwrap(),
-                                        &args,
-                                        &configs,
-                                    );
-                                }
-                                "Vote failed" => {
-                                    pending_vote = None;
-                                    println!("[VOTE]: Failed");
-                                }
-                                // vote started messages begin with 'player_name'
-                                _ if message.starts_with('\'') => {
-                                    let player_name = mat.get(3).unwrap().as_str().to_string();
-                                    let vote_name = mat.get(4).unwrap().as_str().to_string();
-                                    let vote_reason = mat.get(5).unwrap().as_str().to_string();
-
-                                    println!(
-                                        "[VOTE]: vote_name={}, vote_reason={}, player={}",
-                                        &vote_name, &vote_reason, &player_name
-                                    );
-
-                                    pending_vote = Some(Vote {
-                                        player_name,
-                                        vote_name,
-                                        vote_reason,
-                                    });
-                                }
-                                // panic if for some holy reason something else matched the regex
-                                _ => panic!(),
+                    // determine vote event type
+                    if let Some(message) = message.map(|v| v.as_str()) {
+                        match message {
+                            "Vote passed" => {
+                                println!("[VOTE]: Success");
+                                econ.handle_vote(pending_vote.as_ref().unwrap(), &args, &configs);
                             }
+                            "Vote failed" => {
+                                pending_vote = None;
+                                println!("[VOTE]: Failed");
+                            }
+                            // vote started messages begin with 'player_name'
+                            _ if message.starts_with('\'') => {
+                                let player_name = mat.get(3).unwrap().as_str().to_string();
+                                let vote_name = mat.get(4).unwrap().as_str().to_string();
+                                let vote_reason = mat.get(5).unwrap().as_str().to_string();
+
+                                println!(
+                                    "[VOTE]: vote_name={}, vote_reason={}, player={}",
+                                    &vote_name, &vote_reason, &player_name
+                                );
+
+                                pending_vote = Some(Vote {
+                                    player_name,
+                                    vote_name,
+                                    vote_reason,
+                                });
+                            }
+                            // panic if for some holy reason something else matched the regex
+                            _ => panic!(),
                         }
                     }
                 }
             }
         }
-    } else {
-        // yeah i know that this is really badly organized, dont shame me. this will improve!
-        let configs = GenerationConfig::get_configs();
-        for preset in configs.keys() {
-            println!("{}", preset);
-        }
+    }
+}
+
+fn list_presets() {
+    let configs = GenerationConfig::get_configs();
+    for preset in configs.keys() {
+        println!("{}", preset);
+    }
+}
+
+fn main() {
+    match Command::parse() {
+        Command::StartBridge(bridge_args) => start_bridge(&bridge_args),
+        Command::ListPresets => list_presets(),
     }
 }
