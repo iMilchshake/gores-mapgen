@@ -1,0 +1,94 @@
+name: Publish release
+
+on:
+  push:
+    tags:
+      - v*
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Create release
+      id: create_release
+      uses: "softprops/action-gh-release@v1"
+      with:
+        draft: false
+        prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install deps
+      run: sudo apt install pkg-config libx11-dev libxi-dev libgl1-mesa-dev libasound2-dev
+
+    - name: Run tests
+      run: cargo test --verbose
+
+    - name: Run build
+      run: cargo build --release && strip --strip-all ./target/release/gores-generator && mv ./target/release/gores-generator ./target/release/gores-generator-linux
+
+    - name: Upload release
+      id: upload-release-linux
+      uses: alexellis/upload-assets@0.2.3
+      env: 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_paths: '["./target/release/gores-generator-linux"]'
+
+
+  build-macos:
+    runs-on: macos-latest
+    needs: release
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install deps
+      run: brew install cmake ffmpeg freetype glew glslang googletest libpng molten-vk opusfile rust SDL2 spirv-tools vulkan-headers wavpack x264
+
+    - name: Run tests
+      run: cargo test --verbose
+
+    - name: Run build
+      run: cargo build --release && mv ./target/release/gores-generator ./target/release/gores-generator-macos
+
+    - name: Upload release
+      id: upload-release-linux
+      uses: alexellis/upload-assets@0.2.3
+      env: 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_paths: '["./target/release/gores-generator-macos"]'
+
+
+  build-windows:
+    runs-on: windows-2019
+    needs: release
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Run tests
+      run: cargo test --verbose
+
+    - name: Run build
+      run: cargo build --release
+
+    - name: Upload release
+      id: upload-release-windows
+      uses: alexellis/upload-assets@0.2.3
+      env: 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_paths: '["./target/release/gores-generator.exe"]'
