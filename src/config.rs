@@ -1,4 +1,8 @@
 use crate::position::Position;
+
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
+
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -47,19 +51,36 @@ pub struct GenerationConfig {
 
 impl GenerationConfig {
     /// stores GenerationConfig in cwd as <name>.json
-    pub fn save(&self, path: &str) {
+    pub fn save_file(&self, path: &str) {
         let mut file = File::create(path).expect("failed to create config file");
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
         file.write_all(serialized.as_bytes())
             .expect("failed to write to config file");
     }
 
-    pub fn load(path: &str) -> GenerationConfig {
+    pub fn load_file(path: &str) -> GenerationConfig {
         let serialized_from_file = fs::read_to_string(path).expect("failed to read config file");
         let deserialized: GenerationConfig =
             serde_json::from_str(&serialized_from_file).expect("failed to deserialize config file");
 
         deserialized
+    }
+
+    // Serialize the struct to a base64-encoded binary string
+    pub fn to_base64(&self) -> String {
+        let binary = bincode::serialize(self).expect("bincode serialization failed");
+        dbg!(&binary);
+        Engine::encode(&URL_SAFE_NO_PAD, binary)
+    }
+
+    // Deserialize the struct from a base64-encoded binary string
+    pub fn from_base64(encoded_str: &str) -> GenerationConfig {
+        let decoded =
+            Engine::decode(&URL_SAFE_NO_PAD, encoded_str).expect("base64 decoding failed");
+        dbg!(&decoded);
+        
+
+        bincode::deserialize(&decoded).expect("bincode deserialization failed")
     }
 
     pub fn get_configs() -> HashMap<String, GenerationConfig> {
@@ -68,7 +89,7 @@ impl GenerationConfig {
         for file_name in Configs::iter() {
             let file = Configs::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
-            let config: GenerationConfig = serde_json::from_str(&data).unwrap();
+            let config: GenerationConfig = serde_json::from_str(data).unwrap();
             configs.insert(config.name.clone(), config);
         }
 

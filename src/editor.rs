@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::str::FromStr;
+
+
 use std::{env, isize};
 
 use egui::{InnerResponse, RichText};
@@ -285,7 +285,7 @@ impl Editor {
                             &cwd.to_string_lossy(),
                             None,
                         ) {
-                            self.config = GenerationConfig::load(&path_in);
+                            self.config = GenerationConfig::load_file(&path_in);
                         }
                     }
                     if ui.button("save file").clicked() {
@@ -301,7 +301,7 @@ impl Editor {
                         if let Some(path_out) =
                             tinyfiledialogs::save_file_dialog("save config", &initial_path)
                         {
-                            self.config.save(&path_out);
+                            self.config.save_file(&path_out);
                         }
                     };
                 });
