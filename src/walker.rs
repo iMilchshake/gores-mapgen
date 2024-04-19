@@ -1,7 +1,7 @@
 use crate::{
     config::GenerationConfig,
     kernel::Kernel,
-    map::{KernelType, Map},
+    map::{BlockType, KernelType, Map},
     position::Position,
     random::Random,
 };
@@ -19,6 +19,8 @@ pub struct CuteWalker {
 
     /// indicates whether walker has reached the last waypoint
     pub finished: bool,
+
+    pub steps_since_platform: usize,
 }
 
 impl CuteWalker {
@@ -37,6 +39,7 @@ impl CuteWalker {
             goal_index: 0,
             waypoints: config.waypoints.clone(),
             finished: false,
+            steps_since_platform: 0,
         }
     }
 
@@ -54,6 +57,35 @@ impl CuteWalker {
         }
     }
 
+    /// will try to place a platform at the walkers position.
+    /// If force is true it will enforce a platform.
+    pub fn check_platform(&mut self, map: &mut Map, force: bool) {
+        let walker_pos = self.pos.clone();
+
+        if force {
+            map.generate_room(&walker_pos, 5, None);
+            self.steps_since_platform = 0;
+            return;
+        }
+
+        let area_empty = map.check_area_all(
+            &walker_pos.shifted_by(-2, -3),
+            &walker_pos.shifted_by(2, 1),
+            &BlockType::Empty,
+        );
+        if area_empty {
+            map.set_area(
+                &walker_pos.shifted_by(-1, 0),
+                &walker_pos.shifted_by(1, 0),
+                &BlockType::Platform,
+                true,
+            );
+            self.steps_since_platform = 0;
+        }
+
+        self.steps_since_platform += 1;
+    }
+
     pub fn probabilistic_step(
         &mut self,
         map: &mut Map,
@@ -68,7 +100,7 @@ impl CuteWalker {
         let sampled_shift = rnd.sample_move(&shifts);
 
         // apply that shift
-        self.pos.shift(&sampled_shift, map)?;
+        self.pos.shift_in_direction(&sampled_shift, map)?;
         self.steps += 1;
 
         // remove blocks using a kernel at current position

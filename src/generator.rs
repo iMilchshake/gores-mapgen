@@ -13,6 +13,7 @@ pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
     pub rnd: Random,
+    // TODO: should this really be part of the generator?
 }
 
 impl Generator {
@@ -41,6 +42,16 @@ impl Generator {
             // perform one step
             self.walker
                 .probabilistic_step(&mut self.map, &mut self.rnd)?;
+
+            // TODO: this is terrible
+            if self.walker.steps_since_platform > config.platform_distance_bounds.1 {
+                self.walker.check_platform(&mut self.map, true);
+            } else if self.walker.steps_since_platform > config.platform_distance_bounds.0 {
+                // self.walker.check_platform(&mut self.map, false);
+                self.walker.steps_since_platform += 1;
+            } else {
+                self.walker.steps_since_platform += 1;
+            }
         }
 
         Ok(())
@@ -85,48 +96,12 @@ impl Generator {
         edge_bug
     }
 
-    fn generate_room(&mut self, pos: &Position, margin: usize, zone_type: &BlockType) {
-        // TODO: ensure valid position?
-
-        // carve room
-        self.map.set_area(
-            &Position::new(pos.x - margin, pos.y - margin),
-            &Position::new(pos.x + margin, pos.y + margin),
-            &BlockType::Empty,
-            true,
-        );
-
-        // set platform
-        self.map.set_area(
-            &Position::new(pos.x - (margin - 2), pos.y),
-            &Position::new(pos.x + (margin - 2), pos.y),
-            &BlockType::Hookable,
-            true,
-        );
-
-        // set spawns
-        if *zone_type == BlockType::Start {
-            self.map.set_area(
-                &Position::new(pos.x - (margin - 2), pos.y - 1),
-                &Position::new(pos.x + (margin - 2), pos.y - 1),
-                &BlockType::Spawn,
-                true,
-            );
-        }
-
-        // set start/finish line
-        self.map.set_area_border(
-            &Position::new(pos.x - margin - 1, pos.y - margin - 1),
-            &Position::new(pos.x + margin + 1, pos.y + margin + 1),
-            zone_type,
-            false,
-        );
-    }
-
     pub fn post_processing(&mut self) {
         self.fix_edge_bugs();
-        self.generate_room(&self.map.spawn.clone(), 4, &BlockType::Start);
-        self.generate_room(&self.walker.pos.clone(), 4, &BlockType::Finish);
+        self.map
+            .generate_room(&self.map.spawn.clone(), 4, Some(&BlockType::Start));
+        self.map
+            .generate_room(&self.walker.pos.clone(), 4, Some(&BlockType::Finish));
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

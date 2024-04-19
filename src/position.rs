@@ -1,3 +1,4 @@
+use rand_distr::num_traits::CheckedSub;
 use serde::{Deserialize, Serialize};
 
 use crate::map::Map;
@@ -30,7 +31,32 @@ impl Position {
         [self.x, self.y]
     }
 
-    pub fn shift(&mut self, shift: &ShiftDirection, map: &Map) -> Result<(), &'static str> {
+    /// returns a new position shifted by some x and y value
+    pub fn shifted_by(&self, x_shift: i32, y_shift: i32) -> Position {
+        let new_x = match x_shift >= 0 {
+            true => self.x + (x_shift as usize),
+            false => self
+                .x
+                .checked_sub((-x_shift) as usize)
+                .expect("shift is out of bounds"),
+        };
+
+        let new_y = match y_shift >= 0 {
+            true => self.y + y_shift as usize,
+            false => self
+                .y
+                .checked_sub((-y_shift) as usize)
+                .expect("shift is out of bounds"),
+        };
+
+        Position::new(new_x, new_y)
+    }
+
+    pub fn shift_in_direction(
+        &mut self,
+        shift: &ShiftDirection,
+        map: &Map,
+    ) -> Result<(), &'static str> {
         if !self.is_shift_valid(&shift, map) {
             return Err("invalid shift");
         }
@@ -91,7 +117,7 @@ impl Position {
 
         shifts.sort_by_cached_key(|shift| {
             let mut shifted_pos = self.clone();
-            if let Ok(()) = shifted_pos.shift(shift, map) {
+            if let Ok(()) = shifted_pos.shift_in_direction(shift, map) {
                 shifted_pos.distance_squared(goal)
             } else {
                 // assign maximum distance to invalid shifts

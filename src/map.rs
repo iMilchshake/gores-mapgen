@@ -13,6 +13,7 @@ pub enum BlockType {
     Spawn,
     Start,
     Finish,
+    Platform,
 }
 
 impl BlockType {
@@ -21,6 +22,7 @@ impl BlockType {
         match self {
             BlockType::Empty => 0,
             BlockType::Hookable => 1,
+            BlockType::Platform => 1,
             BlockType::Freeze => 9,
             BlockType::Spawn => 192,
             BlockType::Start => 33,
@@ -127,6 +129,47 @@ impl Map {
         Ok(())
     }
 
+    pub fn generate_room(&mut self, pos: &Position, margin: usize, zone_type: Option<&BlockType>) {
+        // TODO: ensure valid position?
+        // TODO: use new shift method here
+
+        // carve room
+        self.set_area(
+            &Position::new(pos.x - margin, pos.y - margin),
+            &Position::new(pos.x + margin, pos.y + margin),
+            &BlockType::Empty,
+            true,
+        );
+
+        // set platform
+        self.set_area(
+            &Position::new(pos.x - (margin - 2), pos.y),
+            &Position::new(pos.x + (margin - 2), pos.y),
+            &BlockType::Platform,
+            true,
+        );
+
+        // set spawns
+        if zone_type == Some(&BlockType::Start) {
+            self.set_area(
+                &Position::new(pos.x - (margin - 2), pos.y - 1),
+                &Position::new(pos.x + (margin - 2), pos.y - 1),
+                &BlockType::Spawn,
+                true,
+            );
+        }
+
+        // set start/finish line
+        if let Some(zone_type) = zone_type {
+            self.set_area_border(
+                &Position::new(pos.x - margin - 1, pos.y - margin - 1),
+                &Position::new(pos.x + margin + 1, pos.y + margin + 1),
+                zone_type,
+                false,
+            );
+        }
+    }
+
     fn pos_to_chunk_pos(&self, pos: Position) -> Position {
         Position::new(pos.x / CHUNK_SIZE, pos.y / CHUNK_SIZE)
     }
@@ -160,6 +203,34 @@ impl Map {
     pub fn pos_in_bounds(&self, pos: &Position) -> bool {
         // we dont have to check for lower bound, because of usize
         pos.x < self.width && pos.y < self.height
+    }
+
+    pub fn check_area_exists(
+        &self,
+        top_left: &Position,
+        bot_right: &Position,
+        value: &BlockType,
+    ) -> bool {
+        let area = self.grid.slice(s![
+            top_left.x..=bot_right.x + 1,
+            top_left.y..=bot_right.y + 1
+        ]);
+
+        area.iter().any(|block| block == value)
+    }
+
+    pub fn check_area_all(
+        &self,
+        top_left: &Position,
+        bot_right: &Position,
+        value: &BlockType,
+    ) -> bool {
+        let area = self.grid.slice(s![
+            top_left.x..=bot_right.x + 1,
+            top_left.y..=bot_right.y + 1
+        ]);
+
+        area.iter().all(|block| block == value)
     }
 
     // TODO: right now override is hardcoded to overide empty AND freeze. i might need some
