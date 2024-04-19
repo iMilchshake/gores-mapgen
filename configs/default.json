@@ -1,23 +1,23 @@
 {
-  "name": "cringe4teero",
+  "name": "default",
   "description": null,
   "inner_size_bounds": [
-    1,
-    2
-  ],
-  "outer_size_bounds": [
     3,
     3
   ],
-  "inner_rad_mut_prob": 0.4,
-  "inner_size_mut_prob": 0.9,
+  "outer_size_bounds": [
+    1,
+    5
+  ],
+  "inner_rad_mut_prob": 0.25,
+  "inner_size_mut_prob": 0.5,
   "outer_rad_mut_prob": 0.25,
   "outer_size_mut_prob": 0.5,
   "step_weights": [
     20,
-    13,
-    12,
-    3
+    11,
+    10,
+    9
   ],
   "platform_distance_bounds": [
     500,

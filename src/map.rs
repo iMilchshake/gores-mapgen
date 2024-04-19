@@ -1,5 +1,6 @@
 use crate::{position::Position, walker::CuteWalker};
 use ndarray::{s, Array2};
+use rand_distr::num_traits::ToPrimitive;
 use std::path::PathBuf;
 use twmap::{GameLayer, GameTile, TileFlags, TilemapLayer, TwMap};
 
@@ -131,20 +132,21 @@ impl Map {
 
     pub fn generate_room(&mut self, pos: &Position, margin: usize, zone_type: Option<&BlockType>) {
         // TODO: ensure valid position?
-        // TODO: use new shift method here
+
+        let margin: i32 = margin.to_i32().unwrap();
 
         // carve room
         self.set_area(
-            &Position::new(pos.x - margin, pos.y - margin),
-            &Position::new(pos.x + margin, pos.y + margin),
+            &pos.shifted_by(-margin, -margin),
+            &pos.shifted_by(margin, margin),
             &BlockType::Empty,
             true,
         );
 
         // set platform
         self.set_area(
-            &Position::new(pos.x - (margin - 2), pos.y),
-            &Position::new(pos.x + (margin - 2), pos.y),
+            &pos.shifted_by(-(margin - 2), 1),
+            &pos.shifted_by(margin - 2, 1),
             &BlockType::Platform,
             true,
         );
@@ -152,18 +154,17 @@ impl Map {
         // set spawns
         if zone_type == Some(&BlockType::Start) {
             self.set_area(
-                &Position::new(pos.x - (margin - 2), pos.y - 1),
-                &Position::new(pos.x + (margin - 2), pos.y - 1),
+                &pos.shifted_by(-(margin - 2), 0),
+                &pos.shifted_by(margin - 2, 0),
                 &BlockType::Spawn,
                 true,
             );
         }
-
         // set start/finish line
         if let Some(zone_type) = zone_type {
             self.set_area_border(
-                &Position::new(pos.x - margin - 1, pos.y - margin - 1),
-                &Position::new(pos.x + margin + 1, pos.y + margin + 1),
+                &pos.shifted_by(-margin - 1, -margin - 1),
+                &pos.shifted_by(margin + 1, margin + 1),
                 zone_type,
                 false,
             );
@@ -171,7 +172,7 @@ impl Map {
     }
 
     fn pos_to_chunk_pos(&self, pos: Position) -> Position {
-        Position::new(pos.x / CHUNK_SIZE, pos.y / CHUNK_SIZE)
+        Position::new(pos.x / self.chunk_size, pos.y / self.chunk_size)
     }
 
     pub fn export(&self, path: &PathBuf) {
@@ -246,15 +247,22 @@ impl Map {
             return;
         }
 
+        let chunk_size = self.chunk_size;
+
         let mut view = self
             .grid
-            .slice_mut(s![top_left.x..bot_right.x + 1, top_left.y..bot_right.y + 1]);
-        view.map_inplace(|current_value| {
+            .slice_mut(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
+
+        for ((x, y), current_value) in view.indexed_iter_mut() {
             if overide || *current_value == BlockType::Empty || *current_value == BlockType::Freeze
             {
                 *current_value = value.clone();
+
+                let chunk_pos =
+                    Position::new((top_left.x + x) / chunk_size, (top_left.y + y) / chunk_size);
+                self.chunk_edited[chunk_pos.as_index()] = true;
             }
-        });
+        }
     }
 
     /// sets the outline of an area define by two positions

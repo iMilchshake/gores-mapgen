@@ -43,15 +43,12 @@ impl Generator {
             self.walker
                 .probabilistic_step(&mut self.map, &mut self.rnd)?;
 
-            // TODO: this is terrible
-            if self.walker.steps_since_platform > config.platform_distance_bounds.1 {
-                self.walker.check_platform(&mut self.map, true);
-            } else if self.walker.steps_since_platform > config.platform_distance_bounds.0 {
-                // self.walker.check_platform(&mut self.map, false);
-                self.walker.steps_since_platform += 1;
-            } else {
-                self.walker.steps_since_platform += 1;
-            }
+            // handle platforms
+            self.walker.check_platform(
+                &mut self.map,
+                config.platform_distance_bounds.0,
+                config.platform_distance_bounds.1,
+            );
         }
 
         Ok(())

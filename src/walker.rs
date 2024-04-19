@@ -59,15 +59,25 @@ impl CuteWalker {
 
     /// will try to place a platform at the walkers position.
     /// If force is true it will enforce a platform.
-    pub fn check_platform(&mut self, map: &mut Map, force: bool) {
+    pub fn check_platform(&mut self, map: &mut Map, min_distance: usize, max_distance: usize) {
+        self.steps_since_platform += 1;
+
+        // Case 1: min distance is not reached -> skip
+        if self.steps_since_platform < min_distance {
+            return;
+        }
+
         let walker_pos = self.pos.clone();
 
-        if force {
-            map.generate_room(&walker_pos, 5, None);
+        // Case 2: max distance has been exceeded -> force platform using a room
+        if self.steps_since_platform > max_distance {
+            // TODO: for now this is hardcoded so that platform is shifted down by 7 blocks.
+            map.generate_room(&walker_pos.shifted_by(0, 7), 4, None);
             self.steps_since_platform = 0;
             return;
         }
 
+        // Case 3: min distance has been exceeded -> Try to place platform, but only if possible
         let area_empty = map.check_area_all(
             &walker_pos.shifted_by(-2, -3),
             &walker_pos.shifted_by(2, 1),
@@ -82,8 +92,6 @@ impl CuteWalker {
             );
             self.steps_since_platform = 0;
         }
-
-        self.steps_since_platform += 1;
     }
 
     pub fn probabilistic_step(

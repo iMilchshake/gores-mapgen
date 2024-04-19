@@ -366,6 +366,14 @@ impl Editor {
                         true,
                     );
 
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.platform_distance_bounds,
+                        edit_range_usize,
+                        "platform distances",
+                        true,
+                    );
+
                     // only show these in setup mode
                     ui.add_visible_ui(self.is_setup(), |ui| {
                         vec_edit_widget(

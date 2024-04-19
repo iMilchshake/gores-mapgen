@@ -98,7 +98,7 @@ impl Default for GenerationConfig {
                 Position::new(250, 50),
             ],
             step_weights: vec![20, 11, 10, 9],
-            platform_distance_bounds: (1, 200),
+            platform_distance_bounds: (500, 750),
         }
     }
 }

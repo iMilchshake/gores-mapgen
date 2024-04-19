@@ -57,12 +57,14 @@ pub fn draw_chunked_grid(
                 }
             }
         } else {
+            let mut color = blocktype_to_color(&BlockType::Hookable); // assumed that initial value is hookable
+            color.a = 0.95;
             draw_rectangle(
                 (x_chunk * chunk_size) as f32,
                 (y_chunk * chunk_size) as f32,
                 chunk_size as f32,
                 chunk_size as f32,
-                blocktype_to_color(&BlockType::Hookable), // assumed that initial value is hookable
+                color,
             );
         }
     }

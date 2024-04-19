@@ -19,6 +19,10 @@
     8,
     4
   ],
+  "platform_distance_bounds": [
+    500,
+    750
+  ],
   "waypoints": [
     {
       "x": 250,
