@@ -171,20 +171,35 @@ impl Map {
         value: &BlockType,
         overide: bool,
     ) {
-        let valid_area = self.pos_in_bounds(top_left) && self.pos_in_bounds(bot_right);
-
-        if valid_area {
-            let mut view = self
-                .grid
-                .slice_mut(s![top_left.x..bot_right.x, top_left.y..bot_right.y]);
-            view.map_inplace(|current_value| {
-                if overide
-                    || *current_value == BlockType::Empty
-                    || *current_value == BlockType::Freeze
-                {
-                    *current_value = value.clone();
-                }
-            });
+        if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
+            return;
         }
+
+        let mut view = self
+            .grid
+            .slice_mut(s![top_left.x..bot_right.x + 1, top_left.y..bot_right.y + 1]);
+        view.map_inplace(|current_value| {
+            if overide || *current_value == BlockType::Empty || *current_value == BlockType::Freeze
+            {
+                *current_value = value.clone();
+            }
+        });
+    }
+
+    /// sets the outline of an area define by two positions
+    pub fn set_area_border(
+        &mut self,
+        top_left: &Position,
+        bot_right: &Position,
+        value: &BlockType,
+        overide: bool,
+    ) {
+        let top_right = Position::new(bot_right.x, top_left.y);
+        let bot_left = Position::new(top_left.x, bot_right.y);
+
+        self.set_area(&top_left, &top_right, value, overide);
+        self.set_area(&top_right, &bot_right, value, overide);
+        self.set_area(&top_left, &bot_left, value, overide);
+        self.set_area(&bot_left, &bot_right, value, overide);
     }
 }

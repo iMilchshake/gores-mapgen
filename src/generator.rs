@@ -91,7 +91,7 @@ impl Generator {
         // carve room
         self.map.set_area(
             &Position::new(pos.x - margin, pos.y - margin),
-            &Position::new(pos.x + margin + 1, pos.y + margin + 1),
+            &Position::new(pos.x + margin, pos.y + margin),
             &BlockType::Empty,
             true,
         );
@@ -99,7 +99,7 @@ impl Generator {
         // set platform
         self.map.set_area(
             &Position::new(pos.x - (margin - 2), pos.y),
-            &Position::new(pos.x + (margin - 2) + 1, pos.y + 1),
+            &Position::new(pos.x + (margin - 2), pos.y),
             &BlockType::Hookable,
             true,
         );
@@ -108,22 +108,16 @@ impl Generator {
         if *zone_type == BlockType::Start {
             self.map.set_area(
                 &Position::new(pos.x - (margin - 2), pos.y - 1),
-                &Position::new(pos.x + (margin - 2) + 1, pos.y),
+                &Position::new(pos.x + (margin - 2), pos.y - 1),
                 &BlockType::Spawn,
                 true,
             );
         }
 
-        // set start/finish line TODO: only right/left so far
-        self.map.set_area(
-            &Position::new(pos.x + margin + 1, pos.y - margin),
-            &Position::new(pos.x + margin + 2, pos.y + margin + 1),
-            zone_type,
-            false,
-        );
-        self.map.set_area(
-            &Position::new(pos.x - margin - 1, pos.y - margin),
-            &Position::new(pos.x - margin, pos.y + margin + 1),
+        // set start/finish line
+        self.map.set_area_border(
+            &Position::new(pos.x - margin - 1, pos.y - margin - 1),
+            &Position::new(pos.x + margin + 1, pos.y + margin + 1),
             zone_type,
             false,
         );
