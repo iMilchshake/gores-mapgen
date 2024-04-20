@@ -37,18 +37,18 @@ impl Generator {
 
         if !self.walker.finished {
             // randomly mutate kernel
-            self.walker.mutate_kernel(config, &mut self.rnd);
+            self.walker.mutate_kernel(&config, &mut self.rnd);
 
             // perform one step
             self.walker
-                .probabilistic_step(&mut self.map, &mut self.rnd)?;
+                .probabilistic_step(&mut self.map, config, &mut self.rnd)?;
 
             // handle platforms
             self.walker.check_platform(
                 &mut self.map,
                 config.platform_distance_bounds.0,
                 config.platform_distance_bounds.1,
-            );
+            )?;
         }
 
         Ok(())
@@ -56,7 +56,7 @@ impl Generator {
 
     /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
     /// configurations do not ensure a min. 1-block freeze padding consistently.
-    fn fix_edge_bugs(&mut self) -> Array2<bool> {
+    fn fix_edge_bugs(&mut self) -> Result<Array2<bool>, &'static str> {
         let mut edge_bug = Array2::from_elem((self.map.width, self.map.height), false);
         let width = self.map.width;
         let height = self.map.height;
@@ -71,8 +71,12 @@ impl Generator {
                                 continue;
                             }
 
-                            let neighbor_x = x + dx - 1; // TODO: deal with overflow?
-                            let neighbor_y = y + dy - 1;
+                            let neighbor_x = (x + dx)
+                                .checked_sub(1)
+                                .ok_or("fix edge bug out of bounds")?;
+                            let neighbor_y = (y + dy)
+                                .checked_sub(1)
+                                .ok_or("fix edge bug out of bounds")?;
                             if neighbor_x < width && neighbor_y < height {
                                 let neighbor_value = &self.map.grid[[neighbor_x, neighbor_y]];
                                 if *neighbor_value == BlockType::Hookable {
@@ -90,15 +94,17 @@ impl Generator {
             }
         }
 
-        edge_bug
+        Ok(edge_bug)
     }
 
     pub fn post_processing(&mut self) {
-        self.fix_edge_bugs();
+        self.fix_edge_bugs().expect("fix edge bugs failed");
         self.map
-            .generate_room(&self.map.spawn.clone(), 4, Some(&BlockType::Start));
+            .generate_room(&self.map.spawn.clone(), 4, Some(&BlockType::Start))
+            .expect("start room generation failed");
         self.map
-            .generate_room(&self.walker.pos.clone(), 4, Some(&BlockType::Finish));
+            .generate_room(&self.walker.pos.clone(), 4, Some(&BlockType::Finish))
+            .expect("start finish room generation");
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

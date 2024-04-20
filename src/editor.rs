@@ -374,6 +374,14 @@ impl Editor {
                         true,
                     );
 
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.momentum_prob,
+                        edit_f32,
+                        "momentum prob",
+                        true,
+                    );
+
                     // only show these in setup mode
                     ui.add_visible_ui(self.is_setup(), |ui| {
                         vec_edit_widget(

@@ -23,6 +23,7 @@
     500,
     750
   ],
+  "momentum_prob": 0.3,
   "waypoints": [
     {
       "x": 250,

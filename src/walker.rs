@@ -2,7 +2,7 @@ use crate::{
     config::GenerationConfig,
     kernel::Kernel,
     map::{BlockType, KernelType, Map},
-    position::Position,
+    position::{Position, ShiftDirection},
     random::Random,
 };
 
@@ -21,6 +21,8 @@ pub struct CuteWalker {
     pub finished: bool,
 
     pub steps_since_platform: usize,
+
+    pub last_direction: Option<ShiftDirection>,
 }
 
 impl CuteWalker {
@@ -40,6 +42,7 @@ impl CuteWalker {
             waypoints: config.waypoints.clone(),
             finished: false,
             steps_since_platform: 0,
+            last_direction: None,
         }
     }
 
@@ -59,12 +62,17 @@ impl CuteWalker {
 
     /// will try to place a platform at the walkers position.
     /// If force is true it will enforce a platform.
-    pub fn check_platform(&mut self, map: &mut Map, min_distance: usize, max_distance: usize) {
+    pub fn check_platform(
+        &mut self,
+        map: &mut Map,
+        min_distance: usize,
+        max_distance: usize,
+    ) -> Result<(), &'static str> {
         self.steps_since_platform += 1;
 
         // Case 1: min distance is not reached -> skip
         if self.steps_since_platform < min_distance {
-            return;
+            return Ok(());
         }
 
         let walker_pos = self.pos.clone();
@@ -72,31 +80,34 @@ impl CuteWalker {
         // Case 2: max distance has been exceeded -> force platform using a room
         if self.steps_since_platform > max_distance {
             // TODO: for now this is hardcoded so that platform is shifted down by 7 blocks.
-            map.generate_room(&walker_pos.shifted_by(0, 7), 4, None);
+            map.generate_room(&walker_pos.shifted_by(0, 6)?, 4, None)?;
             self.steps_since_platform = 0;
-            return;
+            return Ok(());
         }
 
         // Case 3: min distance has been exceeded -> Try to place platform, but only if possible
         let area_empty = map.check_area_all(
-            &walker_pos.shifted_by(-2, -3),
-            &walker_pos.shifted_by(2, 1),
+            &walker_pos.shifted_by(-2, -3)?,
+            &walker_pos.shifted_by(2, 1)?,
             &BlockType::Empty,
-        );
+        )?;
         if area_empty {
             map.set_area(
-                &walker_pos.shifted_by(-1, 0),
-                &walker_pos.shifted_by(1, 0),
+                &walker_pos.shifted_by(-1, 0)?,
+                &walker_pos.shifted_by(1, 0)?,
                 &BlockType::Platform,
                 true,
             );
             self.steps_since_platform = 0;
         }
+
+        Ok(())
     }
 
     pub fn probabilistic_step(
         &mut self,
         map: &mut Map,
+        config: &GenerationConfig,
         rnd: &mut Random,
     ) -> Result<(), &'static str> {
         if self.finished {
@@ -105,11 +116,17 @@ impl CuteWalker {
 
         let goal = self.goal.as_ref().ok_or("Error: Goal is None")?;
         let shifts = self.pos.get_rated_shifts(goal, map);
-        let sampled_shift = rnd.sample_move(&shifts);
+        let mut sampled_shift = &rnd.sample_move(&shifts);
+
+        // with a certain probabiliy re-use last direction instead
+        if rnd.with_probability(config.momentum_prob) && !self.last_direction.is_none() {
+            sampled_shift = self.last_direction.as_ref().unwrap();
+        }
 
         // apply that shift
-        self.pos.shift_in_direction(&sampled_shift, map)?;
+        self.pos.shift_in_direction(sampled_shift, map)?;
         self.steps += 1;
+        self.last_direction = Some(sampled_shift.clone());
 
         // remove blocks using a kernel at current position
         map.update(self, KernelType::Outer)?;

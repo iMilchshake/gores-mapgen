@@ -130,23 +130,35 @@ impl Map {
         Ok(())
     }
 
-    pub fn generate_room(&mut self, pos: &Position, margin: usize, zone_type: Option<&BlockType>) {
-        // TODO: ensure valid position?
+    pub fn generate_room(
+        &mut self,
+        pos: &Position,
+        margin: usize,
+        zone_type: Option<&BlockType>,
+    ) -> Result<(), &'static str> {
+        // TODO: return an error?
+        if pos.x < (margin + 1)
+            || pos.y < (margin + 1)
+            || pos.x > self.width - (margin + 1)
+            || pos.y > self.height - (margin + 1)
+        {
+            return Err("generate room out of bounds");
+        }
 
         let margin: i32 = margin.to_i32().unwrap();
 
         // carve room
         self.set_area(
-            &pos.shifted_by(-margin, -margin),
-            &pos.shifted_by(margin, margin),
+            &pos.shifted_by(-margin, -margin)?,
+            &pos.shifted_by(margin, margin)?,
             &BlockType::Empty,
             true,
         );
 
         // set platform
         self.set_area(
-            &pos.shifted_by(-(margin - 2), 1),
-            &pos.shifted_by(margin - 2, 1),
+            &pos.shifted_by(-(margin - 2), 1)?,
+            &pos.shifted_by(margin - 2, 1)?,
             &BlockType::Platform,
             true,
         );
@@ -154,8 +166,8 @@ impl Map {
         // set spawns
         if zone_type == Some(&BlockType::Start) {
             self.set_area(
-                &pos.shifted_by(-(margin - 2), 0),
-                &pos.shifted_by(margin - 2, 0),
+                &pos.shifted_by(-(margin - 2), 0)?,
+                &pos.shifted_by(margin - 2, 0)?,
                 &BlockType::Spawn,
                 true,
             );
@@ -163,12 +175,14 @@ impl Map {
         // set start/finish line
         if let Some(zone_type) = zone_type {
             self.set_area_border(
-                &pos.shifted_by(-margin - 1, -margin - 1),
-                &pos.shifted_by(margin + 1, margin + 1),
+                &pos.shifted_by(-margin - 1, -margin - 1)?,
+                &pos.shifted_by(margin + 1, margin + 1)?,
                 zone_type,
                 false,
             );
         }
+
+        Ok(())
     }
 
     fn pos_to_chunk_pos(&self, pos: Position) -> Position {
@@ -211,13 +225,16 @@ impl Map {
         top_left: &Position,
         bot_right: &Position,
         value: &BlockType,
-    ) -> bool {
-        let area = self.grid.slice(s![
-            top_left.x..=bot_right.x + 1,
-            top_left.y..=bot_right.y + 1
-        ]);
+    ) -> Result<bool, &'static str> {
+        if !self.pos_in_bounds(&top_left) || !self.pos_in_bounds(&bot_right) {
+            return Err("checking area out of bounds");
+        }
 
-        area.iter().any(|block| block == value)
+        let area = self
+            .grid
+            .slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
+
+        Ok(area.iter().any(|block| block == value))
     }
 
     pub fn check_area_all(
@@ -225,13 +242,15 @@ impl Map {
         top_left: &Position,
         bot_right: &Position,
         value: &BlockType,
-    ) -> bool {
-        let area = self.grid.slice(s![
-            top_left.x..=bot_right.x + 1,
-            top_left.y..=bot_right.y + 1
-        ]);
+    ) -> Result<bool, &'static str> {
+        if !self.pos_in_bounds(&top_left) || !self.pos_in_bounds(&bot_right) {
+            return Err("checking area out of bounds");
+        }
+        let area = self
+            .grid
+            .slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
-        area.iter().all(|block| block == value)
+        Ok(area.iter().all(|block| block == value))
     }
 
     // TODO: right now override is hardcoded to overide empty AND freeze. i might need some
