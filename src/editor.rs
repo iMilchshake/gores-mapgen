@@ -158,7 +158,7 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
 
 pub struct Editor {
     state: EditorState,
-    configs: HashMap<String, GenerationConfig>,
+    pub configs: HashMap<String, GenerationConfig>,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
@@ -179,7 +179,7 @@ pub struct Editor {
     pub fixed_seed: bool,
 
     /// whether to show the GenerationConfig settings
-    edit_preset: bool,
+    pub edit_preset: bool,
 }
 
 impl Editor {

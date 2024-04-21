@@ -1,14 +1,23 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
-use std::env;
 
+use clap::Parser;
 use gores_mapgen_rust::{
-    config::Configs, config::GenerationConfig, editor::*, fps_control::*, grid_render::*, map::*,
+    config::GenerationConfig, editor::*, fps_control::*, grid_render::*, map::*,
 };
-
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
 
 const DISABLE_VSYNC: bool = true;
+
+#[derive(Parser, Debug)]
+struct Args {
+    /// select initial generation config
+    config: Option<String>,
+
+    /// enable instant, auto generate and fixed seed
+    #[arg(short, long)]
+    testing: bool,
+}
 
 fn window_conf() -> Conf {
     Conf {
@@ -26,8 +35,23 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    let args = Args::parse();
+
     let mut editor = Editor::new(GenerationConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
+
+    if args.testing {
+        editor.instant = true;
+        editor.fixed_seed = true;
+        editor.auto_generate = true;
+        editor.edit_preset = true;
+    }
+
+    if let Some(config_name) = args.config {
+        if editor.configs.contains_key(&config_name) {
+            editor.config = editor.configs.get(&config_name).unwrap().clone();
+        }
+    }
 
     // let mut edge_bugs: Option<Array2<bool>> = None;
 
