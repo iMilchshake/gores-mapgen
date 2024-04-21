@@ -389,17 +389,17 @@ impl Editor {
 
                     field_edit_widget(
                         ui,
-                        &mut self.config.momentum_prob,
-                        edit_f32_prob,
-                        "momentum prob",
+                        &mut self.config.max_distance,
+                        edit_f32_wtf,
+                        "max distance",
                         true,
                     );
 
                     field_edit_widget(
                         ui,
-                        &mut self.config.max_distance,
-                        edit_f32_wtf,
-                        "max distance",
+                        &mut self.config.waypoint_reached_dist,
+                        edit_usize,
+                        "waypoint reached dist",
                         true,
                     );
 

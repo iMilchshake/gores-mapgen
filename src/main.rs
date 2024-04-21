@@ -100,15 +100,16 @@ async fn main() {
 
         clear_background(WHITE);
         // draw_grid_blocks(&editor.gen.map.grid);
-        draw_waypoints(&editor.config.waypoints);
         draw_chunked_grid(
             &editor.gen.map.grid,
             &editor.gen.map.chunk_edited,
             editor.gen.map.chunk_size,
         );
-        draw_walker(&editor.gen.walker);
         draw_walker_kernel(&editor.gen.walker, KernelType::Outer);
         draw_walker_kernel(&editor.gen.walker, KernelType::Inner);
+        draw_walker(&editor.gen.walker);
+
+        draw_waypoints(&editor.config.waypoints);
 
         // if let Some(edge_bugs) = &edge_bugs {
         //     draw_bool_grid(edge_bugs, Color::new(1.0, 0.0, 0.0, 0.1));

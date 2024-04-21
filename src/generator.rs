@@ -31,7 +31,7 @@ impl Generator {
 
     pub fn step(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
         // check if walker has reached goal position
-        if self.walker.is_goal_reached() == Some(true) {
+        if self.walker.is_goal_reached(&config.waypoint_reached_dist) == Some(true) {
             self.walker.next_waypoint();
         }
 

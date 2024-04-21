@@ -46,8 +46,10 @@ impl CuteWalker {
         }
     }
 
-    pub fn is_goal_reached(&self) -> Option<bool> {
-        self.goal.as_ref().map(|goal| self.pos.eq(goal))
+    pub fn is_goal_reached(&self, waypoint_reached_dist: &usize) -> Option<bool> {
+        self.goal
+            .as_ref()
+            .map(|goal| goal.distance_squared(&self.pos) < *waypoint_reached_dist)
     }
 
     pub fn next_waypoint(&mut self) {

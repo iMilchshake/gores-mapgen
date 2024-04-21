@@ -47,8 +47,11 @@ pub struct GenerationConfig {
     /// probability for doing the last shift direction again
     pub momentum_prob: f32,
 
-    /// TODO:
+    /// maximum distance from empty blocks to nearest non empty block
     pub max_distance: f32,
+
+    /// min distance to next waypoint that is considered reached
+    pub waypoint_reached_dist: usize,
 
     // ------- TODO: these should go somewhere else -----
     pub waypoints: Vec<Position>,
@@ -107,6 +110,7 @@ impl Default for GenerationConfig {
             platform_distance_bounds: (500, 750),
             momentum_prob: 0.01,
             max_distance: 3.0,
+            waypoint_reached_dist: 250,
         }
     }
 }
