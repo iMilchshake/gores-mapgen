@@ -135,7 +135,8 @@ fn generate_and_change_map(
         }
         Err(err) => {
             println!("[GEN] Generation Error: {:?}", err);
-            econ.send_rcon_cmd("say [GEN] Failed :( ".to_string());
+            econ.send_rcon_cmd(format!("say [GEN] Failed due to: {:}", err));
+            econ.send_rcon_cmd(format!("say just try again :)"));
         }
     }
 }
