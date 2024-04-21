@@ -7,13 +7,13 @@ use crate::{
     walker::CuteWalker,
 };
 
-use ndarray::{s, Array2};
+use dt::{dt, dt_bool, dt_int};
+use ndarray::{arr2, s, Array, Array2, Ix2, IxDyn};
 
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
     pub rnd: Random,
-    // TODO: should this really be part of the generator?
 }
 
 impl Generator {
@@ -97,7 +97,27 @@ impl Generator {
         Ok(edge_bug)
     }
 
-    pub fn post_processing(&mut self) {
+    pub fn fill_area(&mut self, max_distance: &f32) -> Array2<f32> {
+        let grid = self.map.grid.map(|val| *val != BlockType::Empty);
+
+        let distance = dt_bool::<f32>(&grid.into_dyn())
+            .into_dimensionality::<Ix2>()
+            .unwrap();
+
+        // let max = distance.fold(0.0, |v1, v2| f32::max(v1, *v2));
+
+        self.map
+            .grid
+            .zip_mut_with(&distance, |block_type, distance| {
+                if *block_type == BlockType::Empty && *distance > *max_distance {
+                    *block_type = BlockType::Freeze;
+                }
+            });
+
+        distance
+    }
+
+    pub fn post_processing(&mut self, config: &GenerationConfig) {
         self.fix_edge_bugs().expect("fix edge bugs failed");
         self.map
             .generate_room(&self.map.spawn.clone(), 4, Some(&BlockType::Start))
@@ -105,6 +125,8 @@ impl Generator {
         self.map
             .generate_room(&self.walker.pos.clone(), 4, Some(&BlockType::Finish))
             .expect("start finish room generation");
+
+        self.fill_area(&config.max_distance);
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.
@@ -124,7 +146,7 @@ impl Generator {
             gen.step(&config)?;
         }
 
-        gen.post_processing();
+        gen.post_processing(config);
 
         Ok(gen.map)
     }

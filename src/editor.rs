@@ -127,7 +127,12 @@ pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
     ui.add(egui::DragValue::new(value).clamp_range(0..=isize::max_value()));
 }
 
-pub fn edit_f32(ui: &mut Ui, value: &mut f32) {
+// TODO: IMAGINE having a dynamic range argument.. imagine, that would be nice
+pub fn edit_f32_wtf(ui: &mut Ui, value: &mut f32) {
+    ui.add(egui::Slider::new(value, 0.0..=15.0));
+}
+
+pub fn edit_f32_prob(ui: &mut Ui, value: &mut f32) {
     ui.add(egui::Slider::new(value, 0.0..=1.0));
 }
 
@@ -339,14 +344,14 @@ impl Editor {
                     field_edit_widget(
                         ui,
                         &mut self.config.inner_rad_mut_prob,
-                        edit_f32,
+                        edit_f32_prob,
                         "inner rad mut prob",
                         true,
                     );
                     field_edit_widget(
                         ui,
                         &mut self.config.inner_size_mut_prob,
-                        edit_f32,
+                        edit_f32_prob,
                         "inner size mut prob",
                         true,
                     );
@@ -354,14 +359,14 @@ impl Editor {
                     field_edit_widget(
                         ui,
                         &mut self.config.outer_rad_mut_prob,
-                        edit_f32,
+                        edit_f32_prob,
                         "outer rad mut prob",
                         true,
                     );
                     field_edit_widget(
                         ui,
                         &mut self.config.outer_size_mut_prob,
-                        edit_f32,
+                        edit_f32_prob,
                         "outer size mut prob",
                         true,
                     );
@@ -377,8 +382,24 @@ impl Editor {
                     field_edit_widget(
                         ui,
                         &mut self.config.momentum_prob,
-                        edit_f32,
+                        edit_f32_prob,
                         "momentum prob",
+                        true,
+                    );
+
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.momentum_prob,
+                        edit_f32_prob,
+                        "momentum prob",
+                        true,
+                    );
+
+                    field_edit_widget(
+                        ui,
+                        &mut self.config.max_distance,
+                        edit_f32_wtf,
+                        "max distance",
                         true,
                     );
 

@@ -88,7 +88,7 @@ async fn main() {
 
         // this is called ONCE after map was generated
         if editor.gen.walker.finished && !editor.is_setup() {
-            editor.gen.post_processing();
+            editor.gen.post_processing(&editor.config);
 
             // switch into setup mode for next map
             editor.set_setup();

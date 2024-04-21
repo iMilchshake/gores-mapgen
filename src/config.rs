@@ -47,6 +47,9 @@ pub struct GenerationConfig {
     /// probability for doing the last shift direction again
     pub momentum_prob: f32,
 
+    /// TODO:
+    pub max_distance: f32,
+
     // ------- TODO: these should go somewhere else -----
     pub waypoints: Vec<Position>,
 }
@@ -103,6 +106,7 @@ impl Default for GenerationConfig {
             step_weights: vec![20, 11, 10, 9],
             platform_distance_bounds: (500, 750),
             momentum_prob: 0.01,
+            max_distance: 3.0,
         }
     }
 }

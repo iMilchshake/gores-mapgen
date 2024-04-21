@@ -49,9 +49,10 @@ serde = "1.0.197"
 serde_json = "1.0.115"
 rust-embed = "8.3.0"
 tinyfiledialogs = "3.9.1"
-# regex = { version = "1.10.4", optional = true }
-# telnet = { version = "0.2.1", optional = true }
 
+
+# dt = "1.0.6"
+dt = {git = "https://github.com/iMilchshake/dt"}
 
 
 [dev-dependencies]
