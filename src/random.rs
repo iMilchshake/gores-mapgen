@@ -6,18 +6,45 @@ use seahash::hash;
 
 pub struct Random {
     pub seed_str: Option<String>,
-    pub seed_hex: String,
     pub seed_u64: u64,
     gen: SmallRng,
     weighted_dist: WeightedAliasIndex<i32>,
 }
 
+pub enum Seed {
+    U64(u64),
+    Str(String),
+}
+
+impl Seed {
+    pub fn from_u64(seed_u64: u64) -> Seed {
+        Seed::U64(seed_u64)
+    }
+
+    pub fn from_string(seed_str: &String) -> Seed {
+        Seed::Str(seed_str.to_owned())
+    }
+
+    pub fn str_to_u64(seed_str: &String) -> u64 {
+        hash(seed_str.as_bytes())
+    }
+}
+
 impl Random {
-    pub fn new(seed_u64: u64, weights: Vec<i32>) -> Random {
+    pub fn new(seed: Seed, weights: Vec<i32>) -> Random {
+        let mut seed_str: Option<String> = None;
+        let seed_u64 = match seed {
+            Seed::U64(seed_u64) => seed_u64,
+            Seed::Str(seed) => {
+                let seed_u64 = Seed::str_to_u64(&seed);
+                seed_str = Some(seed);
+                seed_u64
+            }
+        };
+
         Random {
-            seed_str: None,
+            seed_str,
             seed_u64,
-            seed_hex: format!("{:X}", seed_u64),
             gen: SmallRng::seed_from_u64(seed_u64),
             weighted_dist: Random::get_weighted_dist(weights),
         }
@@ -29,19 +56,9 @@ impl Random {
         tmp_rng.next_u64()
     }
 
-    pub fn from_str_seed(seed_str: String, weights: Vec<i32>) -> Random {
-        let seed_u64 = hash(seed_str.as_bytes());
-        let mut rnd = Random::new(seed_u64, weights);
-        rnd.seed_str = Some(seed_str);
-
-        rnd
-    }
-
     /// uses another rnd struct to derive initial seed for a new rnd struct
     pub fn from_previous_rnd(rnd: &mut Random, weights: Vec<i32>) -> Random {
-        let seed_u64 = rnd.gen.next_u64();
-
-        Random::new(seed_u64, weights)
+        Random::new(Seed::from_u64(rnd.gen.next_u64()), weights)
     }
 
     pub fn in_range_inclusive(&mut self, low: usize, high: usize) -> usize {
@@ -62,10 +79,6 @@ impl Random {
 
     pub fn random_u64(&mut self) -> u64 {
         self.gen.next_u64()
-    }
-
-    pub fn str_seed_to_u64(seed_str: &String) -> u64 {
-        hash(seed_str.as_bytes())
     }
 
     fn get_weighted_dist(weights: Vec<i32>) -> WeightedAliasIndex<i32> {

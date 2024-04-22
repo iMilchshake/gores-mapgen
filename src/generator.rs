@@ -3,7 +3,7 @@ use crate::{
     kernel::Kernel,
     map::{BlockType, Map},
     position::Position,
-    random::Random,
+    random::{Random, Seed},
     walker::CuteWalker,
 };
 
@@ -18,7 +18,7 @@ pub struct Generator {
 
 impl Generator {
     /// derive a initial generator state based on a GenerationConfig
-    pub fn new(config: &GenerationConfig, seed: u64) -> Generator {
+    pub fn new(config: &GenerationConfig, seed: Seed) -> Generator {
         let spawn = Position::new(50, 250);
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
         let init_inner_kernel = Kernel::new(config.inner_size_bounds.1, 0.0);
@@ -137,7 +137,7 @@ impl Generator {
         seed: u64,
         config: &GenerationConfig,
     ) -> Result<Map, &'static str> {
-        let mut gen = Generator::new(&config, seed);
+        let mut gen = Generator::new(&config, Seed::from_u64(seed));
 
         for _ in 0..max_steps {
             if gen.walker.finished {

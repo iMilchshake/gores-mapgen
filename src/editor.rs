@@ -3,15 +3,17 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::{env, isize};
 
-use egui::{InnerResponse, RichText};
+use egui::{ComboBox, InnerResponse, RichText};
 use tinyfiledialogs;
 
 const STEPS_PER_FRAME: usize = 50;
 
+use crate::random::Seed;
 use crate::{
     config::GenerationConfig, generator::Generator, map::Map, position::Position, random::Random,
 };
 use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
+
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
     is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position, mouse_wheel,
@@ -161,6 +163,22 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
     });
 }
 
+
+pub fn enum_input_ui(ui: &mut Ui, seed: &mut Seed) {
+
+
+    match seed {
+        // U64
+        Seed::U64(value) => {
+            ui.add(egui::DragValue::new(value));
+        },
+        // String
+        Seed::Str(value) => {
+            ui.add(egui::TextEdit::singleline(value).desired_width(100.0));
+        }
+    }
+}
+
 pub struct Editor {
     state: EditorState,
     pub configs: HashMap<String, GenerationConfig>,
@@ -190,7 +208,7 @@ pub struct Editor {
 impl Editor {
     pub fn new(config: GenerationConfig) -> Editor {
         let configs: HashMap<String, GenerationConfig> = GenerationConfig::get_configs();
-        let gen = Generator::new(&config, 0); // TODO: overwritten anyways? Option?
+        let gen = Generator::new(&config, Seed::from_u64(0)); // TODO: overwritten anyways? Option?
         Editor {
             state: EditorState::Paused(PausedState::Setup),
             configs,
@@ -275,8 +293,22 @@ impl Editor {
                     });
                 });
 
+
+                Seed
+                egui::ComboBox::from_label("seed type")
+                    .selected_text(format!("{:}", self.config.name.clone()))
+                    .show_ui(ui, |ui| {
+                        for (name, cfg) in self.configs.iter() {
+                            ui.selectable_value(&mut self.config, cfg.clone(), name);
+                        }
+                    });
+
                 if self.is_setup() {
                     field_edit_widget(ui, &mut self.user_str_seed, edit_string, "str seed", true);
+
+                    let text_edit = egui::TextEdit::singleline(value).desired_width(100.0);
+                    ui.add(text_edit);
+
                     ui.checkbox(&mut self.fixed_seed, "fixed seed");
                 }
                 ui.separator();
@@ -438,11 +470,7 @@ impl Editor {
                     ui.add(Label::new(format!("playback: {:?}", self.state)));
                     ui.add(Label::new(format!(
                         "seed: {:?}",
-                        (
-                            &self.gen.rnd.seed_hex,
-                            &self.gen.rnd.seed_u64,
-                            &self.gen.rnd.seed_str
-                        )
+                        (&self.gen.rnd.seed_u64, &self.gen.rnd.seed_str)
                     )));
                     ui.add(Label::new(format!("config: {:?}", &self.config)));
                 });
@@ -499,20 +527,20 @@ impl Editor {
     }
 
     fn on_start(&mut self) {
-        let seed_u64 = if !self.user_str_seed.is_empty() {
+        let seed = if !self.user_str_seed.is_empty() {
             // generate new seed based on user string
-            let seed_u64 = Random::str_seed_to_u64(&self.user_str_seed);
+            let seed_u64 = Seed::from_string(&self.user_str_seed);
             if !self.fixed_seed {
                 self.user_str_seed = String::new();
             }
             seed_u64
         } else if self.fixed_seed {
-            self.gen.rnd.seed_u64 // re-use last seed
+            Seed::from_u64(self.gen.rnd.seed_u64) // re-use last seed
         } else {
-            self.gen.rnd.random_u64() // generate new seed from previous generator
+            Seed::from_u64(self.gen.rnd.random_u64()) // generate new seed from previous generator
         };
 
-        self.gen = Generator::new(&self.config, seed_u64);
+        self.gen = Generator::new(&self.config, seed);
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {
