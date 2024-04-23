@@ -5,24 +5,34 @@ use rand_distr::WeightedAliasIndex;
 use seahash::hash;
 
 pub struct Random {
-    pub seed_str: Option<String>,
-    pub seed_u64: u64,
+    pub seed: Seed,
     gen: SmallRng,
     weighted_dist: WeightedAliasIndex<i32>,
 }
 
-pub enum Seed {
-    U64(u64),
-    Str(String),
+#[derive(Debug, Clone)]
+pub struct Seed {
+    pub seed_u64: u64,
+    pub seed_str: String,
 }
 
 impl Seed {
     pub fn from_u64(seed_u64: u64) -> Seed {
-        Seed::U64(seed_u64)
+        Seed {
+            seed_u64,
+            seed_str: String::new(),
+        }
     }
 
     pub fn from_string(seed_str: &String) -> Seed {
-        Seed::Str(seed_str.to_owned())
+        Seed {
+            seed_u64: Seed::str_to_u64(&seed_str),
+            seed_str: seed_str.to_owned(),
+        }
+    }
+
+    pub fn from_random(rnd: &mut Random) -> Seed {
+        Seed::from_u64(rnd.random_u64())
     }
 
     pub fn str_to_u64(seed_str: &String) -> u64 {
@@ -32,33 +42,17 @@ impl Seed {
 
 impl Random {
     pub fn new(seed: Seed, weights: Vec<i32>) -> Random {
-        let mut seed_str: Option<String> = None;
-        let seed_u64 = match seed {
-            Seed::U64(seed_u64) => seed_u64,
-            Seed::Str(seed) => {
-                let seed_u64 = Seed::str_to_u64(&seed);
-                seed_str = Some(seed);
-                seed_u64
-            }
-        };
-
         Random {
-            seed_str,
-            seed_u64,
-            gen: SmallRng::seed_from_u64(seed_u64),
+            gen: SmallRng::seed_from_u64(seed.seed_u64),
+            seed,
             weighted_dist: Random::get_weighted_dist(weights),
         }
     }
 
     /// derive a u64 seed from entropy
-    pub fn get_random_seed() -> u64 {
+    pub fn get_random_u64() -> u64 {
         let mut tmp_rng = SmallRng::from_entropy();
         tmp_rng.next_u64()
-    }
-
-    /// uses another rnd struct to derive initial seed for a new rnd struct
-    pub fn from_previous_rnd(rnd: &mut Random, weights: Vec<i32>) -> Random {
-        Random::new(Seed::from_u64(rnd.gen.next_u64()), weights)
     }
 
     pub fn in_range_inclusive(&mut self, low: usize, high: usize) -> usize {

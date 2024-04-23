@@ -98,7 +98,7 @@ impl Econ {
             let seed = vote
                 .vote_reason
                 .parse::<u64>()
-                .unwrap_or_else(|_| Random::get_random_seed());
+                .unwrap_or_else(|_| Random::get_random_u64());
 
             // split selected preset
             let mut vote_parts = vote.vote_name.split_whitespace();

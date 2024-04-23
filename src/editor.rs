@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::str::FromStr;
 use std::{env, isize};
 
 use egui::{ComboBox, InnerResponse, RichText};
@@ -163,22 +161,6 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
     });
 }
 
-
-pub fn enum_input_ui(ui: &mut Ui, seed: &mut Seed) {
-
-
-    match seed {
-        // U64
-        Seed::U64(value) => {
-            ui.add(egui::DragValue::new(value));
-        },
-        // String
-        Seed::Str(value) => {
-            ui.add(egui::TextEdit::singleline(value).desired_width(100.0));
-        }
-    }
-}
-
 pub struct Editor {
     state: EditorState,
     pub configs: HashMap<String, GenerationConfig>,
@@ -192,7 +174,9 @@ pub struct Editor {
     cam: Option<Camera2D>,
     last_mouse: Option<Vec2>,
     pub gen: Generator,
-    user_str_seed: String,
+
+    user_seed: Seed,
+
     pub instant: bool,
 
     /// whether to keep generating after a map is generated
@@ -222,7 +206,7 @@ impl Editor {
             config,
             steps_per_frame: STEPS_PER_FRAME,
             gen,
-            user_str_seed: "iMilchshake".to_string(),
+            user_seed: Seed::from_string(&"iMilchshake".to_string()),
             instant: false,
             auto_generate: false,
             fixed_seed: false,
@@ -293,21 +277,26 @@ impl Editor {
                     });
                 });
 
-
-                Seed
-                egui::ComboBox::from_label("seed type")
-                    .selected_text(format!("{:}", self.config.name.clone()))
-                    .show_ui(ui, |ui| {
-                        for (name, cfg) in self.configs.iter() {
-                            ui.selectable_value(&mut self.config, cfg.clone(), name);
+                if self.is_setup() {
+                    ui.horizontal(|ui| {
+                        ui.label("str");
+                        if ui
+                            .text_edit_singleline(&mut self.user_seed.seed_str)
+                            .changed()
+                        {
+                            self.user_seed.seed_u64 = Seed::str_to_u64(&self.user_seed.seed_str);
                         }
                     });
 
-                if self.is_setup() {
-                    field_edit_widget(ui, &mut self.user_str_seed, edit_string, "str seed", true);
-
-                    let text_edit = egui::TextEdit::singleline(value).desired_width(100.0);
-                    ui.add(text_edit);
+                    ui.horizontal(|ui| {
+                        ui.label("u64");
+                        if ui
+                            .add(egui::DragValue::new(&mut self.user_seed.seed_u64))
+                            .changed()
+                        {
+                            self.user_seed.seed_str = String::new();
+                        }
+                    });
 
                     ui.checkbox(&mut self.fixed_seed, "fixed seed");
                 }
@@ -332,8 +321,6 @@ impl Editor {
                             .join(self.config.name.clone() + ".json")
                             .to_string_lossy()
                             .to_string();
-
-                        dbg!(&initial_path);
 
                         if let Some(path_out) =
                             tinyfiledialogs::save_file_dialog("save config", &initial_path)
@@ -468,10 +455,9 @@ impl Editor {
                         self.average_fps.round() as usize
                     )));
                     ui.add(Label::new(format!("playback: {:?}", self.state)));
-                    ui.add(Label::new(format!(
-                        "seed: {:?}",
-                        (&self.gen.rnd.seed_u64, &self.gen.rnd.seed_str)
-                    )));
+
+                    ui.add(Label::new(format!("seed: {:?}", self.user_seed)));
+
                     ui.add(Label::new(format!("config: {:?}", &self.config)));
                 });
 
@@ -527,20 +513,11 @@ impl Editor {
     }
 
     fn on_start(&mut self) {
-        let seed = if !self.user_str_seed.is_empty() {
-            // generate new seed based on user string
-            let seed_u64 = Seed::from_string(&self.user_str_seed);
-            if !self.fixed_seed {
-                self.user_str_seed = String::new();
-            }
-            seed_u64
-        } else if self.fixed_seed {
-            Seed::from_u64(self.gen.rnd.seed_u64) // re-use last seed
-        } else {
-            Seed::from_u64(self.gen.rnd.random_u64()) // generate new seed from previous generator
-        };
+        if !self.fixed_seed {
+            self.user_seed = Seed::from_random(&mut self.gen.rnd);
+        }
 
-        self.gen = Generator::new(&self.config, seed);
+        self.gen = Generator::new(&self.config, self.user_seed.clone());
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {
@@ -586,14 +563,6 @@ impl Editor {
             self.zoom = 1.0;
             self.offset = Vec2::ZERO;
         }
-
-        // if is_key_pressed(KeyCode::E) {
-        //     let t0 = Instant::now();
-        //     let name: String = self.gen.rnd.seed_hex.clone();
-        //     self.gen.map.export(name);
-        //     let time = Instant::now().duration_since(t0);
-        //     dbg!(time);
-        // }
 
         // handle mouse inputs
         let mouse_wheel_y = mouse_wheel().1;
