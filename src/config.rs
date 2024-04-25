@@ -8,7 +8,7 @@ use std::io::Write;
 
 #[derive(RustEmbed)]
 #[folder = "configs/"]
-pub struct Configs;
+pub struct GenerationConfigStorage;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(default)]
@@ -77,8 +77,8 @@ impl GenerationConfig {
     pub fn get_configs() -> HashMap<String, GenerationConfig> {
         let mut configs = HashMap::new();
 
-        for file_name in Configs::iter() {
-            let file = Configs::get(&file_name).unwrap();
+        for file_name in GenerationConfigStorage::iter() {
+            let file = GenerationConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
             let config: GenerationConfig = serde_json::from_str(&data).unwrap();
             configs.insert(config.name.clone(), config);

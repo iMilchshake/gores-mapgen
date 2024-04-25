@@ -9,7 +9,7 @@ fn main() {
         Generator::generate_map(30_000, &Seed::from_u64(42), &GenerationConfig::default()).unwrap();
 
     map.export(&PathBuf::from(
-        // "/home/tobi/.local/share/ddnet/maps/automap_out.map",
-        "./automap_out.map",
+        "/home/tobi/.local/share/ddnet/maps/automap_out.map",
+        // "./automap_out.map",
     ));
 }

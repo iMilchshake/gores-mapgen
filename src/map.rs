@@ -1,11 +1,7 @@
 use crate::{position::Position, twmap_export::TwExport, walker::CuteWalker};
 use ndarray::{s, Array2};
 use rand_distr::num_traits::ToPrimitive;
-use std::{borrow::BorrowMut, fs, path::PathBuf};
-use twmap::{
-    automapper::Automapper, GameLayer, GameTile, Layer, Tile, TileFlags, TilemapLayer, TilesLayer,
-    TwMap,
-};
+use std::path::PathBuf;
 
 const CHUNK_SIZE: usize = 5;
 
@@ -34,8 +30,7 @@ impl BlockType {
         }
     }
 
-    /// if block type should be included in tw hookable layer
-    pub fn in_tw_hookable_layer(&self) -> bool {
+    pub fn is_hookable(&self) -> bool {
         match self {
             BlockType::Hookable | BlockType::Platform => true,
             _ => false,
