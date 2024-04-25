@@ -1,4 +1,4 @@
-use crate::{position::Position, walker::CuteWalker};
+use crate::{position::Position, twmap_export::TwExport, walker::CuteWalker};
 use ndarray::{s, Array2};
 use rand_distr::num_traits::ToPrimitive;
 use std::{borrow::BorrowMut, fs, path::PathBuf};
@@ -22,7 +22,7 @@ pub enum BlockType {
 
 impl BlockType {
     /// maps BlockType to tw game layer id for map export
-    fn to_tw_game_id(&self) -> u8 {
+    pub fn to_tw_game_id(&self) -> u8 {
         match self {
             BlockType::Empty => 0,
             BlockType::Hookable => 1,
@@ -35,7 +35,7 @@ impl BlockType {
     }
 
     /// if block type should be included in tw hookable layer
-    fn in_tw_hookable_layer(&self) -> bool {
+    pub fn in_tw_hookable_layer(&self) -> bool {
         match self {
             BlockType::Hookable | BlockType::Platform => true,
             _ => false,
@@ -201,63 +201,7 @@ impl Map {
     }
 
     pub fn export(&self, path: &PathBuf) {
-        let mut map = TwMap::parse_file("automap_test.map").expect("parsing failed");
-        map.load().expect("loading failed");
-
-        // get Tiles group
-        let tile_group = map.groups.get_mut(2).unwrap();
-        assert_eq!(tile_group.name, "Tiles");
-
-        // get Hookable and Freeze layer in Tiles group
-        if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(1) {
-            assert_eq!(layer.name, "Hookable");
-
-            let image_name = map.images[layer.image.unwrap() as usize].name();
-            let config_index = layer.automapper_config.config.unwrap();
-
-            let tiles = layer.tiles_mut().unwrap_mut();
-            *tiles = Array2::<Tile>::default((self.width, self.height));
-
-            for ((x, y), value) in self.grid.indexed_iter() {
-                if value.in_tw_hookable_layer() {
-                    tiles[[y, x]] = Tile::new(1, TileFlags::empty())
-                }
-            }
-
-            let file = fs::read_to_string("automapper/ddnet_walls.rules")
-                .expect("failed to read .rules file");
-            let automapper = Automapper::parse(image_name.to_string(), &file)
-                .expect("failed to parse .rules file");
-            let config = automapper
-                .configs
-                .get(config_index as usize)
-                .expect("failed to fetch config");
-
-            config.run(1337, tiles);
-        } else {
-            panic!("coulnt get Hookable layer at index 0");
-        };
-
-        // get game layer
-        let game_layer = map
-            .find_physics_layer_mut::<GameLayer>()
-            .unwrap()
-            .tiles_mut()
-            .unwrap_mut();
-
-        *game_layer = Array2::<GameTile>::from_elem(
-            (self.width, self.height),
-            GameTile::new(0, TileFlags::empty()),
-        );
-
-        // modify game layer
-        for ((x, y), value) in self.grid.indexed_iter() {
-            game_layer[[y, x]] = GameTile::new(value.to_tw_game_id(), TileFlags::empty())
-        }
-
-        // save map
-        println!("exporting map to {:?}", &path);
-        map.save_file(path).expect("saving failed");
+        TwExport::export(&self, &path)
     }
 
     pub fn pos_in_bounds(&self, pos: &Position) -> bool {
