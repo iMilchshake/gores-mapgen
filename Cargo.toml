@@ -22,6 +22,9 @@ name = "twmap_test"
 
 [[bin]]
 name = "ddnet_bridge"
+
+[[bin]]
+name = "automap_test"
 # required-features = ["ddnet_bridge"]
 
 [dependencies]
