@@ -35,6 +35,10 @@ impl Seed {
         Seed::from_u64(rnd.random_u64())
     }
 
+    pub fn random() -> Seed {
+        Seed::from_u64(Random::get_random_u64())
+    }
+
     pub fn str_to_u64(seed_str: &String) -> u64 {
         hash(seed_str.as_bytes())
     }

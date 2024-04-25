@@ -1,6 +1,6 @@
 use clap::Parser;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
-use gores_mapgen_rust::random::Random;
+use gores_mapgen_rust::random::{Random, Seed};
 use gores_mapgen_rust::{config::GenerationConfig, generator::Generator};
 use std::collections::HashMap;
 
@@ -94,11 +94,13 @@ impl Econ {
         configs: &HashMap<String, GenerationConfig>,
     ) {
         if vote.vote_name.starts_with("generate") {
-            // get user seed or random
-            let seed = vote
-                .vote_reason
-                .parse::<u64>()
-                .unwrap_or_else(|_| Random::get_random_u64());
+            let seed = if vote.vote_reason == "No reason given" {
+                Seed::random()
+            } else if let Some(seed_u64) = vote.vote_reason.parse::<u64>().ok() {
+                Seed::from_u64(seed_u64)
+            } else {
+                Seed::from_string(&vote.vote_reason)
+            };
 
             // split selected preset
             let mut vote_parts = vote.vote_name.split_whitespace();
@@ -110,21 +112,21 @@ impl Econ {
             // get config based on preset name
             let config = configs.get(vote_preset).expect("preset does not exist!");
 
-            generate_and_change_map(args, seed, config, self);
+            generate_and_change_map(args, &seed, config, self);
         }
     }
 }
 
 fn generate_and_change_map(
     args: &BridgeArgs,
-    seed: u64,
+    seed: &Seed,
     config: &GenerationConfig,
     econ: &mut Econ,
 ) {
     println!("[GEN] Starting Map Generation!");
-    econ.send_rcon_cmd("say [GEN] Generating Map, seed=".to_string() + &seed.to_string());
+    econ.send_rcon_cmd(format!("say [GEN] Generating Map, seed={:?}", &seed));
     let map_path = args.maps.canonicalize().unwrap().join("random_map.map");
-    match Generator::generate_map(30_000, seed, config) {
+    match Generator::generate_map(30_000, &seed, config) {
         Ok(map) => {
             println!("[GEN] Finished Map Generation!");
             map.export(&map_path);
@@ -162,7 +164,12 @@ fn start_bridge(args: &BridgeArgs) {
                 println!("[AUTH] Success");
                 println!("[GEN] Generating initial map");
                 auth = true;
-                generate_and_change_map(&args, 42, &GenerationConfig::default(), &mut econ);
+                generate_and_change_map(
+                    &args,
+                    &Seed::from_u64(42),
+                    &GenerationConfig::default(),
+                    &mut econ,
+                );
             } else if data.starts_with("Wrong password") {
                 println!("[AUTH] Wrong Password!");
                 std::process::exit(1);

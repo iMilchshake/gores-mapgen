@@ -134,10 +134,10 @@ impl Generator {
     /// fixed seed map generations result in the same map.
     pub fn generate_map(
         max_steps: usize,
-        seed: u64,
+        seed: &Seed,
         config: &GenerationConfig,
     ) -> Result<Map, &'static str> {
-        let mut gen = Generator::new(&config, Seed::from_u64(seed));
+        let mut gen = Generator::new(&config, seed.clone());
 
         for _ in 0..max_steps {
             if gen.walker.finished {
