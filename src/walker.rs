@@ -82,7 +82,7 @@ impl CuteWalker {
         // Case 2: max distance has been exceeded -> force platform using a room
         if self.steps_since_platform > max_distance {
             // TODO: for now this is hardcoded so that platform is shifted down by 7 blocks.
-            map.generate_room(&walker_pos.shifted_by(0, 6)?, 4, None)?;
+            map.generate_room(&walker_pos.shifted_by(0, 6)?, 5, 3, None)?;
             self.steps_since_platform = 0;
             return Ok(());
         }

@@ -7,7 +7,7 @@ use crate::{
     walker::CuteWalker,
 };
 
-use dt::{dt_bool};
+use dt::dt_bool;
 use ndarray::{Array2, Ix2};
 
 pub struct Generator {
@@ -120,10 +120,10 @@ impl Generator {
     pub fn post_processing(&mut self, config: &GenerationConfig) {
         self.fix_edge_bugs().expect("fix edge bugs failed");
         self.map
-            .generate_room(&self.map.spawn.clone(), 4, Some(&BlockType::Start))
+            .generate_room(&self.map.spawn.clone(), 4, 3, Some(&BlockType::Start))
             .expect("start room generation failed");
         self.map
-            .generate_room(&self.walker.pos.clone(), 4, Some(&BlockType::Finish))
+            .generate_room(&self.walker.pos.clone(), 4, 3, Some(&BlockType::Finish))
             .expect("start finish room generation");
 
         self.fill_area(&config.max_distance);

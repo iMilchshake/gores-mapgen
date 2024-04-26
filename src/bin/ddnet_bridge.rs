@@ -166,7 +166,7 @@ fn start_bridge(args: &BridgeArgs) {
                 auth = true;
                 generate_and_change_map(
                     args,
-                    &Seed::from_u64(42),
+                    &Seed::from_u64(1337),
                     &GenerationConfig::default(),
                     &mut econ,
                 );

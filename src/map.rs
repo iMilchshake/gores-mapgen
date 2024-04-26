@@ -136,32 +136,34 @@ impl Map {
     pub fn generate_room(
         &mut self,
         pos: &Position,
-        margin: usize,
+        room_size: usize,
+        platform_margin: usize,
         zone_type: Option<&BlockType>,
     ) -> Result<(), &'static str> {
-        // TODO: return an error?
-        if pos.x < (margin + 1)
-            || pos.y < (margin + 1)
-            || pos.x > self.width - (margin + 1)
-            || pos.y > self.height - (margin + 1)
+        if pos.x < (room_size + 1)
+            || pos.y < (room_size + 1)
+            || pos.x > self.width - (room_size + 1)
+            || pos.y > self.height - (room_size + 1)
         {
             return Err("generate room out of bounds");
         }
 
-        let margin: i32 = margin.to_i32().unwrap();
+        // TODO: i feel like this is utterly stupid
+        let room_size: i32 = room_size.to_i32().unwrap();
+        let platform_margin: i32 = platform_margin.to_i32().unwrap();
 
         // carve room
         self.set_area(
-            &pos.shifted_by(-margin, -margin)?,
-            &pos.shifted_by(margin, margin)?,
+            &pos.shifted_by(-room_size, -room_size)?,
+            &pos.shifted_by(room_size, room_size)?,
             &BlockType::Empty,
             true,
         );
 
         // set platform
         self.set_area(
-            &pos.shifted_by(-(margin - 2), 1)?,
-            &pos.shifted_by(margin - 2, 1)?,
+            &pos.shifted_by(-(room_size - platform_margin), room_size - 2)?,
+            &pos.shifted_by(room_size - platform_margin, room_size - 2)?,
             &BlockType::Platform,
             true,
         );
@@ -169,8 +171,8 @@ impl Map {
         // set spawns
         if zone_type == Some(&BlockType::Start) {
             self.set_area(
-                &pos.shifted_by(-(margin - 2), 0)?,
-                &pos.shifted_by(margin - 2, 0)?,
+                &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
+                &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
                 &BlockType::Spawn,
                 true,
             );
@@ -178,8 +180,8 @@ impl Map {
         // set start/finish line
         if let Some(zone_type) = zone_type {
             self.set_area_border(
-                &pos.shifted_by(-margin - 1, -margin - 1)?,
-                &pos.shifted_by(margin + 1, margin + 1)?,
+                &pos.shifted_by(-room_size - 1, -room_size - 1)?,
+                &pos.shifted_by(room_size + 1, room_size + 1)?,
                 zone_type,
                 false,
             );
