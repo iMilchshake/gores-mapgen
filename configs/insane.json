@@ -1,29 +1,29 @@
 {
-  "name": "default",
+  "name": "insane",
   "description": null,
   "inner_size_bounds": [
+    1,
+    2
+  ],
+  "outer_size_bounds": [
     3,
     3
   ],
-  "outer_size_bounds": [
-    1,
-    5
-  ],
-  "inner_rad_mut_prob": 0.25,
-  "inner_size_mut_prob": 0.5,
+  "inner_rad_mut_prob": 0.4,
+  "inner_size_mut_prob": 0.2,
   "outer_rad_mut_prob": 0.25,
-  "outer_size_mut_prob": 0.5,
+  "outer_size_mut_prob": 1.0,
   "step_weights": [
     20,
-    11,
-    10,
-    9
+    15,
+    14,
+    6
   ],
   "platform_distance_bounds": [
-    500,
-    750
+    200,
+    300
   ],
-  "momentum_prob": 0.3,
+  "momentum_prob": 0.5,
   "waypoints": [
     {
       "x": 250,

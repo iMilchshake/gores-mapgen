@@ -2,27 +2,30 @@
   "name": "main",
   "description": null,
   "inner_size_bounds": [
-    3,
-    3
+    4,
+    4
   ],
   "outer_size_bounds": [
     3,
     5
   ],
-  "inner_rad_mut_prob": 0.25,
-  "inner_size_mut_prob": 0.0,
-  "outer_rad_mut_prob": 0.25,
-  "outer_size_mut_prob": 0.5,
+  "inner_rad_mut_prob": 0.61,
+  "inner_size_mut_prob": 0.95,
+  "outer_rad_mut_prob": 0.55,
+  "outer_size_mut_prob": 0.8,
   "step_weights": [
     20,
+    9,
     8,
-    7,
-    10
+    3
   ],
   "platform_distance_bounds": [
     500,
     750
   ],
+  "momentum_prob": 0.5,
+  "max_distance": 3.0,
+  "waypoint_reached_dist": 250,
   "waypoints": [
     {
       "x": 250,
