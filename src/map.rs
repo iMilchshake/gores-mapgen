@@ -31,10 +31,7 @@ impl BlockType {
     }
 
     pub fn is_hookable(&self) -> bool {
-        match self {
-            BlockType::Hookable | BlockType::Platform => true,
-            _ => false,
-        }
+        matches!(self, BlockType::Hookable | BlockType::Platform)
     }
 }
 
@@ -196,7 +193,7 @@ impl Map {
     }
 
     pub fn export(&self, path: &PathBuf) {
-        TwExport::export(&self, &path)
+        TwExport::export(self, path)
     }
 
     pub fn pos_in_bounds(&self, pos: &Position) -> bool {
@@ -210,7 +207,7 @@ impl Map {
         bot_right: &Position,
         value: &BlockType,
     ) -> Result<bool, &'static str> {
-        if !self.pos_in_bounds(&top_left) || !self.pos_in_bounds(&bot_right) {
+        if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
             return Err("checking area out of bounds");
         }
 
@@ -227,7 +224,7 @@ impl Map {
         bot_right: &Position,
         value: &BlockType,
     ) -> Result<bool, &'static str> {
-        if !self.pos_in_bounds(&top_left) || !self.pos_in_bounds(&bot_right) {
+        if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
             return Err("checking area out of bounds");
         }
         let area = self
@@ -279,9 +276,9 @@ impl Map {
         let top_right = Position::new(bot_right.x, top_left.y);
         let bot_left = Position::new(top_left.x, bot_right.y);
 
-        self.set_area(&top_left, &top_right, value, overide);
-        self.set_area(&top_right, &bot_right, value, overide);
-        self.set_area(&top_left, &bot_left, value, overide);
-        self.set_area(&bot_left, &bot_right, value, overide);
+        self.set_area(top_left, &top_right, value, overide);
+        self.set_area(&top_right, bot_right, value, overide);
+        self.set_area(top_left, &bot_left, value, overide);
+        self.set_area(&bot_left, bot_right, value, overide);
     }
 }

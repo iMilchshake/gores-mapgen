@@ -1,4 +1,3 @@
-use rand_distr::num_traits::CheckedSub;
 use serde::{Deserialize, Serialize};
 
 use crate::map::Map;
@@ -57,7 +56,7 @@ impl Position {
         shift: &ShiftDirection,
         map: &Map,
     ) -> Result<(), &'static str> {
-        if !self.is_shift_valid(&shift, map) {
+        if !self.is_shift_valid(shift, map) {
             return Err("invalid shift");
         }
 

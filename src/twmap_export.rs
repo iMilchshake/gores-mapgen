@@ -17,7 +17,7 @@ impl AutoMapperConfigs {
             .expect("automapper rule config not found");
         let data = std::str::from_utf8(&file.data).unwrap();
 
-        Automapper::parse(name, &data).expect("failed to parse .rules file")
+        Automapper::parse(name, data).expect("failed to parse .rules file")
     }
 }
 
@@ -51,13 +51,13 @@ impl TwExport {
             assert_eq!(layer.name, layer_name);
 
             let image_name = tw_map.images[layer.image.unwrap() as usize].name();
-            let automapper_config = TwExport::get_automapper_config(image_name.clone(), &layer);
+            let automapper_config = TwExport::get_automapper_config(image_name.clone(), layer);
 
             let tiles = layer.tiles_mut().unwrap_mut();
             *tiles = Array2::<Tile>::default((map.width, map.height));
 
             for ((x, y), value) in map.grid.indexed_iter() {
-                if block_type_in_layer(&value) {
+                if block_type_in_layer(value) {
                     tiles[[y, x]] = Tile::new(1, TileFlags::empty())
                 }
             }
@@ -72,10 +72,10 @@ impl TwExport {
         let mut tw_map = TwMap::parse_file("automap_test.map").expect("parsing failed");
         tw_map.load().expect("loading failed");
 
-        TwExport::process_layer(&mut tw_map, &map, &0, "Freeze", |t| {
-            (*t == BlockType::Freeze) || BlockType::is_hookable(&t)
+        TwExport::process_layer(&mut tw_map, map, &0, "Freeze", |t| {
+            (*t == BlockType::Freeze) || BlockType::is_hookable(t)
         });
-        TwExport::process_layer(&mut tw_map, &map, &1, "Hookable", BlockType::is_hookable);
+        TwExport::process_layer(&mut tw_map, map, &1, "Hookable", BlockType::is_hookable);
 
         // get game layer
         let game_layer = tw_map
@@ -96,6 +96,6 @@ impl TwExport {
 
         // save map
         println!("exporting map to {:?}", &path);
-        tw_map.save_file(&path).expect("failed to write map file");
+        tw_map.save_file(path).expect("failed to write map file");
     }
 }

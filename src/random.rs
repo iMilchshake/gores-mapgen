@@ -26,7 +26,7 @@ impl Seed {
 
     pub fn from_string(seed_str: &String) -> Seed {
         Seed {
-            seed_u64: Seed::str_to_u64(&seed_str),
+            seed_u64: Seed::str_to_u64(seed_str),
             seed_str: seed_str.to_owned(),
         }
     }
@@ -112,7 +112,7 @@ impl Random {
         self.gen.next_u64();
     }
 
-    pub fn pick_element<'a, T>(&'a mut self, values: &'a Vec<T>) -> &T {
+    pub fn pick_element<'a, T>(&'a mut self, values: &'a [T]) -> &T {
         &values[self.in_range_exclusive(0, values.len())]
     }
 

@@ -1,6 +1,6 @@
 use clap::Parser;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
-use gores_mapgen_rust::random::{Random, Seed};
+use gores_mapgen_rust::random::Seed;
 use gores_mapgen_rust::{config::GenerationConfig, generator::Generator};
 use std::collections::HashMap;
 
@@ -45,7 +45,7 @@ struct BridgeArgs {
 
 #[derive(Debug)]
 struct Vote {
-    player_name: String,
+    _player_name: String,
     vote_name: String,
     vote_reason: String,
 }
@@ -96,7 +96,7 @@ impl Econ {
         if vote.vote_name.starts_with("generate") {
             let seed = if vote.vote_reason == "No reason given" {
                 Seed::random()
-            } else if let Some(seed_u64) = vote.vote_reason.parse::<u64>().ok() {
+            } else if let Ok(seed_u64) = vote.vote_reason.parse::<u64>() {
                 Seed::from_u64(seed_u64)
             } else {
                 Seed::from_string(&vote.vote_reason)
@@ -107,7 +107,7 @@ impl Econ {
             let vote_type = vote_parts.next().expect("should have exactly two parts");
             assert_eq!(vote_type, "generate");
             let vote_preset = vote_parts.next().expect("should have exactly two parts");
-            assert!(vote_parts.next() == None, "should have exactly two parts");
+            assert!(vote_parts.next().is_none(), "should have exactly two parts");
 
             // get config based on preset name
             let config = configs.get(vote_preset).expect("preset does not exist!");
@@ -126,7 +126,7 @@ fn generate_and_change_map(
     println!("[GEN] Starting Map Generation!");
     econ.send_rcon_cmd(format!("say [GEN] Generating Map, seed={:?}", &seed));
     let map_path = args.maps.canonicalize().unwrap().join("random_map.map");
-    match Generator::generate_map(30_000, &seed, config) {
+    match Generator::generate_map(30_000, seed, config) {
         Ok(map) => {
             println!("[GEN] Finished Map Generation!");
             map.export(&map_path);
@@ -138,7 +138,7 @@ fn generate_and_change_map(
         Err(err) => {
             println!("[GEN] Generation Error: {:?}", err);
             econ.send_rcon_cmd(format!("say [GEN] Failed due to: {:}", err));
-            econ.send_rcon_cmd(format!("say just try again :)"));
+            econ.send_rcon_cmd("say just try again :)".to_string());
         }
     }
 }
@@ -165,7 +165,7 @@ fn start_bridge(args: &BridgeArgs) {
                 println!("[GEN] Generating initial map");
                 auth = true;
                 generate_and_change_map(
-                    &args,
+                    args,
                     &Seed::from_u64(42),
                     &GenerationConfig::default(),
                     &mut econ,
@@ -185,7 +185,7 @@ fn start_bridge(args: &BridgeArgs) {
                         match message {
                             "Vote passed" => {
                                 println!("[VOTE]: Success");
-                                econ.handle_vote(pending_vote.as_ref().unwrap(), &args, &configs);
+                                econ.handle_vote(pending_vote.as_ref().unwrap(), args, &configs);
                             }
                             "Vote failed" => {
                                 pending_vote = None;
@@ -203,7 +203,7 @@ fn start_bridge(args: &BridgeArgs) {
                                 );
 
                                 pending_vote = Some(Vote {
-                                    player_name,
+                                    _player_name: player_name,
                                     vote_name,
                                     vote_reason,
                                 });

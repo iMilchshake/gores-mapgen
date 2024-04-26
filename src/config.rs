@@ -80,7 +80,7 @@ impl GenerationConfig {
         for file_name in GenerationConfigStorage::iter() {
             let file = GenerationConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
-            let config: GenerationConfig = serde_json::from_str(&data).unwrap();
+            let config: GenerationConfig = serde_json::from_str(data).unwrap();
             configs.insert(config.name.clone(), config);
         }
 

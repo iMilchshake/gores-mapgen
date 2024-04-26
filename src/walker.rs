@@ -121,7 +121,7 @@ impl CuteWalker {
         let mut sampled_shift = &rnd.sample_move(&shifts);
 
         // with a certain probabiliy re-use last direction instead
-        if rnd.with_probability(config.momentum_prob) && !self.last_direction.is_none() {
+        if rnd.with_probability(config.momentum_prob) && self.last_direction.is_some() {
             sampled_shift = self.last_direction.as_ref().unwrap();
         }
 
@@ -167,15 +167,15 @@ impl CuteWalker {
         }
 
         if rnd.with_probability(config.inner_rad_mut_prob) {
-            inner_circ = *rnd.pick_element(&vec![0.0, 0.1, 0.2, 0.6, 0.8]); // TODO: also, this is
-                                                                            // terrible
+            inner_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]); // TODO: also, this is
+                                                                        // terrible
             modified = true;
         } else {
             rnd.skip();
         }
 
         if rnd.with_probability(config.outer_rad_mut_prob) {
-            outer_circ = *rnd.pick_element(&vec![0.0, 0.1, 0.2, 0.6, 0.8]);
+            outer_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]);
             modified = true;
         } else {
             rnd.skip();

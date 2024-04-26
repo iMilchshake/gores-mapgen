@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::{env, isize};
 
-use egui::{ComboBox, InnerResponse, RichText};
+use egui::{InnerResponse, RichText};
 use tinyfiledialogs;
 
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::random::Seed;
 use crate::{
-    config::GenerationConfig, generator::Generator, map::Map, position::Position, random::Random,
+    config::GenerationConfig, generator::Generator, map::Map, position::Position,
 };
 use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 

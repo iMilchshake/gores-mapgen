@@ -53,7 +53,7 @@ pub fn draw_chunked_grid(
             for x in x_start..x_end {
                 for y in y_start..y_end {
                     let value = &grid[[x, y]];
-                    draw_rectangle(x as f32, y as f32, 1.0, 1.0, blocktype_to_color(&value));
+                    draw_rectangle(x as f32, y as f32, 1.0, 1.0, blocktype_to_color(value));
                 }
             }
         } else {
@@ -118,7 +118,7 @@ pub fn draw_walker_kernel(walker: &CuteWalker, kernel_type: KernelType) {
     }
 }
 
-pub fn draw_waypoints(waypoints: &Vec<Position>) {
+pub fn draw_waypoints(waypoints: &[Position]) {
     for pos in waypoints.iter() {
         draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, 1.0, colors::RED)
     }

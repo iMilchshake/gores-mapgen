@@ -7,8 +7,8 @@ use crate::{
     walker::CuteWalker,
 };
 
-use dt::{dt, dt_bool, dt_int};
-use ndarray::{arr2, s, Array, Array2, Ix2, IxDyn};
+use dt::{dt_bool};
+use ndarray::{Array2, Ix2};
 
 pub struct Generator {
     pub walker: CuteWalker,
@@ -37,7 +37,7 @@ impl Generator {
 
         if !self.walker.finished {
             // randomly mutate kernel
-            self.walker.mutate_kernel(&config, &mut self.rnd);
+            self.walker.mutate_kernel(config, &mut self.rnd);
 
             // perform one step
             self.walker
@@ -137,13 +137,13 @@ impl Generator {
         seed: &Seed,
         config: &GenerationConfig,
     ) -> Result<Map, &'static str> {
-        let mut gen = Generator::new(&config, seed.clone());
+        let mut gen = Generator::new(config, seed.clone());
 
         for _ in 0..max_steps {
             if gen.walker.finished {
                 break;
             }
-            gen.step(&config)?;
+            gen.step(config)?;
         }
 
         gen.post_processing(config);
