@@ -1,8 +1,7 @@
-use crate::{position::Position, walker::CuteWalker};
+use crate::{position::Position, twmap_export::TwExport, walker::CuteWalker};
 use ndarray::{s, Array2};
 use rand_distr::num_traits::ToPrimitive;
 use std::path::PathBuf;
-use twmap::{GameLayer, GameTile, TileFlags, TilemapLayer, TwMap};
 
 const CHUNK_SIZE: usize = 5;
 
@@ -19,7 +18,7 @@ pub enum BlockType {
 
 impl BlockType {
     /// maps BlockType to tw game layer id for map export
-    fn to_tw_game_id(&self) -> u8 {
+    pub fn to_tw_game_id(&self) -> u8 {
         match self {
             BlockType::Empty => 0,
             BlockType::Hookable => 1,
@@ -28,6 +27,13 @@ impl BlockType {
             BlockType::Spawn => 192,
             BlockType::Start => 33,
             BlockType::Finish => 34,
+        }
+    }
+
+    pub fn is_hookable(&self) -> bool {
+        match self {
+            BlockType::Hookable | BlockType::Platform => true,
+            _ => false,
         }
     }
 }
@@ -190,29 +196,7 @@ impl Map {
     }
 
     pub fn export(&self, path: &PathBuf) {
-        let mut map = TwMap::parse_file("test.map").expect("parsing failed");
-        map.load().expect("loading failed");
-
-        // get game layer
-        let game_layer = map
-            .find_physics_layer_mut::<GameLayer>()
-            .unwrap()
-            .tiles_mut()
-            .unwrap_mut();
-
-        *game_layer = Array2::<GameTile>::from_elem(
-            (self.width, self.height),
-            GameTile::new(0, TileFlags::empty()),
-        );
-
-        // modify game layer
-        for ((x, y), value) in self.grid.indexed_iter() {
-            game_layer[[y, x]] = GameTile::new(value.to_tw_game_id(), TileFlags::empty())
-        }
-
-        // save map
-        println!("exporting map to {:?}", &path);
-        map.save_file(path).expect("saving failed");
+        TwExport::export(&self, &path)
     }
 
     pub fn pos_in_bounds(&self, pos: &Position) -> bool {

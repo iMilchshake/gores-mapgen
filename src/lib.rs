@@ -7,4 +7,5 @@ pub mod kernel;
 pub mod map;
 pub mod position;
 pub mod random;
+pub mod twmap_export;
 pub mod walker;
