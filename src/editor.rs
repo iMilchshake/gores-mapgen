@@ -7,9 +7,7 @@ use tinyfiledialogs;
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::random::Seed;
-use crate::{
-    config::GenerationConfig, generator::Generator, map::Map, position::Position,
-};
+use crate::{config::GenerationConfig, generator::Generator, map::Map, position::Position};
 use egui::{epaint::Shadow, CollapsingHeader, Color32, Frame, Label, Margin, Ui};
 
 use macroquad::camera::{set_camera, Camera2D};
@@ -93,6 +91,17 @@ pub fn vec_edit_widget<T, F>(
                 }
             });
         });
+}
+
+fn field_edit_integer(ui: &mut egui::Ui, value: &mut u64) -> egui::Response {
+    let mut int_as_str = format!("{}", value);
+    let res = ui.text_edit_singleline(&mut int_as_str);
+    if int_as_str.is_empty() {
+        *value = 0;
+    } else if let Ok(result) = int_as_str.parse() {
+        *value = result;
+    }
+    res
 }
 
 pub fn field_edit_widget<T, F>(
@@ -285,16 +294,16 @@ impl Editor {
                             .changed()
                         {
                             self.user_seed.seed_u64 = Seed::str_to_u64(&self.user_seed.seed_str);
+                            dbg!(&self.user_seed);
                         }
                     });
 
                     ui.horizontal(|ui| {
                         ui.label("u64");
-                        if ui
-                            .add(egui::DragValue::new(&mut self.user_seed.seed_u64))
-                            .changed()
-                        {
+
+                        if field_edit_integer(ui, &mut self.user_seed.seed_u64).changed() {
                             self.user_seed.seed_str = String::new();
+                            dbg!(&self.user_seed);
                         }
                     });
 
