@@ -89,8 +89,8 @@ impl CuteWalker {
 
         // Case 3: min distance has been exceeded -> Try to place platform, but only if possible
         let area_empty = map.check_area_all(
-            &walker_pos.shifted_by(-2, -3)?,
-            &walker_pos.shifted_by(2, 1)?,
+            &walker_pos.shifted_by(-3, -3)?,
+            &walker_pos.shifted_by(3, 2)?,
             &BlockType::Empty,
         )?;
         if area_empty {
