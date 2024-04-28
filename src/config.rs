@@ -53,6 +53,9 @@ pub struct GenerationConfig {
     /// min distance to next waypoint that is considered reached
     pub waypoint_reached_dist: usize,
 
+    /// probabilities for (inner_kernel_size, probability)
+    pub inner_size_probs: Vec<(usize, f32)>,
+
     // ------- TODO: these should go somewhere else -----
     pub waypoints: Vec<Position>,
 }
@@ -111,6 +114,7 @@ impl Default for GenerationConfig {
             momentum_prob: 0.01,
             max_distance: 3.0,
             waypoint_reached_dist: 250,
+            inner_size_probs: vec![(3, 1.0)],
         }
     }
 }

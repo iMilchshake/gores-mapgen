@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::{env, isize};
 
+use egui::emath::Numeric;
 use egui::{InnerResponse, RichText};
 use tinyfiledialogs;
 
@@ -56,6 +57,38 @@ enum PausedState {
     Setup,
 }
 
+// TODO: move to some util?
+fn normalize_probs(inner_size_probs: &mut Vec<(usize, f32)>) {
+    let mut sum = 0.0;
+    let mut one_index: Option<usize> = None;
+
+    // Calculate sum and check for values close to 1.0
+    for (i, &(_, prob)) in inner_size_probs.iter().enumerate() {
+        sum += prob;
+        if (1.0 - prob).abs() < f32::EPSILON {
+            one_index = Some(i);
+        }
+    }
+
+    // Handle special case if one value is close to 1.0
+    if let Some(index) = one_index {
+        for (i, (_, prob)) in inner_size_probs.iter_mut().enumerate() {
+            if i == index {
+                *prob = 1.0;
+            } else {
+                *prob = 0.0;
+            }
+        }
+    } else {
+        // Normalize probabilities
+        if sum != 1.0 {
+            for (_, prob) in inner_size_probs.iter_mut() {
+                *prob /= sum;
+            }
+        }
+    }
+}
+
 pub fn vec_edit_widget<T, F>(
     ui: &mut Ui,
     vec: &mut Vec<T>,
@@ -82,13 +115,13 @@ pub fn vec_edit_widget<T, F>(
                     ui.horizontal(|ui| {
                         if ui.button("+").clicked() {
                             vec.push(Default::default());
-                        }
+                        };
 
                         if ui.button("-").clicked() && !vec.is_empty() {
                             vec.pop();
-                        }
+                        };
                     });
-                }
+                };
             });
         });
 }
@@ -110,21 +143,20 @@ pub fn field_edit_widget<T, F>(
     edit_element: F,
     label: &str,
     vertical: bool,
-) -> InnerResponse<()>
-where
+) where
     F: Fn(&mut Ui, &mut T),
     T: Default,
 {
     if vertical {
         ui.vertical(|ui| {
             ui.label(label);
-            edit_element(ui, value);
-        })
+            edit_element(ui, value)
+        });
     } else {
         ui.horizontal(|ui| {
             ui.label(label);
-            edit_element(ui, value);
-        })
+            edit_element(ui, value)
+        });
     }
 }
 
@@ -148,6 +180,15 @@ pub fn edit_f32_prob(ui: &mut Ui, value: &mut f32) {
 pub fn edit_string(ui: &mut Ui, value: &mut String) {
     let text_edit = egui::TextEdit::singleline(value).desired_width(100.0);
     ui.add(text_edit);
+}
+
+pub fn edit_probability_tuple(ui: &mut Ui, value: &mut (usize, f32)) {
+    ui.horizontal(|ui| {
+        ui.label("value:");
+        edit_usize(ui, &mut value.0);
+        ui.label("prob:");
+        edit_f32_prob(ui, &mut value.1)
+    });
 }
 
 pub fn edit_position(ui: &mut Ui, position: &mut Position) {
@@ -309,6 +350,34 @@ impl Editor {
 
                     ui.checkbox(&mut self.fixed_seed, "fixed seed");
                 }
+                ui.separator();
+
+                vec_edit_widget(
+                    ui,
+                    &mut self.config.inner_size_probs,
+                    edit_probability_tuple,
+                    "inner size probs",
+                    false,
+                    false,
+                );
+
+                // TODO: move validation somewhere else and only call on change
+                {
+                    let vec = &mut self.config.inner_size_probs;
+                    dbg!(&vec);
+                    let mut sum: f32 = vec.iter().map(|(_, val)| val).sum();
+                    if sum != 1.0 {
+                        for (_, val) in vec.iter_mut() {
+                            *val = (*val).min(1.0).max(0.0); // Clip values close to 0.0 or 1.0
+                        }
+                        sum = vec.iter().map(|(_, val)| val).sum(); // Recalculate sum after clipping
+                        for (_, val) in vec.iter_mut() {
+                            *val /= sum; // Normalize the vector
+                        }
+                    }
+                    dbg!(&vec);
+                }
+
                 ui.separator();
 
                 ui.label("load/save config files:");
