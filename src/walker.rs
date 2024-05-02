@@ -151,24 +151,22 @@ impl CuteWalker {
 
         // mutate inner kernel
         if rnd.with_probability(config.inner_size_mut_prob) {
-            inner_size =
-                rnd.in_range_inclusive(config.inner_size_bounds.0, config.inner_size_bounds.1);
+            inner_size = rnd.sample_inner_kernel_size(&config.inner_size_probs);
             modified = true;
         } else {
-            rnd.skip();
+            rnd.skip_n(2); // for some reason sampling requires two values?
         }
 
         if rnd.with_probability(config.outer_size_mut_prob) {
-            outer_size =
-                rnd.in_range_inclusive(config.outer_size_bounds.0, config.outer_size_bounds.1);
+            let outer_margin = rnd.sample_outer_kernel_margin(&config.outer_margin_probs);
+            outer_size = inner_size + outer_margin;
             modified = true;
         } else {
-            rnd.skip();
+            rnd.skip_n(2);
         }
 
         if rnd.with_probability(config.inner_rad_mut_prob) {
-            inner_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]); // TODO: also, this is
-                                                                        // terrible
+            inner_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]); // TODO: this is terrible
             modified = true;
         } else {
             rnd.skip();
@@ -191,12 +189,6 @@ impl CuteWalker {
 
         // constraint 2: outer size cannot be smaller than inner
         outer_size = usize::max(outer_size, inner_size);
-
-        // constraint 3: both sizes should be either odd or even
-        // TODO: this can (iteratively) lead to outer_size > max_outer_size
-        if (outer_size - inner_size) % 2 == 1 {
-            outer_size += 1;
-        }
 
         if modified {
             self.inner_kernel = Kernel::new(inner_size, inner_circ);

@@ -12,19 +12,12 @@ pub struct GenerationConfigStorage;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(default)]
-#[serde(deny_unknown_fields)]
 pub struct GenerationConfig {
     /// name of the preset
     pub name: String,
 
     /// this can contain any description of the generation preset
     pub description: Option<String>,
-
-    /// (min, max) values for inner kernel
-    pub inner_size_bounds: (usize, usize),
-
-    /// (min, max) values for outer kernel
-    pub outer_size_bounds: (usize, usize),
 
     /// probability for mutating inner radius
     pub inner_rad_mut_prob: f32,
@@ -39,7 +32,7 @@ pub struct GenerationConfig {
     pub outer_size_mut_prob: f32,
 
     /// probability weighting for random selection from best to worst towards next goal
-    pub step_weights: Vec<i32>,
+    pub shift_weights: Vec<i32>,
 
     /// (min, max) distance between platforms
     pub platform_distance_bounds: (usize, usize),
@@ -99,8 +92,6 @@ impl Default for GenerationConfig {
         GenerationConfig {
             name: "default".to_string(),
             description: None,
-            inner_size_bounds: (3, 3),
-            outer_size_bounds: (1, 5),
             inner_rad_mut_prob: 0.25,
             inner_size_mut_prob: 0.5,
             outer_rad_mut_prob: 0.25,
@@ -112,7 +103,7 @@ impl Default for GenerationConfig {
                 Position::new(50, 50),
                 Position::new(250, 50),
             ],
-            step_weights: vec![20, 11, 10, 9],
+            shift_weights: vec![20, 11, 10, 9],
             platform_distance_bounds: (500, 750),
             momentum_prob: 0.01,
             max_distance: 3.0,

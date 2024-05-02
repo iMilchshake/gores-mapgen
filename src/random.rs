@@ -1,3 +1,4 @@
+use crate::config::GenerationConfig;
 use crate::position::ShiftDirection;
 use rand::prelude::*;
 use rand::rngs::SmallRng;
@@ -7,7 +8,9 @@ use seahash::hash;
 pub struct Random {
     pub seed: Seed,
     gen: SmallRng,
-    weighted_dist: WeightedAliasIndex<i32>,
+    shift_dist: WeightedAliasIndex<i32>,
+    inner_kernel_dist: WeightedAliasIndex<f32>,
+    outer_kernel_dist: WeightedAliasIndex<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -45,11 +48,27 @@ impl Seed {
 }
 
 impl Random {
-    pub fn new(seed: Seed, weights: Vec<i32>) -> Random {
+    pub fn new(seed: Seed, config: &GenerationConfig) -> Random {
         Random {
             gen: SmallRng::seed_from_u64(seed.seed_u64),
             seed,
-            weighted_dist: Random::get_weighted_dist(weights),
+            shift_dist: Random::get_weighted_dist(config.shift_weights.clone()),
+            inner_kernel_dist: WeightedAliasIndex::new(
+                config
+                    .inner_size_probs
+                    .iter()
+                    .map(|(_, prob)| *prob)
+                    .collect(),
+            )
+            .unwrap(),
+            outer_kernel_dist: WeightedAliasIndex::new(
+                config
+                    .outer_margin_probs
+                    .iter()
+                    .map(|(_, prob)| *prob)
+                    .collect(),
+            )
+            .unwrap(),
         }
     }
 
@@ -89,10 +108,24 @@ impl Random {
 
     /// sample a shift based on weight distribution
     pub fn sample_move(&mut self, shifts: &[ShiftDirection; 4]) -> ShiftDirection {
-        let index = self.weighted_dist.sample(&mut self.gen);
+        let index = self.shift_dist.sample(&mut self.gen);
         let shift = shifts.get(index).expect("out of bounds");
 
         shift.clone()
+    }
+
+    pub fn sample_inner_kernel_size(&mut self, kernel_size_probs: &[(usize, f32)]) -> usize {
+        let index = self.inner_kernel_dist.sample(&mut self.gen);
+        let inner_kernel_size = kernel_size_probs.get(index).expect("out of bounds");
+
+        return inner_kernel_size.0;
+    }
+
+    pub fn sample_outer_kernel_margin(&mut self, kernel_margin_probs: &[(usize, f32)]) -> usize {
+        let index = self.outer_kernel_dist.sample(&mut self.gen);
+        let inner_kernel_size = kernel_margin_probs.get(index).expect("out of bounds");
+
+        return inner_kernel_size.0;
     }
 
     pub fn with_probability(&mut self, probability: f32) -> bool {
@@ -107,9 +140,16 @@ impl Random {
         }
     }
 
-    /// this can be used to skip a gen step to ensure that a value is consumed in any case
+    /// skip one gen step to ensure that a value is consumed in any case
     pub fn skip(&mut self) {
         self.gen.next_u64();
+    }
+
+    /// skip n gen steps to ensure that n values are consumed in any case
+    pub fn skip_n(&mut self, n: usize) {
+        for _ in 0..n {
+            self.gen.next_u64();
+        }
     }
 
     pub fn pick_element<'a, T>(&'a mut self, values: &'a [T]) -> &T {

@@ -346,7 +346,7 @@ impl Editor {
                     false,
                     false,
                 );
-                normalize_probs(&mut self.config.inner_size_probs);
+                normalize_probs(&mut self.config.outer_margin_probs);
 
                 ui.separator();
 
@@ -394,20 +394,6 @@ impl Editor {
 
                     field_edit_widget(ui, &mut self.config.name, edit_string, "name", false);
 
-                    field_edit_widget(
-                        ui,
-                        &mut self.config.inner_size_bounds,
-                        edit_range_usize,
-                        "inner size range",
-                        true,
-                    );
-                    field_edit_widget(
-                        ui,
-                        &mut self.config.outer_size_bounds,
-                        edit_range_usize,
-                        "outer size range",
-                        true,
-                    );
                     field_edit_widget(
                         ui,
                         &mut self.config.inner_rad_mut_prob,
@@ -483,7 +469,7 @@ impl Editor {
 
                         vec_edit_widget(
                             ui,
-                            &mut self.config.step_weights,
+                            &mut self.config.shift_weights,
                             edit_pos_i32,
                             "step weights",
                             false,
