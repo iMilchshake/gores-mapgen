@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::{env, isize};
 
-use egui::emath::Numeric;
 use egui::{InnerResponse, RichText};
 use tinyfiledialogs;
 
@@ -57,34 +56,12 @@ enum PausedState {
     Setup,
 }
 
-// TODO: move to some util?
-fn normalize_probs(inner_size_probs: &mut Vec<(usize, f32)>) {
-    let mut sum = 0.0;
-    let mut one_index: Option<usize> = None;
-
-    // Calculate sum and check for values close to 1.0
-    for (i, &(_, prob)) in inner_size_probs.iter().enumerate() {
-        sum += prob;
-        if (1.0 - prob).abs() < f32::EPSILON {
-            one_index = Some(i);
-        }
-    }
-
-    // Handle special case if one value is close to 1.0
-    if let Some(index) = one_index {
-        for (i, (_, prob)) in inner_size_probs.iter_mut().enumerate() {
-            if i == index {
-                *prob = 1.0;
-            } else {
-                *prob = 0.0;
-            }
-        }
-    } else {
-        // Normalize probabilities
-        if sum != 1.0 {
-            for (_, prob) in inner_size_probs.iter_mut() {
-                *prob /= sum;
-            }
+fn normalize_probs(vec: &mut Vec<(usize, f32)>) {
+    let mut sum: f32 = vec.iter().map(|(_, val)| val).sum();
+    if sum != 1.0 {
+        sum = vec.iter().map(|(_, val)| val).sum(); // Recalculate sum after clipping
+        for (_, val) in vec.iter_mut() {
+            *val /= sum; // Normalize the vector
         }
     }
 }
@@ -128,7 +105,7 @@ pub fn vec_edit_widget<T, F>(
 
 fn field_edit_integer(ui: &mut egui::Ui, value: &mut u64) -> egui::Response {
     let mut int_as_str = format!("{}", value);
-    let res = ui.text_edit_singleline(&mut int_as_str);
+    let res = ui.add(egui::TextEdit::singleline(&mut int_as_str).desired_width(150.0));
     if int_as_str.is_empty() {
         *value = 0;
     } else if let Ok(result) = int_as_str.parse() {
@@ -330,10 +307,9 @@ impl Editor {
                 if self.is_setup() {
                     ui.horizontal(|ui| {
                         ui.label("str");
-                        if ui
-                            .text_edit_singleline(&mut self.user_seed.seed_str)
-                            .changed()
-                        {
+                        let text_edit = egui::TextEdit::singleline(&mut self.user_seed.seed_str)
+                            .desired_width(150.0);
+                        if ui.add(text_edit).changed() {
                             self.user_seed.seed_u64 = Seed::str_to_u64(&self.user_seed.seed_str);
                             dbg!(&self.user_seed);
                         }
@@ -360,23 +336,17 @@ impl Editor {
                     false,
                     false,
                 );
+                normalize_probs(&mut self.config.inner_size_probs);
 
-                // TODO: move validation somewhere else and only call on change
-                {
-                    let vec = &mut self.config.inner_size_probs;
-                    dbg!(&vec);
-                    let mut sum: f32 = vec.iter().map(|(_, val)| val).sum();
-                    if sum != 1.0 {
-                        for (_, val) in vec.iter_mut() {
-                            *val = (*val).min(1.0).max(0.0); // Clip values close to 0.0 or 1.0
-                        }
-                        sum = vec.iter().map(|(_, val)| val).sum(); // Recalculate sum after clipping
-                        for (_, val) in vec.iter_mut() {
-                            *val /= sum; // Normalize the vector
-                        }
-                    }
-                    dbg!(&vec);
-                }
+                vec_edit_widget(
+                    ui,
+                    &mut self.config.outer_margin_probs,
+                    edit_probability_tuple,
+                    "outer margin probs",
+                    false,
+                    false,
+                );
+                normalize_probs(&mut self.config.inner_size_probs);
 
                 ui.separator();
 

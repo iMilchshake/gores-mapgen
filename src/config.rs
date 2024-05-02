@@ -56,6 +56,9 @@ pub struct GenerationConfig {
     /// probabilities for (inner_kernel_size, probability)
     pub inner_size_probs: Vec<(usize, f32)>,
 
+    /// probabilities for (outer_kernel_margin, probability)
+    pub outer_margin_probs: Vec<(usize, f32)>,
+
     // ------- TODO: these should go somewhere else -----
     pub waypoints: Vec<Position>,
 }
@@ -114,7 +117,8 @@ impl Default for GenerationConfig {
             momentum_prob: 0.01,
             max_distance: 3.0,
             waypoint_reached_dist: 250,
-            inner_size_probs: vec![(3, 1.0)],
+            inner_size_probs: vec![(3, 0.25), (5, 0.75)],
+            outer_margin_probs: vec![(0, 0.5), (2, 0.5)],
         }
     }
 }
