@@ -118,14 +118,14 @@ impl Random {
         let index = self.inner_kernel_dist.sample(&mut self.gen);
         let inner_kernel_size = kernel_size_probs.get(index).expect("out of bounds");
 
-        return inner_kernel_size.0;
+        inner_kernel_size.0
     }
 
     pub fn sample_outer_kernel_margin(&mut self, kernel_margin_probs: &[(usize, f32)]) -> usize {
         let index = self.outer_kernel_dist.sample(&mut self.gen);
         let inner_kernel_size = kernel_margin_probs.get(index).expect("out of bounds");
 
-        return inner_kernel_size.0;
+        inner_kernel_size.0
     }
 
     pub fn with_probability(&mut self, probability: f32) -> bool {
