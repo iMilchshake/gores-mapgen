@@ -45,9 +45,9 @@ pub fn vec_edit_widget<T, F>(
         .default_open(!collapsed)
         .show(ui, |ui| {
             ui.vertical(|ui| {
-                for (i, value) in vec.iter_mut().enumerate() {
+                for (_i, value) in vec.iter_mut().enumerate() {
                     ui.horizontal(|ui| {
-                        ui.label(i.to_string());
+                        // ui.label(i.to_string());
                         edit_element(ui, value);
                     });
                 }
@@ -116,7 +116,12 @@ pub fn edit_f32_wtf(ui: &mut Ui, value: &mut f32) {
 }
 
 pub fn edit_f32_prob(ui: &mut Ui, value: &mut f32) {
-    ui.add(egui::Slider::new(value, 0.0..=1.0));
+    ui.spacing_mut().slider_width = 75.0;
+    ui.add(
+        egui::Slider::new(value, 0.0..=1.0)
+            .fixed_decimals(3)
+            .step_by(0.001),
+    );
 }
 
 pub fn edit_string(ui: &mut Ui, value: &mut String) {
