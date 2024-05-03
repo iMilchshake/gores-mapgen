@@ -1,45 +1,53 @@
 {
-  "name": "easy",
+  "name": "hardV2",
   "description": null,
-  "inner_rad_mut_prob": 0.8,
-  "inner_size_mut_prob": 0.65,
+  "inner_rad_mut_prob": 1.0,
+  "inner_size_mut_prob": 0.75,
   "outer_rad_mut_prob": 0.85,
-  "outer_size_mut_prob": 0.3,
+  "outer_size_mut_prob": 0.65,
   "shift_weights": [
     20,
-    9,
-    8,
-    3
+    14,
+    13,
+    4
   ],
   "platform_distance_bounds": [
     250,
-    500
+    350
   ],
-  "momentum_prob": 0.625,
-  "max_distance": 4.7,
-  "waypoint_reached_dist": 250,
+  "momentum_prob": 0.6,
+  "max_distance": 9.2,
+  "waypoint_reached_dist": 300,
   "inner_size_probs": [
     [
-      4,
-      0.1
+      1,
+      0.061715517
     ],
     [
-      5,
-      0.9
+      2,
+      0.7115598
+    ],
+    [
+      3,
+      0.2
+    ],
+    [
+      4,
+      0.026724687
     ]
   ],
   "outer_margin_probs": [
     [
-      0,
-      0.49479187
-    ],
-    [
       2,
-      0.49479148
+      0.941064
     ],
     [
       4,
-      0.010416667
+      0.05279998
+    ],
+    [
+      6,
+      0.0061360104
     ]
   ],
   "waypoints": [
