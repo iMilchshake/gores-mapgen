@@ -6,6 +6,8 @@ use crate::{
     random::Random,
 };
 
+use derivative;
+
 // this walker is indeed very cute
 #[derive(Debug)]
 pub struct CuteWalker {
@@ -146,10 +148,9 @@ impl CuteWalker {
         let mut inner_circ = self.inner_kernel.circularity;
         let mut outer_size = self.outer_kernel.size;
         let mut outer_circ = self.outer_kernel.circularity;
-
+        let mut outer_margin = outer_size - inner_size;
         let mut modified = false;
 
-        // mutate inner kernel
         if rnd.with_probability(config.inner_size_mut_prob) {
             inner_size = rnd.sample_inner_kernel_size(&config.inner_size_probs);
             modified = true;
@@ -158,8 +159,7 @@ impl CuteWalker {
         }
 
         if rnd.with_probability(config.outer_size_mut_prob) {
-            let outer_margin = rnd.sample_outer_kernel_margin(&config.outer_margin_probs);
-            outer_size = inner_size + outer_margin;
+            outer_margin = rnd.sample_outer_kernel_margin(&config.outer_margin_probs);
             modified = true;
         } else {
             rnd.skip_n(2);
@@ -179,6 +179,8 @@ impl CuteWalker {
             rnd.skip();
         }
 
+        outer_size = inner_size + outer_margin;
+
         // constraint 1: small circles must be fully rect
         if inner_size <= 3 {
             inner_circ = 0.0;
@@ -188,7 +190,7 @@ impl CuteWalker {
         }
 
         // constraint 2: outer size cannot be smaller than inner
-        outer_size = usize::max(outer_size, inner_size);
+        assert!(outer_size >= inner_size); // this shoulnt happen -> crash!
 
         if modified {
             self.inner_kernel = Kernel::new(inner_size, inner_circ);
