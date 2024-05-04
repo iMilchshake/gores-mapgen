@@ -12,7 +12,6 @@ use crate::{
 use egui::{epaint::Shadow, Color32, Frame, Margin};
 use std::env;
 
-use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
     is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position, mouse_wheel,
     KeyCode, MouseButton,
@@ -20,6 +19,10 @@ use macroquad::input::{
 use macroquad::math::{Rect, Vec2};
 use macroquad::time::get_fps;
 use macroquad::window::{screen_height, screen_width};
+use macroquad::{
+    camera::{set_camera, Camera2D},
+    input::is_key_down,
+};
 use rand_distr::num_traits::Zero;
 
 const ZOOM_FACTOR: f32 = 0.9;
@@ -243,6 +246,10 @@ impl Editor {
     pub fn handle_user_inputs(&mut self) {
         if is_key_pressed(KeyCode::E) {
             self.save_map_dialog();
+        }
+
+        if is_key_pressed(KeyCode::Space) {
+            self.set_playing();
         }
 
         if is_key_pressed(KeyCode::R) {
