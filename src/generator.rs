@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     config::GenerationConfig,
+    config::GenerationConfigStorage,
     debug::DebugLayer,
     kernel::Kernel,
     map::{BlockType, Map},
@@ -18,8 +19,10 @@ use ndarray::{Array2, Ix2};
 
 pub struct Generator {
     pub walker: CuteWalker,
+    pub walker2: Option<CuteWalker>,
     pub map: Map,
     pub rnd: Random,
+    pub rnd2: Random,
     pub debug_layers: BTreeMap<&'static str, DebugLayer>,
 }
 
@@ -30,16 +33,29 @@ impl Generator {
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
         let init_inner_kernel = Kernel::new(5, 0.0);
         let init_outer_kernel = Kernel::new(7, 0.0);
-        let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
-        let rnd = Random::new(seed, config);
+        let walker = CuteWalker::new(
+            spawn.clone(),
+            init_inner_kernel.clone(),
+            init_outer_kernel.clone(),
+            config,
+        );
+
+        let mut rnd = Random::new(seed, config);
+
+        let configs = GenerationConfig::get_configs();
+        let skip_config = configs.get("skips").unwrap();
+        let walker2 = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, skip_config);
+        let rnd2 = Random::new(Seed::from_random(&mut rnd), skip_config);
 
         let debug_layers =
             BTreeMap::from([("edge_bugs", DebugLayer::new(false, colors::RED, &map))]);
 
         Generator {
             walker,
+            walker2: Some(walker2),
             map,
             rnd,
+            rnd2,
             debug_layers,
         }
     }
@@ -49,6 +65,14 @@ impl Generator {
         if self.walker.is_goal_reached(&config.waypoint_reached_dist) == Some(true) {
             self.walker.next_waypoint();
         }
+        if let Some(ref mut walker2) = &mut self.walker2 {
+            if walker2.is_goal_reached(&config.waypoint_reached_dist) == Some(true) {
+                walker2.next_waypoint();
+            }
+        }
+
+        let configs = GenerationConfig::get_configs();
+        let skip_config = configs.get("skips").unwrap();
 
         if !self.walker.finished {
             // validate config - TODO: add build flag which skips this?
@@ -57,10 +81,16 @@ impl Generator {
             // randomly mutate kernel
             self.walker.mutate_kernel(config, &mut self.rnd);
 
+            if let Some(ref mut walker2) = &mut self.walker2 {
+                walker2.mutate_kernel(skip_config, &mut self.rnd2);
+            }
             // perform one step
             self.walker
                 .probabilistic_step(&mut self.map, config, &mut self.rnd)?;
 
+            if let Some(ref mut walker2) = &mut self.walker2 {
+                let _ = walker2.probabilistic_step(&mut self.map, skip_config, &mut self.rnd2);
+            }
             // handle platforms
             self.walker.check_platform(
                 &mut self.map,

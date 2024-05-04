@@ -1,0 +1,59 @@
+{
+  "name": "skips",
+  "description": null,
+  "inner_rad_mut_prob": 1.0,
+  "inner_size_mut_prob": 0.2,
+  "outer_rad_mut_prob": 1.0,
+  "outer_size_mut_prob": 1.0,
+  "shift_weights": [
+    20,
+    4,
+    3,
+    1
+  ],
+  "platform_distance_bounds": [
+    250,
+    350
+  ],
+  "momentum_prob": 0.7,
+  "max_distance": 9.0,
+  "waypoint_reached_dist": 300,
+  "inner_size_probs": [
+    [
+      1,
+      0.1
+    ],
+    [
+      2,
+      0.9
+    ]
+  ],
+  "outer_margin_probs": [
+    [
+      2,
+      1.0
+    ]
+  ],
+  "waypoints": [
+    {
+      "x": 250,
+      "y": 250
+    },
+    {
+      "x": 250,
+      "y": 150
+    },
+    {
+      "x": 50,
+      "y": 150
+    },
+    {
+      "x": 50,
+      "y": 50
+    },
+    {
+      "x": 250,
+      "y": 50
+    }
+  ]
+}
