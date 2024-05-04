@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+    str::FromStr,
+};
 
 const STEPS_PER_FRAME: usize = 50;
 
@@ -10,6 +14,7 @@ use crate::{
     random::Seed,
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
+use itertools::Itertools;
 use std::env;
 
 use macroquad::input::{
@@ -86,12 +91,21 @@ pub struct Editor {
 
     /// whether to show the GenerationConfig settings
     pub edit_preset: bool,
+
+    /// asd
+    pub visualize_debug_layers: HashMap<&'static str, bool>,
 }
 
 impl Editor {
     pub fn new(config: GenerationConfig) -> Editor {
         let configs: HashMap<String, GenerationConfig> = GenerationConfig::get_configs();
         let gen = Generator::new(&config, Seed::from_u64(0)); // TODO: overwritten anyways? Option?
+
+        let mut visualize_debug_layers: HashMap<&'static str, bool> = HashMap::new();
+        for layer_name in gen.debug_layers.keys() {
+            visualize_debug_layers.insert(layer_name, false);
+        }
+
         Editor {
             state: EditorState::Paused(PausedState::Setup),
             configs,
@@ -110,6 +124,7 @@ impl Editor {
             auto_generate: false,
             fixed_seed: false,
             edit_preset: false,
+            visualize_debug_layers,
         }
     }
 

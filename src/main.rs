@@ -111,13 +111,12 @@ async fn main() {
 
         draw_waypoints(&editor.config.waypoints);
 
-        for (_, debug_layer) in editor.gen.debug_layers.iter() {
-            draw_bool_grid(&debug_layer.grid, &debug_layer.color, &debug_layer.outline)
+        // draw debug layers
+        for (layer_name, debug_layer) in editor.gen.debug_layers.iter() {
+            if *editor.visualize_debug_layers.get(layer_name).unwrap() {
+                draw_bool_grid(&debug_layer.grid, &debug_layer.color, &debug_layer.outline)
+            }
         }
-
-        // if let Some(edge_bugs) = &edge_bugs {
-        //     draw_bool_grid(edge_bugs, Color::new(1.0, 0.0, 0.0, 0.1));
-        // }
 
         egui_macroquad::draw();
 

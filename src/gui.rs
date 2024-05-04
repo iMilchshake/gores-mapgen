@@ -1,4 +1,4 @@
-use std::{env, isize};
+use std::{collections::HashMap, env, isize};
 
 use egui::RichText;
 use tinyfiledialogs;
@@ -63,6 +63,29 @@ pub fn vec_edit_widget<T, F>(
                         };
                     });
                 };
+            });
+        });
+}
+
+pub fn hashmap_edit_widget<T, F>(
+    ui: &mut Ui,
+    hashmap: &mut HashMap<&'static str, T>,
+    edit_element: F,
+    label: &str,
+    collapsed: bool,
+) where
+    F: Fn(&mut Ui, &mut T),
+{
+    CollapsingHeader::new(label)
+        .default_open(!collapsed)
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                for (val1, val2) in hashmap.iter_mut() {
+                    ui.horizontal(|ui| {
+                        ui.label(val1.to_string());
+                        edit_element(ui, val2);
+                    });
+                }
             });
         });
 }
@@ -162,6 +185,10 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
     });
 }
 
+pub fn edit_bool(ui: &mut Ui, value: &mut bool) {
+    ui.add(egui::Checkbox::new(value, ""));
+}
+
 pub fn sidebar(ctx: &Context, editor: &mut Editor) {
     egui::SidePanel::right("right_panel").show(ctx, |ui| {
         // =======================================[ STATE CONTROL ]===================================
@@ -232,7 +259,17 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             });
         }
         ui.separator();
+        // =======================================[ DEBUG LAYERS ]===================================
 
+        hashmap_edit_widget(
+            ui,
+            &mut editor.visualize_debug_layers,
+            edit_bool,
+            "debug layers",
+            false,
+        );
+
+        ui.separator();
         // =======================================[ CONFIG STORAGE ]===================================
         ui.label("load/save config files:");
         ui.horizontal(|ui| {

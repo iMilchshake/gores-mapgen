@@ -1,4 +1,3 @@
-
 use crate::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
 use macroquad::color::colors;
 use macroquad::color::Color;
@@ -32,9 +31,9 @@ pub fn draw_bool_grid(grid: &Array2<bool>, color: &Color, outline: &bool) {
     for ((x, y), value) in grid.indexed_iter() {
         if *value {
             if *outline {
-                draw_rectangle(x as f32, y as f32, 1.0, 1.0, *color);
-            } else {
                 draw_rectangle_lines(x as f32, y as f32, 1.0, 1.0, 0.1, *color);
+            } else {
+                draw_rectangle(x as f32, y as f32, 1.0, 1.0, *color);
             }
         }
     }
