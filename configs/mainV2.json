@@ -1,53 +1,45 @@
 {
-  "name": "hardV2",
+  "name": "mainV2",
   "description": null,
-  "inner_rad_mut_prob": 1.0,
-  "inner_size_mut_prob": 0.75,
-  "outer_rad_mut_prob": 0.85,
-  "outer_size_mut_prob": 0.65,
+  "inner_rad_mut_prob": 0.67,
+  "inner_size_mut_prob": 0.6,
+  "outer_rad_mut_prob": 0.55,
+  "outer_size_mut_prob": 0.8,
   "shift_weights": [
     20,
-    14,
-    13,
-    4
+    9,
+    8,
+    5
   ],
   "platform_distance_bounds": [
-    250,
-    350
+    400,
+    500
   ],
-  "momentum_prob": 0.6,
-  "max_distance": 9.0,
-  "waypoint_reached_dist": 300,
+  "momentum_prob": 0.5,
+  "max_distance": 4.0,
+  "waypoint_reached_dist": 517,
   "inner_size_probs": [
     [
-      1,
-      0.061715517
-    ],
-    [
-      2,
-      0.7115598
+      4,
+      0.15000002
     ],
     [
       3,
-      0.2
+      0.84391177
     ],
     [
-      4,
-      0.026724687
+      11,
+      0.0060882242
     ]
   ],
   "outer_margin_probs": [
     [
       2,
-      0.97118473
+      0.9742896
     ],
     [
       4,
-      0.025719268
-    ],
-    [
-      6,
-      0.0030960215
+      0.02571042
     ]
   ],
   "waypoints": [
