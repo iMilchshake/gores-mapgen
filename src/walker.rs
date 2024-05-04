@@ -6,7 +6,7 @@ use crate::{
     random::Random,
 };
 
-use derivative;
+
 
 // this walker is indeed very cute
 #[derive(Debug)]

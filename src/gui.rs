@@ -213,7 +213,6 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     egui::TextEdit::singleline(&mut editor.user_seed.seed_str).desired_width(150.0);
                 if ui.add(text_edit).changed() {
                     editor.user_seed.seed_u64 = Seed::str_to_u64(&editor.user_seed.seed_str);
-                    dbg!(&editor.user_seed);
                 }
             });
 
@@ -222,11 +221,15 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 if edit_u64_textfield(ui, &mut editor.user_seed.seed_u64).changed() {
                     editor.user_seed.seed_str = String::new();
-                    dbg!(&editor.user_seed);
                 }
             });
 
-            ui.checkbox(&mut editor.fixed_seed, "fixed seed");
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut editor.fixed_seed, "fixed seed");
+                if ui.button("save map").clicked() {
+                    editor.save_map_dialog();
+                }
+            });
         }
         ui.separator();
 

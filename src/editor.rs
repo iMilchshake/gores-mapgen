@@ -1,8 +1,4 @@
-use std::collections::HashMap;
-
-
-
-
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 const STEPS_PER_FRAME: usize = 50;
 
@@ -14,6 +10,7 @@ use crate::{
     random::Seed,
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
+use std::env;
 
 use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
@@ -235,7 +232,19 @@ impl Editor {
         self.cam = Some(cam);
     }
 
+    pub fn save_map_dialog(&self) {
+        let cwd = env::current_dir().unwrap();
+        let initial_path = cwd.join("name.map").to_string_lossy().to_string();
+        if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
+            self.gen.map.export(&PathBuf::from_str(&path_out).unwrap());
+        }
+    }
+
     pub fn handle_user_inputs(&mut self) {
+        if is_key_pressed(KeyCode::E) {
+            self.save_map_dialog();
+        }
+
         if is_key_pressed(KeyCode::R) {
             self.zoom = 1.0;
             self.offset = Vec2::ZERO;

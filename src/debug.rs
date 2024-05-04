@@ -1,6 +1,6 @@
 use crate::map::Map;
 use macroquad::color::Color;
-use ndarray::{s, Array2, ShapeBuilder};
+use ndarray::{Array2};
 
 /// Allows storing various debug information
 #[derive(Debug)]
