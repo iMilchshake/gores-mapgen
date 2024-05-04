@@ -57,6 +57,17 @@ pub struct GenerationConfig {
 }
 
 impl GenerationConfig {
+    /// returns an error if the configuration would result in a crash
+    pub fn validate(&self) -> Result<(), &'static str> {
+        // 1. Check that there is no inner kernel size of 0
+        for (inner_size, _) in self.inner_size_probs.iter() {
+            if *inner_size == 0 {
+                return Err("Invalid Config! (inner_size = 0)");
+            }
+        }
+        Ok(())
+    }
+
     /// stores GenerationConfig in cwd as <name>.json
     pub fn save(&self, path: &str) {
         let mut file = File::create(path).expect("failed to create config file");

@@ -58,7 +58,7 @@ pub fn vec_edit_widget<T, F>(
                             vec.push(Default::default());
                         };
 
-                        if ui.button("-").clicked() && !vec.is_empty() {
+                        if ui.button("-").clicked() && vec.len() > 1 {
                             vec.pop();
                         };
                     });
@@ -304,27 +304,27 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 true,
             );
 
-            vec_edit_widget(
-                ui,
-                &mut editor.config.inner_size_probs,
-                edit_probability_tuple,
-                "inner size probs",
-                true,
-                false,
-            );
-            normalize_probs(&mut editor.config.inner_size_probs);
+            ui.add_enabled_ui(editor.is_setup(), |ui| {
+                vec_edit_widget(
+                    ui,
+                    &mut editor.config.inner_size_probs,
+                    edit_probability_tuple,
+                    "inner size probs",
+                    true,
+                    false,
+                );
+                normalize_probs(&mut editor.config.inner_size_probs);
 
-            vec_edit_widget(
-                ui,
-                &mut editor.config.outer_margin_probs,
-                edit_probability_tuple,
-                "outer margin probs",
-                true,
-                false,
-            );
-            normalize_probs(&mut editor.config.outer_margin_probs);
-
-            ui.separator();
+                vec_edit_widget(
+                    ui,
+                    &mut editor.config.outer_margin_probs,
+                    edit_probability_tuple,
+                    "outer margin probs",
+                    true,
+                    false,
+                );
+                normalize_probs(&mut editor.config.outer_margin_probs);
+            });
 
             field_edit_widget(
                 ui,
@@ -359,7 +359,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             );
 
             // only show these in setup mode
-            ui.add_visible_ui(editor.is_setup(), |ui| {
+            ui.add_enabled_ui(editor.is_setup(), |ui| {
                 vec_edit_widget(
                     ui,
                     &mut editor.config.waypoints,

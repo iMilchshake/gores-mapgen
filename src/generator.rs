@@ -28,9 +28,8 @@ impl Generator {
     pub fn new(config: &GenerationConfig, seed: Seed) -> Generator {
         let spawn = Position::new(50, 250);
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
-        let inner_size = config.inner_size_probs[0].0; // TODO: better initial?
-        let init_inner_kernel = Kernel::new(inner_size, 0.0);
-        let init_outer_kernel = Kernel::new(inner_size + 2, 0.0);
+        let init_inner_kernel = Kernel::new(5, 0.0);
+        let init_outer_kernel = Kernel::new(7, 0.0);
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
         let rnd = Random::new(seed, config);
 
@@ -52,6 +51,9 @@ impl Generator {
         }
 
         if !self.walker.finished {
+            // validate config - TODO: add build flag which skips this?
+            config.validate()?;
+
             // randomly mutate kernel
             self.walker.mutate_kernel(config, &mut self.rnd);
 
