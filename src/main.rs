@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use gores_mapgen_rust::{
-    config::GenerationConfig, editor::*, fps_control::*, grid_render::*, map::*,
+    config::GenerationConfig, editor::*, fps_control::*, map::*, rendering::*,
 };
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
@@ -110,6 +110,10 @@ async fn main() {
         draw_walker(&editor.gen.walker);
 
         draw_waypoints(&editor.config.waypoints);
+
+        for (_, debug_layer) in editor.gen.debug_layers.iter() {
+            draw_bool_grid(&debug_layer.grid, &debug_layer.color, &debug_layer.outline)
+        }
 
         // if let Some(edge_bugs) = &edge_bugs {
         //     draw_bool_grid(edge_bugs, Color::new(1.0, 0.0, 0.0, 0.1));

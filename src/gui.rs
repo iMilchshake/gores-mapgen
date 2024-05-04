@@ -396,5 +396,7 @@ pub fn debug_window(ctx: &Context, editor: &mut Editor) {
             ui.add(Label::new(format!("seed: {:?}", editor.user_seed)));
 
             ui.add(Label::new(format!("config: {:?}", &editor.config)));
+
+            ui.add(Label::new(format!("walker: {:?}", &editor.gen.walker)));
         });
 }

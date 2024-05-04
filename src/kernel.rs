@@ -1,10 +1,14 @@
+use derivative::Derivative;
 use ndarray::Array2;
 
-#[derive(Debug, Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct Kernel {
     pub size: usize,
     pub circularity: f32,
     pub radius: f32,
+
+    #[derivative(Debug = "ignore")]
     pub vector: Array2<bool>,
 }
 
@@ -31,7 +35,6 @@ impl Kernel {
 
     pub fn circularity_to_radius(kernel_size: usize, circularity: f32) -> f32 {
         let (min_radius, max_radius) = Kernel::get_valid_radius_bounds(kernel_size);
-        
 
         circularity * min_radius + (1.0 - circularity) * max_radius
     }

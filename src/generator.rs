@@ -1,5 +1,10 @@
+use std::f32::consts::SQRT_2;
+
+use std::collections::BTreeMap;
+
 use crate::{
     config::GenerationConfig,
+    debug::DebugLayer,
     kernel::Kernel,
     map::{BlockType, Map},
     position::Position,
@@ -8,12 +13,14 @@ use crate::{
 };
 
 use dt::dt_bool;
+use macroquad::color::colors;
 use ndarray::{Array2, Ix2};
 
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
     pub rnd: Random,
+    pub debug_layers: BTreeMap<&'static str, DebugLayer>,
 }
 
 impl Generator {
@@ -21,13 +28,21 @@ impl Generator {
     pub fn new(config: &GenerationConfig, seed: Seed) -> Generator {
         let spawn = Position::new(50, 250);
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
-        let inner_size = config.inner_size_probs[0].0; // TODO: e.g. replace this
+        let inner_size = config.inner_size_probs[0].0; // TODO: better initial?
         let init_inner_kernel = Kernel::new(inner_size, 0.0);
-        let init_outer_kernel = Kernel::new(inner_size, 0.0);
+        let init_outer_kernel = Kernel::new(inner_size + 2, 0.0);
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
         let rnd = Random::new(seed, config);
 
-        Generator { walker, map, rnd }
+        let debug_layers =
+            BTreeMap::from([("edge_bugs", DebugLayer::new(false, colors::RED, &map))]);
+
+        Generator {
+            walker,
+            map,
+            rnd,
+            debug_layers,
+        }
     }
 
     pub fn step(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
@@ -98,19 +113,27 @@ impl Generator {
         Ok(edge_bug)
     }
 
+    /// Using a distance transform this function will fill up all empty blocks that are too far
+    /// from the next solid/non-empty block
     pub fn fill_area(&mut self, max_distance: &f32) -> Array2<f32> {
         let grid = self.map.grid.map(|val| *val != BlockType::Empty);
 
+        // euclidean distance transform
         let distance = dt_bool::<f32>(&grid.into_dyn())
             .into_dimensionality::<Ix2>()
             .unwrap();
 
-        // let max = distance.fold(0.0, |v1, v2| f32::max(v1, *v2));
-
         self.map
             .grid
             .zip_mut_with(&distance, |block_type, distance| {
-                if *block_type == BlockType::Empty && *distance > *max_distance {
+                // only modify empty blocks
+                if *block_type != BlockType::Empty {
+                    return;
+                }
+
+                if *distance > *max_distance + SQRT_2 {
+                    *block_type = BlockType::Hookable;
+                } else if *distance > *max_distance {
                     *block_type = BlockType::Freeze;
                 }
             });
@@ -119,7 +142,7 @@ impl Generator {
     }
 
     pub fn post_processing(&mut self, config: &GenerationConfig) {
-        self.fix_edge_bugs().expect("fix edge bugs failed");
+        let edge_bugs = self.fix_edge_bugs().expect("fix edge bugs failed");
         self.map
             .generate_room(&self.map.spawn.clone(), 4, 3, Some(&BlockType::Start))
             .expect("start room generation failed");
@@ -128,6 +151,9 @@ impl Generator {
             .expect("start finish room generation");
 
         self.fill_area(&config.max_distance);
+
+        // set debug layers
+        self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

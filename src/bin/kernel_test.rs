@@ -1,5 +1,5 @@
 use gores_mapgen_rust::{
-    config::GenerationConfig, editor::*, fps_control::*, grid_render::*, kernel::*, position::*,
+    config::GenerationConfig, editor::*, fps_control::*, kernel::*, position::*, rendering::*,
     walker::*,
 };
 
