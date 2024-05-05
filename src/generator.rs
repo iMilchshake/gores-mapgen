@@ -7,14 +7,14 @@ use crate::{
     debug::DebugLayer,
     kernel::Kernel,
     map::{BlockType, Map},
-    position::Position,
+    position::{Position, ShiftDirection},
     random::{Random, Seed},
     walker::CuteWalker,
 };
 
 use dt::dt_bool;
 use macroquad::color::colors;
-use ndarray::{Array2, Ix2};
+use ndarray::{s, Array, Array2, IndexLonger, Ix2};
 
 pub struct Generator {
     pub walker: CuteWalker,
@@ -33,8 +33,10 @@ impl Generator {
         let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
         let rnd = Random::new(seed, config);
 
-        let debug_layers =
-            BTreeMap::from([("edge_bugs", DebugLayer::new(false, colors::RED, &map))]);
+        let debug_layers = BTreeMap::from([
+            ("edge_bugs", DebugLayer::new(true, colors::RED, &map)),
+            ("corners", DebugLayer::new(true, colors::BLUE, &map)),
+        ]);
 
         Generator {
             walker,
@@ -51,7 +53,6 @@ impl Generator {
         }
 
         if !self.walker.finished {
-            // validate config - TODO: add build flag which skips this?
             config.validate()?;
 
             // randomly mutate kernel
@@ -100,6 +101,7 @@ impl Generator {
                                 if *neighbor_value == BlockType::Hookable {
                                     edge_bug[[x, y]] = true;
                                     // break;
+                                    // TODO: this should be easy to optimize
                                 }
                             }
                         }
@@ -143,6 +145,63 @@ impl Generator {
         distance
     }
 
+    pub fn find_corners(&self) -> Result<Array2<bool>, &'static str> {
+        let mut corners_grid = Array2::from_elem((self.map.width, self.map.height), false);
+
+        // stores a list of corner candidates and the respective direction to the wall
+        let mut corner_candidates: Vec<(Position, ShiftDirection)> = Vec::new();
+
+        let width = self.map.width;
+        let height = self.map.height;
+
+        let window_size = 2; // 2 -> 5x5 windows
+
+        for window_x in window_size..(width - window_size) {
+            for window_y in window_size..(height - window_size) {
+                let window = &self.map.grid.slice(s![
+                    window_x - window_size..=window_x + window_size,
+                    window_y - window_size..=window_y + window_size
+                ]);
+
+                if window[[2, 2]] != BlockType::Empty {
+                    continue;
+                }
+
+                if [
+                    &window[[2, 3]],
+                    &window[[3, 0]],
+                    &window[[3, 1]],
+                    &window[[3, 2]],
+                    &window[[3, 3]],
+                ]
+                .iter()
+                .all(|&val| *val == BlockType::Freeze)
+                {
+                    corners_grid[[window_x, window_y]] = true;
+                    corner_candidates
+                        .push((Position::new(window_x, window_y), ShiftDirection::Left));
+                    continue;
+                }
+
+                if [
+                    &window[[2, 3]],
+                    &window[[1, 0]],
+                    &window[[1, 1]],
+                    &window[[1, 2]],
+                    &window[[1, 3]],
+                ]
+                .iter()
+                .all(|&val| *val == BlockType::Freeze)
+                {
+                    corners_grid[[window_x, window_y]] = true;
+                    continue;
+                }
+            }
+        }
+
+        Ok(corners_grid)
+    }
+
     pub fn post_processing(&mut self, config: &GenerationConfig) {
         let edge_bugs = self.fix_edge_bugs().expect("fix edge bugs failed");
         self.map
@@ -154,8 +213,14 @@ impl Generator {
 
         self.fill_area(&config.max_distance);
 
+        let corners = self.find_corners().expect("corners failed");
+
+        let corner_count = corners.iter().filter(|&&val| val).count();
+        dbg!(corner_count);
+
         // set debug layers
         self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
+        self.debug_layers.get_mut("corners").unwrap().grid = corners;
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.
