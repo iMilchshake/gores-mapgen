@@ -36,6 +36,7 @@ impl Generator {
         let debug_layers = BTreeMap::from([
             ("edge_bugs", DebugLayer::new(true, colors::RED, &map)),
             ("corners", DebugLayer::new(true, colors::BLUE, &map)),
+            ("corner_ends", DebugLayer::new(true, colors::GREEN, &map)),
         ]);
 
         Generator {
@@ -145,10 +146,8 @@ impl Generator {
         distance
     }
 
-    pub fn find_corners(&self) -> Result<Array2<bool>, &'static str> {
-        let mut corners_grid = Array2::from_elem((self.map.width, self.map.height), false);
-
-        // stores a list of corner candidates and the respective direction to the wall
+    // returns a vec of corner candidates and their respective direction to the wall
+    pub fn find_corners(&self) -> Result<Vec<(Position, ShiftDirection)>, &'static str> {
         let mut corner_candidates: Vec<(Position, ShiftDirection)> = Vec::new();
 
         let width = self.map.width;
@@ -177,7 +176,6 @@ impl Generator {
                 .iter()
                 .all(|&val| *val == BlockType::Freeze)
                 {
-                    corners_grid[[window_x, window_y]] = true;
                     corner_candidates
                         .push((Position::new(window_x, window_y), ShiftDirection::Left));
                     continue;
@@ -193,13 +191,60 @@ impl Generator {
                 .iter()
                 .all(|&val| *val == BlockType::Freeze)
                 {
-                    corners_grid[[window_x, window_y]] = true;
+                    corner_candidates
+                        .push((Position::new(window_x, window_y), ShiftDirection::Left));
                     continue;
                 }
             }
         }
 
-        Ok(corners_grid)
+        Ok(corner_candidates)
+    }
+
+    /// if a skip has been found, this returns the end position
+    pub fn check_corner_skip(
+        &self,
+        init_pos: &Position,
+        shift: &ShiftDirection,
+        tunnel_bounds: (usize, usize),
+    ) -> Option<Position> {
+        // TODO: respect lower bound
+        let mut pos = init_pos.clone();
+
+        let mut skip_length = 0;
+        let mut stage = 0;
+        while stage != 4 && skip_length < tunnel_bounds.1 {
+            // shift into given direction, abort if invalid shift
+            if pos.shift_in_direction(shift, &self.map).is_err() {
+                return None;
+            };
+            let curr_block_type = self.map.grid.get(pos.as_index()).unwrap();
+
+            stage = match (stage, curr_block_type) {
+                // proceed to / or stay in stage 1 if freeze is found
+                (0 | 1, BlockType::Freeze) => 1,
+
+                // proceed to / or stay in stage 2 if hookable is found
+                (1 | 2, BlockType::Hookable) => 2,
+
+                // proceed to / or stay in stage 2 if freeze is found
+                (2 | 3, BlockType::Freeze) => 3,
+
+                // proceed to final state if (first) empty block is found
+                (3, BlockType::Empty) => 4,
+
+                // no match -> invalid sequence, abort!
+                _ => return None,
+            };
+
+            skip_length += 1;
+        }
+
+        if stage == 4 {
+            Some(pos)
+        } else {
+            None
+        }
     }
 
     pub fn post_processing(&mut self, config: &GenerationConfig) {
@@ -213,14 +258,27 @@ impl Generator {
 
         self.fill_area(&config.max_distance);
 
-        let corners = self.find_corners().expect("corners failed");
+        let corner_candidates = self.find_corners().expect("corners failed");
 
-        let corner_count = corners.iter().filter(|&&val| val).count();
-        dbg!(corner_count);
+        let corners_grid = &mut self.debug_layers.get_mut("corners").unwrap().grid;
+        for (pos, _) in &corner_candidates {
+            corners_grid[pos.as_index()] = true;
+        }
+
+        for (pos, shift) in &corner_candidates {
+            if let Some(end_pos) = self.check_corner_skip(pos, shift, (3, 15)) {
+                *self
+                    .debug_layers
+                    .get_mut("corner_ends")
+                    .unwrap()
+                    .grid
+                    .get_mut(end_pos.as_index())
+                    .unwrap() = true;
+            }
+        }
 
         // set debug layers
         self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
-        self.debug_layers.get_mut("corners").unwrap().grid = corners;
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.
