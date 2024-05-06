@@ -18,6 +18,10 @@ use dt::dt_bool;
 use macroquad::color::colors;
 use ndarray::{s, Array, Array2, IndexLonger, Ix2};
 
+pub fn is_freeze(block_type: &&BlockType) -> bool {
+    **block_type == BlockType::Freeze
+}
+
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
@@ -150,7 +154,7 @@ impl Generator {
 
     // returns a vec of corner candidates and their respective direction to the wall
     pub fn find_corners(&self) -> Result<Vec<(Position, ShiftDirection)>, &'static str> {
-        let mut corner_candidates: Vec<(Position, ShiftDirection)> = Vec::new();
+        let mut candidates: Vec<(Position, ShiftDirection)> = Vec::new();
 
         let width = self.map.width;
         let height = self.map.height;
@@ -168,39 +172,106 @@ impl Generator {
                     continue;
                 }
 
-                if [
-                    &window[[2, 3]],
-                    &window[[3, 0]],
-                    &window[[3, 1]],
-                    &window[[3, 2]],
-                    &window[[3, 3]],
-                ]
-                .iter()
-                .all(|&val| *val == BlockType::Freeze)
-                {
-                    corner_candidates
-                        .push((Position::new(window_x, window_y), ShiftDirection::Left));
-                    continue;
-                }
+                let shapes = [
+                    // R1
+                    (
+                        [
+                            &window[[2, 3]],
+                            &window[[3, 0]],
+                            &window[[3, 1]],
+                            &window[[3, 2]],
+                            &window[[3, 3]],
+                        ],
+                        ShiftDirection::Right,
+                    ),
+                    // R2
+                    (
+                        [
+                            &window[[2, 1]],
+                            &window[[3, 1]],
+                            &window[[3, 2]],
+                            &window[[3, 3]],
+                            &window[[3, 4]],
+                        ],
+                        ShiftDirection::Right,
+                    ),
+                    // L1
+                    (
+                        [
+                            &window[[2, 3]],
+                            &window[[1, 0]],
+                            &window[[1, 1]],
+                            &window[[1, 2]],
+                            &window[[1, 3]],
+                        ],
+                        ShiftDirection::Left,
+                    ),
+                    // L2
+                    (
+                        [
+                            &window[[2, 1]],
+                            &window[[1, 1]],
+                            &window[[1, 2]],
+                            &window[[1, 3]],
+                            &window[[1, 4]],
+                        ],
+                        ShiftDirection::Left,
+                    ),
+                    // U1
+                    (
+                        [
+                            &window[[3, 2]],
+                            &window[[0, 1]],
+                            &window[[1, 1]],
+                            &window[[2, 1]],
+                            &window[[3, 1]],
+                        ],
+                        ShiftDirection::Up,
+                    ),
+                    // U2
+                    (
+                        [
+                            &window[[1, 2]],
+                            &window[[1, 1]],
+                            &window[[2, 1]],
+                            &window[[3, 1]],
+                            &window[[4, 1]],
+                        ],
+                        ShiftDirection::Up,
+                    ),
+                    // D1
+                    (
+                        [
+                            &window[[3, 2]],
+                            &window[[0, 3]],
+                            &window[[1, 3]],
+                            &window[[2, 3]],
+                            &window[[3, 3]],
+                        ],
+                        ShiftDirection::Down,
+                    ),
+                    // D2
+                    (
+                        [
+                            &window[[1, 2]],
+                            &window[[1, 3]],
+                            &window[[2, 3]],
+                            &window[[3, 3]],
+                            &window[[4, 3]],
+                        ],
+                        ShiftDirection::Down,
+                    ),
+                ];
 
-                if [
-                    &window[[2, 3]],
-                    &window[[1, 0]],
-                    &window[[1, 1]],
-                    &window[[1, 2]],
-                    &window[[1, 3]],
-                ]
-                .iter()
-                .all(|&val| *val == BlockType::Freeze)
-                {
-                    corner_candidates
-                        .push((Position::new(window_x, window_y), ShiftDirection::Left));
-                    continue;
+                for (shape, dir) in shapes {
+                    if shape.iter().all(is_freeze) {
+                        candidates.push((Position::new(window_x, window_y), dir));
+                    }
                 }
             }
         }
 
-        Ok(corner_candidates)
+        Ok(candidates)
     }
 
     /// if a skip has been found, this returns the end position
@@ -249,7 +320,12 @@ impl Generator {
         }
     }
 
-    pub fn generate_skips(&mut self, start_pos: &Position, end_pos: &Position) {
+    pub fn generate_skip(
+        &mut self,
+        start_pos: &Position,
+        end_pos: &Position,
+        shift: &ShiftDirection,
+    ) {
         let top_left = Position::new(
             usize::min(start_pos.x, end_pos.x),
             usize::min(start_pos.y, end_pos.y),
@@ -265,18 +341,37 @@ impl Generator {
             &BlockType::Empty,
             &Overwrite::ReplaceSolidFreeze,
         );
-        self.map.set_area(
-            &top_left.shifted_by(0, -1).unwrap(),
-            &bot_right.shifted_by(0, -1).unwrap(),
-            &BlockType::Freeze,
-            &Overwrite::ReplaceSolidOnly,
-        );
-        self.map.set_area(
-            &top_left.shifted_by(0, 1).unwrap(),
-            &bot_right.shifted_by(0, 1).unwrap(),
-            &BlockType::Freeze,
-            &Overwrite::ReplaceSolidOnly,
-        );
+
+        match shift {
+            ShiftDirection::Left | ShiftDirection::Right => {
+                self.map.set_area(
+                    &top_left.shifted_by(0, -1).unwrap(),
+                    &bot_right.shifted_by(0, -1).unwrap(),
+                    &BlockType::Freeze,
+                    &Overwrite::ReplaceSolidOnly,
+                );
+                self.map.set_area(
+                    &top_left.shifted_by(0, 1).unwrap(),
+                    &bot_right.shifted_by(0, 1).unwrap(),
+                    &BlockType::Freeze,
+                    &Overwrite::ReplaceSolidOnly,
+                );
+            }
+            ShiftDirection::Up | ShiftDirection::Down => {
+                self.map.set_area(
+                    &top_left.shifted_by(-1, 0).unwrap(),
+                    &bot_right.shifted_by(-1, 0).unwrap(),
+                    &BlockType::Freeze,
+                    &Overwrite::ReplaceSolidOnly,
+                );
+                self.map.set_area(
+                    &top_left.shifted_by(1, 0).unwrap(),
+                    &bot_right.shifted_by(1, 0).unwrap(),
+                    &BlockType::Freeze,
+                    &Overwrite::ReplaceSolidOnly,
+                );
+            }
+        }
     }
 
     pub fn print_time(timer: &Timer, message: &str) {
@@ -318,7 +413,7 @@ impl Generator {
                     .get_mut(end_pos.as_index())
                     .unwrap() = true;
 
-                self.generate_skips(&pos, &end_pos);
+                self.generate_skip(&pos, &end_pos, &shift);
             }
         }
 
