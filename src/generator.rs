@@ -1,7 +1,9 @@
-use std::f32::consts::SQRT_2;
+use std::{f32::consts::SQRT_2, usize};
 
 use std::collections::BTreeMap;
+use timing::{start, Timer};
 
+use crate::map::Overwrite;
 use crate::{
     config::GenerationConfig,
     debug::DebugLayer,
@@ -247,26 +249,67 @@ impl Generator {
         }
     }
 
+    pub fn generate_skips(&mut self, start_pos: &Position, end_pos: &Position) {
+        let top_left = Position::new(
+            usize::min(start_pos.x, end_pos.x),
+            usize::min(start_pos.y, end_pos.y),
+        );
+        let bot_right = Position::new(
+            usize::max(start_pos.x, end_pos.x),
+            usize::max(start_pos.y, end_pos.y),
+        );
+
+        self.map.set_area(
+            &top_left,
+            &bot_right,
+            &BlockType::Empty,
+            &Overwrite::ReplaceSolidFreeze,
+        );
+        self.map.set_area(
+            &top_left.shifted_by(0, -1).unwrap(),
+            &bot_right.shifted_by(0, -1).unwrap(),
+            &BlockType::Freeze,
+            &Overwrite::ReplaceSolidOnly,
+        );
+        self.map.set_area(
+            &top_left.shifted_by(0, 1).unwrap(),
+            &bot_right.shifted_by(0, 1).unwrap(),
+            &BlockType::Freeze,
+            &Overwrite::ReplaceSolidOnly,
+        );
+    }
+
+    pub fn print_time(timer: &Timer, message: &str) {
+        println!("{}: {:?}", message, timer.elapsed());
+    }
+
     pub fn post_processing(&mut self, config: &GenerationConfig) {
+        let timer = Timer::start();
+
         let edge_bugs = self.fix_edge_bugs().expect("fix edge bugs failed");
+        Generator::print_time(&timer, "fix edge bugs");
+
         self.map
             .generate_room(&self.map.spawn.clone(), 4, 3, Some(&BlockType::Start))
             .expect("start room generation failed");
         self.map
             .generate_room(&self.walker.pos.clone(), 4, 3, Some(&BlockType::Finish))
             .expect("start finish room generation");
+        Generator::print_time(&timer, "place rooms");
 
         self.fill_area(&config.max_distance);
+        Generator::print_time(&timer, "place obstacles");
 
         let corner_candidates = self.find_corners().expect("corners failed");
+        Generator::print_time(&timer, "calculate corner skips");
 
         let corners_grid = &mut self.debug_layers.get_mut("corners").unwrap().grid;
         for (pos, _) in &corner_candidates {
             corners_grid[pos.as_index()] = true;
         }
 
-        for (pos, shift) in &corner_candidates {
-            if let Some(end_pos) = self.check_corner_skip(pos, shift, (3, 15)) {
+        for (pos, shift) in corner_candidates {
+            if let Some(end_pos) = self.check_corner_skip(&pos, &shift, (3, 25)) {
                 *self
                     .debug_layers
                     .get_mut("corner_ends")
@@ -274,11 +317,14 @@ impl Generator {
                     .grid
                     .get_mut(end_pos.as_index())
                     .unwrap() = true;
+
+                self.generate_skips(&pos, &end_pos);
             }
         }
 
         // set debug layers
         self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
+        Generator::print_time(&timer, "set debug layers");
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

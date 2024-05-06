@@ -35,6 +35,28 @@ impl BlockType {
     }
 }
 
+pub enum Overwrite {
+    /// will replace EVERYTHING
+    Force,
+
+    ReplaceSolidFreeze,
+    ReplaceSolidOnly,
+    ReplaceEmptyOnly,
+}
+
+impl Overwrite {
+    fn will_override(&self, btype: &BlockType) -> bool {
+        match self {
+            Overwrite::Force => true,
+            Overwrite::ReplaceSolidFreeze => {
+                matches!(&btype, BlockType::Hookable | BlockType::Freeze)
+            }
+            Overwrite::ReplaceSolidOnly => matches!(&btype, BlockType::Hookable),
+            Overwrite::ReplaceEmptyOnly => matches!(&btype, BlockType::Empty),
+        }
+    }
+}
+
 pub enum KernelType {
     Outer,
     Inner,
@@ -157,7 +179,7 @@ impl Map {
             &pos.shifted_by(-room_size, -room_size)?,
             &pos.shifted_by(room_size, room_size)?,
             &BlockType::Empty,
-            true,
+            &Overwrite::Force,
         );
 
         // set platform
@@ -165,7 +187,7 @@ impl Map {
             &pos.shifted_by(-(room_size - platform_margin), room_size - 2)?,
             &pos.shifted_by(room_size - platform_margin, room_size - 2)?,
             &BlockType::Platform,
-            true,
+            &Overwrite::Force,
         );
 
         // set spawns
@@ -174,7 +196,7 @@ impl Map {
                 &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
                 &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
                 &BlockType::Spawn,
-                true,
+                &Overwrite::Force,
             );
         }
         // set start/finish line
@@ -183,7 +205,7 @@ impl Map {
                 &pos.shifted_by(-room_size - 1, -room_size - 1)?,
                 &pos.shifted_by(room_size + 1, room_size + 1)?,
                 zone_type,
-                false,
+                &Overwrite::ReplaceEmptyOnly,
             );
         }
 
@@ -236,14 +258,14 @@ impl Map {
         Ok(area.iter().all(|block| block == value))
     }
 
-    // TODO: right now override is hardcoded to overide empty AND freeze. i might need some
-    // distiction here in the future :)
+    /// TODO: right now this function is hardcoded to overide empty AND freeze by default.
+    /// via the override argument all values can be overwritten
     pub fn set_area(
         &mut self,
         top_left: &Position,
         bot_right: &Position,
         value: &BlockType,
-        overide: bool,
+        overide: &Overwrite,
     ) {
         if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
             return;
@@ -256,8 +278,7 @@ impl Map {
             .slice_mut(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
         for ((x, y), current_value) in view.indexed_iter_mut() {
-            if overide || *current_value == BlockType::Empty || *current_value == BlockType::Freeze
-            {
+            if overide.will_override(&current_value) {
                 *current_value = value.clone();
 
                 let chunk_pos =
@@ -273,14 +294,14 @@ impl Map {
         top_left: &Position,
         bot_right: &Position,
         value: &BlockType,
-        overide: bool,
+        overwrite: &Overwrite,
     ) {
         let top_right = Position::new(bot_right.x, top_left.y);
         let bot_left = Position::new(top_left.x, bot_right.y);
 
-        self.set_area(top_left, &top_right, value, overide);
-        self.set_area(&top_right, bot_right, value, overide);
-        self.set_area(top_left, &bot_left, value, overide);
-        self.set_area(&bot_left, bot_right, value, overide);
+        self.set_area(top_left, &top_right, value, overwrite);
+        self.set_area(&top_right, bot_right, value, overwrite);
+        self.set_area(top_left, &bot_left, value, overwrite);
+        self.set_area(&bot_left, bot_right, value, overwrite);
     }
 }

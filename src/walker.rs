@@ -1,12 +1,10 @@
 use crate::{
     config::GenerationConfig,
     kernel::Kernel,
-    map::{BlockType, KernelType, Map},
+    map::{BlockType, KernelType, Map, Overwrite},
     position::{Position, ShiftDirection},
     random::Random,
 };
-
-
 
 // this walker is indeed very cute
 #[derive(Debug)]
@@ -100,7 +98,7 @@ impl CuteWalker {
                 &walker_pos.shifted_by(-1, 0)?,
                 &walker_pos.shifted_by(1, 0)?,
                 &BlockType::Platform,
-                true,
+                &Overwrite::ReplaceSolidFreeze,
             );
             self.steps_since_platform = 0;
         }
