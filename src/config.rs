@@ -52,6 +52,12 @@ pub struct GenerationConfig {
     /// probabilities for (outer_kernel_margin, probability)
     pub outer_margin_probs: Vec<(usize, f32)>,
 
+    // (min, max) distance for skips
+    pub skip_length_bounds: (usize, usize),
+
+    // min distance between skips
+    pub skip_min_spacing_sqr: usize,
+
     // ------- TODO: these should go somewhere else -----
     pub waypoints: Vec<Position>,
 }
@@ -121,6 +127,8 @@ impl Default for GenerationConfig {
             waypoint_reached_dist: 250,
             inner_size_probs: vec![(3, 0.25), (5, 0.75)],
             outer_margin_probs: vec![(0, 0.5), (2, 0.5)],
+            skip_min_spacing_sqr: 18,
+            skip_length_bounds: (4, 15),
         }
     }
 }

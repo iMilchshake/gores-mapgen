@@ -1,7 +1,7 @@
 use std::{f32::consts::SQRT_2, usize};
 
 use std::collections::BTreeMap;
-use timing::{start, Timer};
+use timing::Timer;
 
 use crate::map::Overwrite;
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
 
 use dt::dt_bool;
 use macroquad::color::colors;
-use ndarray::{s, Array, Array2, IndexLonger, Ix2};
+use ndarray::{s, Array2, Ix2};
 
 pub fn is_freeze(block_type: &&BlockType) -> bool {
     **block_type == BlockType::Freeze
@@ -280,8 +280,7 @@ impl Generator {
         init_pos: &Position,
         shift: &ShiftDirection,
         tunnel_bounds: (usize, usize),
-    ) -> Option<Position> {
-        // TODO: respect lower bound
+    ) -> Option<(Position, usize)> {
         let mut pos = init_pos.clone();
 
         let mut skip_length = 0;
@@ -313,8 +312,8 @@ impl Generator {
             skip_length += 1;
         }
 
-        if stage == 4 {
-            Some(pos)
+        if stage == 4 && skip_length > tunnel_bounds.0 {
+            Some((pos, skip_length))
         } else {
             None
         }
@@ -374,6 +373,53 @@ impl Generator {
         }
     }
 
+    pub fn get_all_valid_skips(&mut self, length_bounds: (usize, usize), min_spacing_sqr: usize) {
+        // get corner candidates
+        let corner_candidates = self.find_corners().expect("corner detection failed");
+
+        // get possible skips
+        let mut skips: Vec<(Position, Position, ShiftDirection, usize)> = Vec::new();
+        for (start_pos, shift) in corner_candidates {
+            if let Some((end_pos, length)) =
+                self.check_corner_skip(&start_pos, &shift, length_bounds)
+            {
+                skips.push((start_pos.clone(), end_pos, shift.clone(), length));
+            }
+        }
+
+        // pick final selection of skips
+        skips.sort_unstable_by(|s1, s2| usize::cmp(&s1.3, &s2.3)); // sort by length
+        let mut valid_skips = vec![true; skips.len()];
+        for skip_index in 0..skips.len() {
+            // skip if already invalidated
+            if !valid_skips[skip_index] {
+                continue;
+            }
+
+            // skip is valid -> invalidate all following conflicting skips
+            let (start, end, _, _) = &skips[skip_index];
+            for other_index in (skip_index + 1)..skips.len() {
+                let (other_start, other_end, _, _) = &skips[other_index];
+
+                if start.distance_squared(other_start) < min_spacing_sqr
+                    || start.distance_squared(other_end) < min_spacing_sqr
+                    || end.distance_squared(other_start) < min_spacing_sqr
+                    || end.distance_squared(other_start) < min_spacing_sqr
+                {
+                    valid_skips[other_index] = false;
+                }
+            }
+        }
+
+        // generate all remaining valid skips
+        for skip_index in 0..skips.len() {
+            if valid_skips[skip_index] {
+                let (start, end, shift, _) = &skips[skip_index];
+                self.generate_skip(start, end, shift);
+            }
+        }
+    }
+
     pub fn print_time(timer: &Timer, message: &str) {
         println!("{}: {:?}", message, timer.elapsed());
     }
@@ -395,27 +441,27 @@ impl Generator {
         self.fill_area(&config.max_distance);
         Generator::print_time(&timer, "place obstacles");
 
-        let corner_candidates = self.find_corners().expect("corners failed");
-        Generator::print_time(&timer, "calculate corner skips");
+        self.get_all_valid_skips(config.skip_length_bounds, config.skip_min_spacing_sqr);
 
-        let corners_grid = &mut self.debug_layers.get_mut("corners").unwrap().grid;
-        for (pos, _) in &corner_candidates {
-            corners_grid[pos.as_index()] = true;
-        }
+        // debug layers
+        // let corners_grid = &mut self.debug_layers.get_mut("corners").unwrap().grid;
+        // for (pos, _) in &corner_candidates {
+        //     corners_grid[pos.as_index()] = true;
+        // }
 
-        for (pos, shift) in corner_candidates {
-            if let Some(end_pos) = self.check_corner_skip(&pos, &shift, (3, 25)) {
-                *self
-                    .debug_layers
-                    .get_mut("corner_ends")
-                    .unwrap()
-                    .grid
-                    .get_mut(end_pos.as_index())
-                    .unwrap() = true;
-
-                self.generate_skip(&pos, &end_pos, &shift);
-            }
-        }
+        // for (pos, shift) in corner_candidates {
+        //     if let Some(end_pos) = self.check_corner_skip(&pos, &shift, (4, 15)) {
+        //         *self
+        //             .debug_layers
+        //             .get_mut("corner_ends")
+        //             .unwrap()
+        //             .grid
+        //             .get_mut(end_pos.as_index())
+        //             .unwrap() = true;
+        //
+        //         self.generate_skip(&pos, &end_pos, &shift);
+        //     }
+        // }
 
         // set debug layers
         self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;

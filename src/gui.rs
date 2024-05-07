@@ -418,6 +418,22 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     true,
                 );
             });
+
+            field_edit_widget(
+                ui,
+                &mut editor.config.skip_length_bounds,
+                edit_range_usize,
+                "skip length bounds",
+                true,
+            );
+
+            field_edit_widget(
+                ui,
+                &mut editor.config.skip_min_spacing_sqr,
+                edit_usize,
+                "skip length bounds",
+                true,
+            );
         }
     });
 }
