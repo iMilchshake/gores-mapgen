@@ -278,7 +278,7 @@ impl Map {
             .slice_mut(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
         for ((x, y), current_value) in view.indexed_iter_mut() {
-            if overide.will_override(&current_value) {
+            if overide.will_override(current_value) {
                 *current_value = value.clone();
 
                 let chunk_pos =

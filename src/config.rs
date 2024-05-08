@@ -127,8 +127,8 @@ impl Default for GenerationConfig {
             waypoint_reached_dist: 250,
             inner_size_probs: vec![(3, 0.25), (5, 0.75)],
             outer_margin_probs: vec![(0, 0.5), (2, 0.5)],
-            skip_min_spacing_sqr: 18,
-            skip_length_bounds: (4, 15),
+            skip_min_spacing_sqr: 45,
+            skip_length_bounds: (3, 11),
         }
     }
 }

@@ -45,9 +45,8 @@ pub fn vec_edit_widget<T, F>(
         .default_open(!collapsed)
         .show(ui, |ui| {
             ui.vertical(|ui| {
-                for (_i, value) in vec.iter_mut().enumerate() {
+                for value in vec.iter_mut() {
                     ui.horizontal(|ui| {
-                        // ui.label(i.to_string());
                         edit_element(ui, value);
                     });
                 }
@@ -431,7 +430,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 ui,
                 &mut editor.config.skip_min_spacing_sqr,
                 edit_usize,
-                "skip length bounds",
+                "skip min spacing sqr",
                 true,
             );
         }

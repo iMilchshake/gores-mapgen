@@ -40,9 +40,9 @@ impl Generator {
         let rnd = Random::new(seed, config);
 
         let debug_layers = BTreeMap::from([
-            ("edge_bugs", DebugLayer::new(true, colors::RED, &map)),
-            ("corners", DebugLayer::new(true, colors::BLUE, &map)),
-            ("corner_ends", DebugLayer::new(true, colors::GREEN, &map)),
+            ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
+            ("skips", DebugLayer::new(true, colors::GREEN, &map)),
+            ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
         ]);
 
         Generator {
@@ -126,7 +126,7 @@ impl Generator {
 
     /// Using a distance transform this function will fill up all empty blocks that are too far
     /// from the next solid/non-empty block
-    pub fn fill_area(&mut self, max_distance: &f32) -> Array2<f32> {
+    pub fn fill_open_areas(&mut self, max_distance: &f32) -> Array2<f32> {
         let grid = self.map.grid.map(|val| *val != BlockType::Empty);
 
         // euclidean distance transform
@@ -373,7 +373,7 @@ impl Generator {
         }
     }
 
-    pub fn get_all_valid_skips(&mut self, length_bounds: (usize, usize), min_spacing_sqr: usize) {
+    pub fn generate_all_skips(&mut self, length_bounds: (usize, usize), min_spacing_sqr: usize) {
         // get corner candidates
         let corner_candidates = self.find_corners().expect("corner detection failed");
 
@@ -397,6 +397,7 @@ impl Generator {
             }
 
             // skip is valid -> invalidate all following conflicting skips
+            // TODO: right now skips can still cross each other
             let (start, end, _, _) = &skips[skip_index];
             for other_index in (skip_index + 1)..skips.len() {
                 let (other_start, other_end, _, _) = &skips[other_index];
@@ -418,6 +419,24 @@ impl Generator {
                 self.generate_skip(start, end, shift);
             }
         }
+
+        // set debug layer for valid skips
+        let debug_skips = &mut self.debug_layers.get_mut("skips").unwrap().grid;
+        for ((start, end, _, _), valid) in skips.iter().zip(valid_skips.iter()) {
+            if *valid {
+                debug_skips[start.as_index()] = true;
+                debug_skips[end.as_index()] = true;
+            }
+        }
+
+        // set debug layer for invalid skips
+        let debug_skips_invalid = &mut self.debug_layers.get_mut("skips_invalid").unwrap().grid;
+        for ((start, end, _, _), valid) in skips.iter().zip(valid_skips.iter()) {
+            if !*valid {
+                debug_skips_invalid[start.as_index()] = true;
+                debug_skips_invalid[end.as_index()] = true;
+            }
+        }
     }
 
     pub fn print_time(timer: &Timer, message: &str) {
@@ -428,6 +447,7 @@ impl Generator {
         let timer = Timer::start();
 
         let edge_bugs = self.fix_edge_bugs().expect("fix edge bugs failed");
+        self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
         Generator::print_time(&timer, "fix edge bugs");
 
         self.map
@@ -438,34 +458,11 @@ impl Generator {
             .expect("start finish room generation");
         Generator::print_time(&timer, "place rooms");
 
-        self.fill_area(&config.max_distance);
+        self.fill_open_areas(&config.max_distance);
         Generator::print_time(&timer, "place obstacles");
 
-        self.get_all_valid_skips(config.skip_length_bounds, config.skip_min_spacing_sqr);
-
-        // debug layers
-        // let corners_grid = &mut self.debug_layers.get_mut("corners").unwrap().grid;
-        // for (pos, _) in &corner_candidates {
-        //     corners_grid[pos.as_index()] = true;
-        // }
-
-        // for (pos, shift) in corner_candidates {
-        //     if let Some(end_pos) = self.check_corner_skip(&pos, &shift, (4, 15)) {
-        //         *self
-        //             .debug_layers
-        //             .get_mut("corner_ends")
-        //             .unwrap()
-        //             .grid
-        //             .get_mut(end_pos.as_index())
-        //             .unwrap() = true;
-        //
-        //         self.generate_skip(&pos, &end_pos, &shift);
-        //     }
-        // }
-
-        // set debug layers
-        self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
-        Generator::print_time(&timer, "set debug layers");
+        self.generate_all_skips(config.skip_length_bounds, config.skip_min_spacing_sqr);
+        Generator::print_time(&timer, "generate skips");
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

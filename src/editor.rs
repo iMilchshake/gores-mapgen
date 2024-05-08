@@ -1,8 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 const STEPS_PER_FRAME: usize = 50;
 
@@ -14,9 +10,9 @@ use crate::{
     random::Seed,
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
-use itertools::Itertools;
 use std::env;
 
+use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
     is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position, mouse_wheel,
     KeyCode, MouseButton,
@@ -24,10 +20,6 @@ use macroquad::input::{
 use macroquad::math::{Rect, Vec2};
 use macroquad::time::get_fps;
 use macroquad::window::{screen_height, screen_width};
-use macroquad::{
-    camera::{set_camera, Camera2D},
-    input::is_key_down,
-};
 use rand_distr::num_traits::Zero;
 
 const ZOOM_FACTOR: f32 = 0.9;
