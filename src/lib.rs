@@ -7,6 +7,7 @@ pub mod gui;
 pub mod kernel;
 pub mod map;
 pub mod position;
+pub mod post_processing;
 pub mod random;
 pub mod rendering;
 pub mod twmap_export;
