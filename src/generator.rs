@@ -39,6 +39,8 @@ impl Generator {
             ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
             ("skips", DebugLayer::new(true, colors::GREEN, &map)),
             ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
+            ("blobs", DebugLayer::new(false, colors::RED, &map)),
+            ("blobs_debug", DebugLayer::new(true, colors::VIOLET, &map)),
         ]);
 
         Generator {
@@ -96,6 +98,8 @@ impl Generator {
 
         post::generate_all_skips(self, config.skip_length_bounds, config.skip_min_spacing_sqr);
         print_time(&timer, "generate skips");
+
+        post::remove_freeze_blobs(self, 25);
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

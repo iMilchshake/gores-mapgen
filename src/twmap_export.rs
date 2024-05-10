@@ -73,9 +73,9 @@ impl TwExport {
         tw_map.load().expect("loading failed");
 
         TwExport::process_layer(&mut tw_map, map, &0, "Freeze", |t| {
-            (*t == BlockType::Freeze) || BlockType::is_hookable(t)
+            (*t == BlockType::Freeze) || BlockType::is_solid(t)
         });
-        TwExport::process_layer(&mut tw_map, map, &1, "Hookable", BlockType::is_hookable);
+        TwExport::process_layer(&mut tw_map, map, &1, "Hookable", BlockType::is_solid);
 
         // get game layer
         let game_layer = tw_map

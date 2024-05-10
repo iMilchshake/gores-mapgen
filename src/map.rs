@@ -30,8 +30,11 @@ impl BlockType {
         }
     }
 
-    pub fn is_hookable(&self) -> bool {
+    pub fn is_solid(&self) -> bool {
         matches!(self, BlockType::Hookable | BlockType::Platform)
+    }
+    pub fn is_freeze(&self) -> bool {
+        matches!(self, BlockType::Freeze)
     }
 }
 

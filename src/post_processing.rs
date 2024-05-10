@@ -1,13 +1,13 @@
 use crate::{
     generator::Generator,
-    map::{BlockType, Overwrite},
+    map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
 };
 
-use std::{f32::consts::SQRT_2, usize};
+use std::{f32::consts::SQRT_2, marker, usize};
 
 use dt::dt_bool;
-use ndarray::{s, Array2, Ix2};
+use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 pub fn is_freeze(block_type: &&BlockType) -> bool {
     **block_type == BlockType::Freeze
@@ -370,6 +370,100 @@ pub fn generate_all_skips(
         if !*valid {
             debug_skips_invalid[start.as_index()] = true;
             debug_skips_invalid[end.as_index()] = true;
+        }
+    }
+}
+
+pub fn get_window<T>(
+    grid: &Array2<T>,
+    x: usize,
+    y: usize,
+    window_size: usize,
+) -> ArrayBase<ViewRepr<&T>, Dim<[usize; 2]>> {
+    grid.slice(s![
+        x - window_size..=x + window_size,
+        y - window_size..=y + window_size
+    ])
+}
+
+/// removes unconnected/isolated that are smaller in size than given minimal threshold
+pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
+    let width = gen.map.width;
+    let height = gen.map.height;
+
+    // mark blocks that have already been processed
+    let mut marked = Array2::from_elem(gen.map.grid.dim(), false);
+
+    let window_size = 1; // 1 -> 3x3 windows
+    for x in window_size..(width - window_size) {
+        for y in window_size..(height - window_size) {
+            // skip if already marked
+            if marked[[x, y]] {
+                continue;
+            }
+
+            // skip/mark if not a freeze block
+            if gen.map.grid[[x, y]] != BlockType::Freeze {
+                marked[[x, y]] = true;
+                continue;
+            }
+
+            // check all connected freeze blocks
+            let mut visited = Vec::<Position>::new();
+            let mut visit_next = vec![Position::new(x, y)];
+            let mut unconnected = true;
+            let mut blob_size = 0;
+            while !visit_next.is_empty() {
+                // mark current pos
+                let pos = visit_next.pop().unwrap();
+                marked[pos.as_index()] = true;
+
+                // check neighborhood
+                let window = get_window(&gen.map.grid, pos.x, pos.y, window_size);
+                for ((win_x, win_y), block_type) in window.indexed_iter() {
+                    // skip own block
+                    if win_x == 1 && win_y == 1 {
+                        continue;
+                    }
+
+                    // blob is not unconnected -> abort
+                    if block_type.is_solid() {
+                        unconnected = false;
+                        break;
+                    }
+
+                    // queue neighboring unmarked & freeze blocks for visit
+                    let abs_pos = Position::new(pos.x + win_x - 1, pos.y + win_y - 1);
+
+                    if marked[abs_pos.as_index()] {
+                        continue;
+                    }
+
+                    if !block_type.is_freeze() {
+                        continue;
+                    }
+
+                    visit_next.push(abs_pos);
+                }
+
+                // valid block, finalize
+                visited.push(pos);
+                blob_size += 1;
+            }
+
+            if unconnected {
+                dbg!(
+                    "found blob",
+                    &visited,
+                    &visit_next,
+                    &blob_size,
+                    &visited.len()
+                );
+                for visited_pos in visited {
+                    gen.debug_layers.get_mut("blobs_debug").unwrap().grid[visited_pos.as_index()] =
+                        true;
+                }
+            }
         }
     }
 }
