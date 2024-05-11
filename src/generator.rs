@@ -40,7 +40,9 @@ impl Generator {
             ("skips", DebugLayer::new(true, colors::GREEN, &map)),
             ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
             ("blobs", DebugLayer::new(false, colors::RED, &map)),
-            ("blobs_debug", DebugLayer::new(true, colors::VIOLET, &map)),
+            ("blob_valid", DebugLayer::new(false, colors::VIOLET, &map)),
+            ("blob_invalid", DebugLayer::new(false, colors::VIOLET, &map)),
+            ("blob_none", DebugLayer::new(false, colors::VIOLET, &map)),
         ]);
 
         Generator {
@@ -100,6 +102,7 @@ impl Generator {
         print_time(&timer, "generate skips");
 
         post::remove_freeze_blobs(self, 25);
+        print_time(&timer, "detect blobs");
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.
