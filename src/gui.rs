@@ -433,6 +433,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 "skip min spacing sqr",
                 true,
             );
+
+            field_edit_widget(
+                ui,
+                &mut editor.config.min_freeze_size,
+                edit_usize,
+                "min freeze size",
+                true,
+            );
         }
     });
 }

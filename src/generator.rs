@@ -40,9 +40,6 @@ impl Generator {
             ("skips", DebugLayer::new(true, colors::GREEN, &map)),
             ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
             ("blobs", DebugLayer::new(false, colors::RED, &map)),
-            ("blob_valid", DebugLayer::new(false, colors::VIOLET, &map)),
-            ("blob_invalid", DebugLayer::new(false, colors::VIOLET, &map)),
-            ("blob_none", DebugLayer::new(false, colors::VIOLET, &map)),
         ]);
 
         Generator {
@@ -95,14 +92,17 @@ impl Generator {
             .expect("start finish room generation");
         print_time(&timer, "place rooms");
 
+        if config.min_freeze_size > 0 {
+            // TODO: Maybe add some alternative function for the case of min_freeze_size=1
+            post::remove_freeze_blobs(self, config.min_freeze_size);
+            print_time(&timer, "detect blobs");
+        }
+
         post::fill_open_areas(self, &config.max_distance);
         print_time(&timer, "place obstacles");
 
         post::generate_all_skips(self, config.skip_length_bounds, config.skip_min_spacing_sqr);
         print_time(&timer, "generate skips");
-
-        post::remove_freeze_blobs(self, 25);
-        print_time(&timer, "detect blobs");
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

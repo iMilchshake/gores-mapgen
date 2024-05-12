@@ -16,7 +16,7 @@
     350
   ],
   "momentum_prob": 0.6,
-  "max_distance": 9.0,
+  "max_distance": 4.0,
   "waypoint_reached_dist": 300,
   "inner_size_probs": [
     [
@@ -50,6 +50,12 @@
       0.0030960215
     ]
   ],
+  "skip_length_bounds": [
+    3,
+    11
+  ],
+  "skip_min_spacing_sqr": 45,
+  "min_freeze_size": 2,
   "waypoints": [
     {
       "x": 250,

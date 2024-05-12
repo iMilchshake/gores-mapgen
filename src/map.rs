@@ -261,8 +261,6 @@ impl Map {
         Ok(area.iter().all(|block| block == value))
     }
 
-    /// TODO: right now this function is hardcoded to overide empty AND freeze by default.
-    /// via the override argument all values can be overwritten
     pub fn set_area(
         &mut self,
         top_left: &Position,

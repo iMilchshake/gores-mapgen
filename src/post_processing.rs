@@ -404,8 +404,22 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
                 continue;
             }
 
+            // invalidate neighboring blocks to hookables
+            let block_type = &gen.map.grid[[x, y]];
+
+            // invalidate freeze blocks next to hookable so they arent checked
+            // TODO: In theory this should be a nice speedup, but in pracise i should replace this with a
+            // much better two sweep approach. Idea: Do a post processing step which detects
+            // 'wall'-freezes. this information can then be used in various other steps.
+            if *block_type == BlockType::Hookable {
+                invalid
+                    .slice_mut(s![x - 1..=x + 1, y - 1..=y + 1])
+                    .fill(Some(true));
+                continue;
+            }
+
             // skip if not a freeze block
-            if gen.map.grid[[x, y]] != BlockType::Freeze {
+            if *block_type != BlockType::Freeze {
                 continue;
             }
 
@@ -420,14 +434,14 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
 
                 // check neighborhood
                 let window = get_window(&gen.map.grid, pos.x, pos.y, window_size);
-                for ((win_x, win_y), block_type) in window.indexed_iter() {
+                for ((win_x, win_y), other_block_type) in window.indexed_iter() {
                     // skip current block
                     if win_x == 1 && win_y == 1 {
                         continue;
                     }
 
                     // blob is not unconnected -> abort
-                    if block_type.is_solid() {
+                    if other_block_type.is_solid() {
                         blob_unconnected = false;
                         break;
                     }
@@ -436,7 +450,7 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
                     let abs_pos = Position::new(pos.x + win_x - 1, pos.y + win_y - 1);
 
                     // only consider freeze blocks
-                    if !block_type.is_freeze() {
+                    if !other_block_type.is_freeze() {
                         continue;
                     }
 
@@ -472,24 +486,17 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
                 }
             }
 
+            // unconnected blob has been found
             if blob_unconnected {
-                // dbg!(
-                //     "found blob",
-                //     &blob_visited,
-                //     &blob_visit_next,
-                //     &blob_size,
-                //     &blob_visited.len()
-                // );
                 for visited_pos in blob_visited {
                     gen.debug_layers.get_mut("blobs").unwrap().grid[visited_pos.as_index()] = true;
+
+                    // remove small blobs
+                    if blob_size < min_freeze_size {
+                        gen.map.grid[visited_pos.as_index()] = BlockType::Empty;
+                    }
                 }
             }
-
-            // gen.debug_layers.get_mut("blob_valid").unwrap().grid =
-            //     invalid.map(|v| v.is_some_and(|v| !v));
-            // gen.debug_layers.get_mut("blob_invalid").unwrap().grid =
-            //     invalid.map(|v| v.is_some_and(|v| v));
-            // gen.debug_layers.get_mut("blob_none").unwrap().grid = invalid.map(|v| v.is_none());
         }
     }
 }

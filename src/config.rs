@@ -58,6 +58,9 @@ pub struct GenerationConfig {
     // min distance between skips
     pub skip_min_spacing_sqr: usize,
 
+    // min unconnected freeze obstacle size
+    pub min_freeze_size: usize,
+
     // ------- TODO: these should go somewhere else -----
     pub waypoints: Vec<Position>,
 }
@@ -129,6 +132,7 @@ impl Default for GenerationConfig {
             outer_margin_probs: vec![(0, 0.5), (2, 0.5)],
             skip_min_spacing_sqr: 45,
             skip_length_bounds: (3, 11),
+            min_freeze_size: 0, // TODO: disable by default for now
         }
     }
 }
