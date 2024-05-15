@@ -277,21 +277,21 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 if let Some(path_in) =
                     tinyfiledialogs::open_file_dialog("load config", &cwd.to_string_lossy(), None)
                 {
-                    editor.config = GenerationConfig::load(&path_in);
+                    editor.gen_config = GenerationConfig::load(&path_in);
                 }
             }
             if ui.button("save file").clicked() {
                 let cwd = env::current_dir().unwrap();
 
                 let initial_path = cwd
-                    .join(editor.config.name.clone() + ".json")
+                    .join(editor.gen_config.name.clone() + ".json")
                     .to_string_lossy()
                     .to_string();
 
                 if let Some(path_out) =
                     tinyfiledialogs::save_file_dialog("save config", &initial_path)
                 {
-                    editor.config.save(&path_out);
+                    editor.gen_config.save(&path_out);
                 }
             };
         });
@@ -301,7 +301,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             //.selected_text(format!("{:}", editor.config.name.clone()))
             .show_ui(ui, |ui| {
                 for (name, cfg) in editor.configs.iter() {
-                    ui.selectable_value(&mut editor.config, cfg.clone(), name);
+                    ui.selectable_value(&mut editor.gen_config, cfg.clone(), name);
                 }
             });
 
@@ -311,18 +311,18 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         if editor.edit_preset {
             ui.separator();
 
-            field_edit_widget(ui, &mut editor.config.name, edit_string, "name", false);
+            field_edit_widget(ui, &mut editor.gen_config.name, edit_string, "name", false);
 
             field_edit_widget(
                 ui,
-                &mut editor.config.inner_rad_mut_prob,
+                &mut editor.gen_config.inner_rad_mut_prob,
                 edit_f32_prob,
                 "inner rad mut prob",
                 true,
             );
             field_edit_widget(
                 ui,
-                &mut editor.config.inner_size_mut_prob,
+                &mut editor.gen_config.inner_size_mut_prob,
                 edit_f32_prob,
                 "inner size mut prob",
                 true,
@@ -330,14 +330,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             field_edit_widget(
                 ui,
-                &mut editor.config.outer_rad_mut_prob,
+                &mut editor.gen_config.outer_rad_mut_prob,
                 edit_f32_prob,
                 "outer rad mut prob",
                 true,
             );
             field_edit_widget(
                 ui,
-                &mut editor.config.outer_size_mut_prob,
+                &mut editor.gen_config.outer_size_mut_prob,
                 edit_f32_prob,
                 "outer size mut prob",
                 true,
@@ -346,28 +346,28 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             ui.add_enabled_ui(editor.is_setup(), |ui| {
                 vec_edit_widget(
                     ui,
-                    &mut editor.config.inner_size_probs,
+                    &mut editor.gen_config.inner_size_probs,
                     edit_probability_tuple,
                     "inner size probs",
                     true,
                     false,
                 );
-                normalize_probs(&mut editor.config.inner_size_probs);
+                normalize_probs(&mut editor.gen_config.inner_size_probs);
 
                 vec_edit_widget(
                     ui,
-                    &mut editor.config.outer_margin_probs,
+                    &mut editor.gen_config.outer_margin_probs,
                     edit_probability_tuple,
                     "outer margin probs",
                     true,
                     false,
                 );
-                normalize_probs(&mut editor.config.outer_margin_probs);
+                normalize_probs(&mut editor.gen_config.outer_margin_probs);
             });
 
             field_edit_widget(
                 ui,
-                &mut editor.config.platform_distance_bounds,
+                &mut editor.gen_config.platform_distance_bounds,
                 edit_range_usize,
                 "platform distances",
                 true,
@@ -375,7 +375,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             field_edit_widget(
                 ui,
-                &mut editor.config.momentum_prob,
+                &mut editor.gen_config.momentum_prob,
                 edit_f32_prob,
                 "momentum prob",
                 true,
@@ -383,7 +383,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             field_edit_widget(
                 ui,
-                &mut editor.config.max_distance,
+                &mut editor.gen_config.max_distance,
                 edit_f32_wtf,
                 "max distance",
                 true,
@@ -391,7 +391,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             field_edit_widget(
                 ui,
-                &mut editor.config.waypoint_reached_dist,
+                &mut editor.gen_config.waypoint_reached_dist,
                 edit_usize,
                 "waypoint reached dist",
                 true,
@@ -401,7 +401,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             ui.add_enabled_ui(editor.is_setup(), |ui| {
                 vec_edit_widget(
                     ui,
-                    &mut editor.config.waypoints,
+                    &mut editor.map_config.waypoints,
                     edit_position,
                     "waypoints",
                     true,
@@ -410,7 +410,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 vec_edit_widget(
                     ui,
-                    &mut editor.config.shift_weights,
+                    &mut editor.gen_config.shift_weights,
                     edit_pos_i32,
                     "step weights",
                     false,
@@ -420,7 +420,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             field_edit_widget(
                 ui,
-                &mut editor.config.skip_length_bounds,
+                &mut editor.gen_config.skip_length_bounds,
                 edit_range_usize,
                 "skip length bounds",
                 true,
@@ -428,7 +428,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             field_edit_widget(
                 ui,
-                &mut editor.config.skip_min_spacing_sqr,
+                &mut editor.gen_config.skip_min_spacing_sqr,
                 edit_usize,
                 "skip min spacing sqr",
                 true,
@@ -436,7 +436,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             field_edit_widget(
                 ui,
-                &mut editor.config.min_freeze_size,
+                &mut editor.gen_config.min_freeze_size,
                 edit_usize,
                 "min freeze size",
                 true,
@@ -458,7 +458,7 @@ pub fn debug_window(ctx: &Context, editor: &mut Editor) {
 
             ui.add(Label::new(format!("seed: {:?}", editor.user_seed)));
 
-            ui.add(Label::new(format!("config: {:?}", &editor.config)));
+            ui.add(Label::new(format!("config: {:?}", &editor.gen_config)));
 
             ui.add(Label::new(format!("walker: {:?}", &editor.gen.walker)));
         });

@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
-    config::GenerationConfig,
+    config::{GenerationConfig, MapConfig},
     generator::Generator,
     gui::{debug_window, sidebar},
     map::Map,
@@ -63,7 +63,8 @@ pub struct Editor {
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
-    pub config: GenerationConfig,
+    pub gen_config: GenerationConfig,
+    pub map_config: MapConfig,
     pub steps_per_frame: usize,
     zoom: f32,
     offset: Vec2,
@@ -89,9 +90,13 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new(config: GenerationConfig) -> Editor {
+    pub fn new(gen_config: GenerationConfig, map_config: MapConfig) -> Editor {
         let configs: HashMap<String, GenerationConfig> = GenerationConfig::get_configs();
-        let gen = Generator::new(&config, Seed::from_u64(0)); // TODO: overwritten anyways? Option?
+
+        // TODO: its kinda stupid to initialize this as its literally re-initialized anyways
+        // when starting the first map generation. But i dont wanna bother adding an Option here as
+        // the generator also holds the initial empty map which is used for visualization.
+        let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
 
         let mut visualize_debug_layers: HashMap<&'static str, bool> = HashMap::new();
         for layer_name in gen.debug_layers.keys() {
@@ -108,7 +113,8 @@ impl Editor {
             offset: Vec2::ZERO,
             cam: None,
             last_mouse: None,
-            config,
+            gen_config,
+            map_config,
             steps_per_frame: STEPS_PER_FRAME,
             gen,
             user_seed: Seed::from_string(&"iMilchshake".to_string()),
@@ -201,7 +207,7 @@ impl Editor {
             self.user_seed = Seed::from_random(&mut self.gen.rnd);
         }
 
-        self.gen = Generator::new(&self.config, self.user_seed.clone());
+        self.gen = Generator::new(&self.gen_config, &self.map_config, self.user_seed.clone());
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {
@@ -214,7 +220,6 @@ impl Editor {
 
     /// this should result in the exact same behaviour as if not using a camera at all
     pub fn reset_camera() {
-        // no idea why i dont have to use negative values here???
         set_camera(&Camera2D::from_display_rect(Rect::new(
             0.0,
             0.0,

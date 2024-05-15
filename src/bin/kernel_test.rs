@@ -1,3 +1,4 @@
+use gores_mapgen_rust::config::MapConfig;
 use gores_mapgen_rust::{
     config::GenerationConfig, editor::*, fps_control::*, kernel::*, position::*, rendering::*,
     walker::*,
@@ -127,7 +128,7 @@ fn draw_thingy(walker: &CuteWalker, flag: bool) {
 
 #[macroquad::main("kernel_test")]
 async fn main() {
-    let mut editor = Editor::new(GenerationConfig::default());
+    let mut editor = Editor::new(GenerationConfig::default(), MapConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     let mut state = State {
@@ -143,6 +144,7 @@ async fn main() {
         inner_kernel,
         outer_kernel,
         &GenerationConfig::default(),
+        &MapConfig::default(),
     );
 
     loop {

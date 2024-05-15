@@ -1,5 +1,5 @@
 use crate::{
-    config::GenerationConfig,
+    config::{GenerationConfig, MapConfig},
     kernel::Kernel,
     map::{BlockType, KernelType, Map, Overwrite},
     position::{Position, ShiftDirection},
@@ -30,16 +30,17 @@ impl CuteWalker {
         initial_pos: Position,
         inner_kernel: Kernel,
         outer_kernel: Kernel,
-        config: &GenerationConfig,
+        gen_config: &GenerationConfig,
+        map_config: &MapConfig,
     ) -> CuteWalker {
         CuteWalker {
             pos: initial_pos,
             steps: 0,
             inner_kernel,
             outer_kernel,
-            goal: Some(config.waypoints.first().unwrap().clone()),
+            goal: Some(map_config.waypoints.first().unwrap().clone()),
             goal_index: 0,
-            waypoints: config.waypoints.clone(),
+            waypoints: map_config.waypoints.clone(),
             finished: false,
             steps_since_platform: 0,
             last_direction: None,

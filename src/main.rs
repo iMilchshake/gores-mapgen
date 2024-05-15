@@ -2,7 +2,11 @@
 
 use clap::Parser;
 use gores_mapgen_rust::{
-    config::GenerationConfig, editor::*, fps_control::*, map::*, rendering::*,
+    config::{GenerationConfig, MapConfig},
+    editor::*,
+    fps_control::*,
+    map::*,
+    rendering::*,
 };
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
@@ -37,7 +41,8 @@ fn window_conf() -> Conf {
 async fn main() {
     let args = Args::parse();
 
-    let mut editor = Editor::new(GenerationConfig::default());
+    // TODO: load some config as default?
+    let mut editor = Editor::new(GenerationConfig::default(), MapConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     if args.testing {
@@ -49,7 +54,7 @@ async fn main() {
 
     if let Some(config_name) = args.config {
         if editor.configs.contains_key(&config_name) {
-            editor.config = editor.configs.get(&config_name).unwrap().clone();
+            editor.gen_config = editor.configs.get(&config_name).unwrap().clone();
         }
     }
 
@@ -75,7 +80,7 @@ async fn main() {
                 break;
             }
 
-            editor.gen.step(&editor.config).unwrap_or_else(|err| {
+            editor.gen.step(&editor.gen_config).unwrap_or_else(|err| {
                 println!("Abort due to error: {:}", err);
                 editor.set_setup();
             });
@@ -88,7 +93,7 @@ async fn main() {
 
         // this is called ONCE after map was generated
         if editor.gen.walker.finished && !editor.is_setup() {
-            editor.gen.post_processing(&editor.config);
+            editor.gen.post_processing(&editor.gen_config);
 
             // switch into setup mode for next map
             editor.set_setup();
@@ -109,7 +114,7 @@ async fn main() {
         draw_walker_kernel(&editor.gen.walker, KernelType::Inner);
         draw_walker(&editor.gen.walker);
 
-        draw_waypoints(&editor.config.waypoints);
+        draw_waypoints(&editor.map_config.waypoints);
 
         // draw debug layers
         for (layer_name, debug_layer) in editor.gen.debug_layers.iter() {

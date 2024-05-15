@@ -1,5 +1,6 @@
 use clap::Parser;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
+use gores_mapgen_rust::config::MapConfig;
 use gores_mapgen_rust::random::Seed;
 use gores_mapgen_rust::{config::GenerationConfig, generator::Generator};
 use std::collections::HashMap;
@@ -110,9 +111,10 @@ impl Econ {
             assert!(vote_parts.next().is_none(), "should have exactly two parts");
 
             // get config based on preset name
-            let config = configs.get(vote_preset).expect("preset does not exist!");
+            let gen_config = configs.get(vote_preset).expect("preset does not exist!");
 
-            generate_and_change_map(args, &seed, config, self);
+            // TODO: add functionality to vote MapConfigs
+            generate_and_change_map(args, &seed, gen_config, &MapConfig::default(), self);
         }
     }
 }
@@ -120,13 +122,14 @@ impl Econ {
 fn generate_and_change_map(
     args: &BridgeArgs,
     seed: &Seed,
-    config: &GenerationConfig,
+    gen_config: &GenerationConfig,
+    map_config: &MapConfig,
     econ: &mut Econ,
 ) {
     println!("[GEN] Starting Map Generation!");
     econ.send_rcon_cmd(format!("say [GEN] Generating Map, seed={:?}", &seed));
     let map_path = args.maps.canonicalize().unwrap().join("random_map.map");
-    match Generator::generate_map(30_000, seed, config) {
+    match Generator::generate_map(30_000, seed, gen_config, map_config) {
         Ok(map) => {
             println!("[GEN] Finished Map Generation!");
             map.export(&map_path);
@@ -167,7 +170,9 @@ fn start_bridge(args: &BridgeArgs) {
                 generate_and_change_map(
                     args,
                     &Seed::from_u64(1337),
+                    // TODO: also here, i shoulnt use ::default() but some actual default config
                     &GenerationConfig::default(),
+                    &MapConfig::default(),
                     &mut econ,
                 );
             } else if data.starts_with("Wrong password") {

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use timing::Timer;
 
 use crate::{
-    config::GenerationConfig,
+    config::{GenerationConfig, MapConfig},
     debug::DebugLayer,
     kernel::Kernel,
     map::{BlockType, Map},
@@ -27,13 +27,19 @@ pub struct Generator {
 
 impl Generator {
     /// derive a initial generator state based on a GenerationConfig
-    pub fn new(config: &GenerationConfig, seed: Seed) -> Generator {
+    pub fn new(gen_config: &GenerationConfig, map_config: &MapConfig, seed: Seed) -> Generator {
         let spawn = Position::new(50, 250);
         let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
         let init_inner_kernel = Kernel::new(5, 0.0);
         let init_outer_kernel = Kernel::new(7, 0.0);
-        let walker = CuteWalker::new(spawn, init_inner_kernel, init_outer_kernel, config);
-        let rnd = Random::new(seed, config);
+        let walker = CuteWalker::new(
+            spawn,
+            init_inner_kernel,
+            init_outer_kernel,
+            gen_config,
+            map_config,
+        );
+        let rnd = Random::new(seed, gen_config);
 
         let debug_layers = BTreeMap::from([
             ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
@@ -111,18 +117,19 @@ impl Generator {
     pub fn generate_map(
         max_steps: usize,
         seed: &Seed,
-        config: &GenerationConfig,
+        gen_config: &GenerationConfig,
+        map_config: &MapConfig,
     ) -> Result<Map, &'static str> {
-        let mut gen = Generator::new(config, seed.clone());
+        let mut gen = Generator::new(gen_config, map_config, seed.clone());
 
         for _ in 0..max_steps {
             if gen.walker.finished {
                 break;
             }
-            gen.step(config)?;
+            gen.step(gen_config)?;
         }
 
-        gen.post_processing(config);
+        gen.post_processing(gen_config);
 
         Ok(gen.map)
     }

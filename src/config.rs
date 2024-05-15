@@ -7,8 +7,13 @@ use std::fs::File;
 use std::io::Write;
 
 #[derive(RustEmbed)]
-#[folder = "configs/"]
+#[folder = "data/gen_configs/"]
 pub struct GenerationConfigStorage;
+
+pub struct MapConfig {
+    /// defines the shape of a map using waypoints
+    pub waypoints: Vec<Position>,
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(default)]
@@ -60,9 +65,6 @@ pub struct GenerationConfig {
 
     // min unconnected freeze obstacle size
     pub min_freeze_size: usize,
-
-    // ------- TODO: these should go somewhere else -----
-    pub waypoints: Vec<Position>,
 }
 
 impl GenerationConfig {
@@ -116,13 +118,6 @@ impl Default for GenerationConfig {
             inner_size_mut_prob: 0.5,
             outer_rad_mut_prob: 0.25,
             outer_size_mut_prob: 0.5,
-            waypoints: vec![
-                Position::new(250, 250),
-                Position::new(250, 150),
-                Position::new(50, 150),
-                Position::new(50, 50),
-                Position::new(250, 50),
-            ],
             shift_weights: vec![20, 11, 10, 9],
             platform_distance_bounds: (500, 750),
             momentum_prob: 0.01,
@@ -133,6 +128,20 @@ impl Default for GenerationConfig {
             skip_min_spacing_sqr: 45,
             skip_length_bounds: (3, 11),
             min_freeze_size: 0, // TODO: disable by default for now
+        }
+    }
+}
+
+impl Default for MapConfig {
+    fn default() -> MapConfig {
+        MapConfig {
+            waypoints: vec![
+                Position::new(250, 250),
+                Position::new(250, 150),
+                Position::new(50, 150),
+                Position::new(50, 50),
+                Position::new(250, 50),
+            ],
         }
     }
 }
