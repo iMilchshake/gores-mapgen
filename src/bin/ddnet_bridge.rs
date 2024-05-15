@@ -114,7 +114,13 @@ impl Econ {
             let gen_config = configs.get(vote_preset).expect("preset does not exist!");
 
             // TODO: add functionality to vote MapConfigs
-            generate_and_change_map(args, &seed, gen_config, &MapConfig::default(), self);
+            generate_and_change_map(
+                args,
+                &seed,
+                gen_config,
+                &MapConfig::get_initial_config(),
+                self,
+            );
         }
     }
 }
@@ -151,7 +157,7 @@ fn start_bridge(args: &BridgeArgs) {
     let vote_regex = Regex::new(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I chat: \*\*\* (Vote passed|Vote failed|'(.+?)' called .+ option '(.+?)' \((.+?)\))\n").unwrap();
     let mut econ = Econ::new(args.econ_port, args.telnet_buffer);
     let mut pending_vote: Option<Vote> = None;
-    let configs = GenerationConfig::get_configs();
+    let configs = GenerationConfig::get_all_configs();
     let mut auth = false;
 
     loop {
@@ -171,7 +177,7 @@ fn start_bridge(args: &BridgeArgs) {
                     args,
                     &Seed::from_u64(1337),
                     &GenerationConfig::get_initial_config(),
-                    &MapConfig::default(),
+                    &MapConfig::get_initial_config(),
                     &mut econ,
                 );
             } else if data.starts_with("Wrong password") {
@@ -223,7 +229,7 @@ fn start_bridge(args: &BridgeArgs) {
 }
 
 fn list_presets() {
-    let configs = GenerationConfig::get_configs();
+    let configs = GenerationConfig::get_all_configs();
     for preset in configs.keys() {
         println!("{}", preset);
     }

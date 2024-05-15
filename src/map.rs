@@ -46,6 +46,7 @@ pub enum Overwrite {
     ReplaceSolidFreeze,
     ReplaceSolidOnly,
     ReplaceEmptyOnly,
+    ReplaceNonSolid,
 }
 
 impl Overwrite {
@@ -57,6 +58,7 @@ impl Overwrite {
             }
             Overwrite::ReplaceSolidOnly => matches!(&btype, BlockType::Hookable),
             Overwrite::ReplaceEmptyOnly => matches!(&btype, BlockType::Empty),
+            Overwrite::ReplaceNonSolid => matches!(&btype, BlockType::Freeze | BlockType::Empty),
         }
     }
 }
@@ -71,8 +73,6 @@ pub struct Map {
     pub grid: Array2<BlockType>,
     pub height: usize,
     pub width: usize,
-    pub spawn: Position,
-
     pub chunk_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
     pub chunk_size: usize,
 }
@@ -93,12 +93,11 @@ fn get_maps_path() -> PathBuf {
 }
 
 impl Map {
-    pub fn new(width: usize, height: usize, default: BlockType, spawn: Position) -> Map {
+    pub fn new(width: usize, height: usize, default: BlockType) -> Map {
         Map {
             grid: Array2::from_elem((width, height), default),
             width,
             height,
-            spawn,
             chunk_edited: Array2::from_elem(
                 (width.div_ceil(CHUNK_SIZE), height.div_ceil(CHUNK_SIZE)),
                 false,
@@ -197,8 +196,8 @@ impl Map {
 
         // set platform
         self.set_area(
-            &pos.shifted_by(-(room_size - platform_margin), room_size - 2)?,
-            &pos.shifted_by(room_size - platform_margin, room_size - 2)?,
+            &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
+            &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
             &BlockType::Platform,
             &Overwrite::Force,
         );
@@ -218,7 +217,7 @@ impl Map {
                 &pos.shifted_by(-room_size - 1, -room_size - 1)?,
                 &pos.shifted_by(room_size + 1, room_size + 1)?,
                 zone_type,
-                &Overwrite::ReplaceEmptyOnly,
+                &Overwrite::ReplaceNonSolid,
             );
         }
 

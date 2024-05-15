@@ -59,7 +59,8 @@ enum PausedState {
 }
 pub struct Editor {
     state: EditorState,
-    pub configs: HashMap<String, GenerationConfig>,
+    pub init_gen_configs: HashMap<String, GenerationConfig>,
+    pub init_map_configs: HashMap<String, MapConfig>,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
@@ -94,7 +95,9 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(gen_config: GenerationConfig, map_config: MapConfig) -> Editor {
-        let configs: HashMap<String, GenerationConfig> = GenerationConfig::get_configs();
+        let init_gen_configs: HashMap<String, GenerationConfig> =
+            GenerationConfig::get_all_configs();
+        let init_map_configs: HashMap<String, MapConfig> = MapConfig::get_all_configs();
 
         // TODO: its kinda stupid to initialize this as its literally re-initialized anyways
         // when starting the first map generation. But i dont wanna bother adding an Option here as
@@ -108,7 +111,8 @@ impl Editor {
 
         Editor {
             state: EditorState::Paused(PausedState::Setup),
-            configs,
+            init_gen_configs,
+            init_map_configs,
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,

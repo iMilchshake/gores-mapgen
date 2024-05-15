@@ -43,7 +43,10 @@ fn window_conf() -> Conf {
 async fn main() {
     let args = Args::parse();
 
-    let mut editor = Editor::new(GenerationConfig::get_initial_config(), MapConfig::default());
+    let mut editor = Editor::new(
+        GenerationConfig::get_initial_config(),
+        MapConfig::get_initial_config(),
+    );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     if args.testing {
@@ -54,8 +57,8 @@ async fn main() {
     }
 
     if let Some(config_name) = args.config {
-        if editor.configs.contains_key(&config_name) {
-            editor.gen_config = editor.configs.get(&config_name).unwrap().clone();
+        if editor.init_gen_configs.contains_key(&config_name) {
+            editor.gen_config = editor.init_gen_configs.get(&config_name).unwrap().clone();
         }
     }
 

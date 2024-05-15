@@ -143,7 +143,6 @@ async fn main() {
         Position::new(10, 10),
         inner_kernel,
         outer_kernel,
-        &GenerationConfig::default(),
         &MapConfig::default(),
     );
 

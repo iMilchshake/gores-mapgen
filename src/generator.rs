@@ -21,22 +21,26 @@ pub fn print_time(timer: &Timer, message: &str) {
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
-    pub rnd: Random,
     pub debug_layers: BTreeMap<&'static str, DebugLayer>,
+
+    /// PRNG wrapper
+    pub rnd: Random,
+
+    /// remember where generation began, so a start room can be placed in post processing
+    spawn: Position,
 }
 
 impl Generator {
     /// derive a initial generator state based on a GenerationConfig
     pub fn new(gen_config: &GenerationConfig, map_config: &MapConfig, seed: Seed) -> Generator {
-        let spawn = Position::new(50, 250);
-        let map = Map::new(300, 300, BlockType::Hookable, spawn.clone());
+        let map = Map::new(map_config.width, map_config.height, BlockType::Hookable);
+        let spawn = map_config.waypoints.get(0).unwrap().clone();
         let init_inner_kernel = Kernel::new(5, 0.0);
         let init_outer_kernel = Kernel::new(7, 0.0);
         let walker = CuteWalker::new(
-            spawn,
+            spawn.clone(),
             init_inner_kernel,
             init_outer_kernel,
-            gen_config,
             map_config,
         );
         let rnd = Random::new(seed, gen_config);
@@ -53,6 +57,7 @@ impl Generator {
             map,
             rnd,
             debug_layers,
+            spawn,
         }
     }
 
@@ -91,7 +96,7 @@ impl Generator {
         print_time(&timer, "fix edge bugs");
 
         self.map
-            .generate_room(&self.map.spawn.clone(), 4, 3, Some(&BlockType::Start))
+            .generate_room(&self.spawn, 4, 3, Some(&BlockType::Start))
             .expect("start room generation failed");
         self.map
             .generate_room(&self.walker.pos.clone(), 4, 3, Some(&BlockType::Finish))

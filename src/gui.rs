@@ -270,17 +270,17 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
         ui.separator();
         // =======================================[ CONFIG STORAGE ]===================================
-        ui.label("load/save config files:");
+        ui.label("save config files:");
         ui.horizontal(|ui| {
-            if ui.button("load file").clicked() {
-                let cwd = env::current_dir().unwrap();
-                if let Some(path_in) =
-                    tinyfiledialogs::open_file_dialog("load config", &cwd.to_string_lossy(), None)
-                {
-                    editor.gen_config = GenerationConfig::load(&path_in);
-                }
-            }
-            if ui.button("save file").clicked() {
+            // if ui.button("load file").clicked() {
+            //     let cwd = env::current_dir().unwrap();
+            //     if let Some(path_in) =
+            //         tinyfiledialogs::open_file_dialog("load config", &cwd.to_string_lossy(), None)
+            //     {
+            //         editor.gen_config = GenerationConfig::load(&path_in);
+            //     }
+            // }
+            if ui.button("gen config").clicked() {
                 let cwd = env::current_dir().unwrap();
 
                 let initial_path = cwd
@@ -289,19 +289,42 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     .to_string();
 
                 if let Some(path_out) =
-                    tinyfiledialogs::save_file_dialog("save config", &initial_path)
+                    tinyfiledialogs::save_file_dialog("save gen config", &initial_path)
                 {
                     editor.gen_config.save(&path_out);
                 }
             };
+
+            if ui.button("map config").clicked() {
+                let cwd = env::current_dir().unwrap();
+
+                let initial_path = cwd
+                    .join(editor.gen_config.name.clone() + ".json")
+                    .to_string_lossy()
+                    .to_string();
+
+                if let Some(path_out) =
+                    tinyfiledialogs::save_file_dialog("save map config", &initial_path)
+                {
+                    editor.map_config.save(&path_out);
+                }
+            };
         });
 
-        ui.label("load generation configs:");
+        ui.label("load generation config:");
         egui::ComboBox::from_label("")
             .selected_text(format!("{:}", editor.gen_config.name))
             .show_ui(ui, |ui| {
-                for (name, cfg) in editor.configs.iter() {
+                for (name, cfg) in editor.init_gen_configs.iter() {
                     ui.selectable_value(&mut editor.gen_config, cfg.clone(), name);
+                }
+            });
+        ui.label("load map config:");
+        egui::ComboBox::from_label(" ")
+            .selected_text(format!("{:}", editor.map_config.name))
+            .show_ui(ui, |ui| {
+                for (name, cfg) in editor.init_map_configs.iter() {
+                    ui.selectable_value(&mut editor.map_config, cfg.clone(), name);
                 }
             });
 
@@ -439,6 +462,21 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             // =======================================[ MAP CONFIG EDIT ]===================================
             if editor.edit_map_config {
+                field_edit_widget(ui, &mut editor.map_config.name, edit_string, "name", false);
+                field_edit_widget(
+                    ui,
+                    &mut editor.map_config.width,
+                    edit_usize,
+                    "map width",
+                    true,
+                );
+                field_edit_widget(
+                    ui,
+                    &mut editor.map_config.height,
+                    edit_usize,
+                    "map height",
+                    true,
+                );
                 ui.add_enabled_ui(editor.is_setup(), |ui| {
                     vec_edit_widget(
                         ui,
