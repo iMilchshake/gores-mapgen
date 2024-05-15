@@ -50,7 +50,7 @@ async fn main() {
         editor.instant = true;
         editor.fixed_seed = true;
         editor.auto_generate = true;
-        editor.edit_preset = true;
+        editor.edit_gen_config = true;
     }
 
     if let Some(config_name) = args.config {

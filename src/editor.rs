@@ -83,7 +83,10 @@ pub struct Editor {
     pub fixed_seed: bool,
 
     /// whether to show the GenerationConfig settings
-    pub edit_preset: bool,
+    pub edit_gen_config: bool,
+
+    /// whether to show the GenerationConfig settings
+    pub edit_map_config: bool,
 
     /// asd
     pub visualize_debug_layers: HashMap<&'static str, bool>,
@@ -121,7 +124,8 @@ impl Editor {
             instant: false,
             auto_generate: false,
             fixed_seed: false,
-            edit_preset: false,
+            edit_gen_config: false,
+            edit_map_config: false,
             visualize_debug_layers,
         }
     }

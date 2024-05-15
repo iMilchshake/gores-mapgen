@@ -265,7 +265,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             &mut editor.visualize_debug_layers,
             edit_bool,
             "debug layers",
-            false,
+            true,
         );
 
         ui.separator();
@@ -296,152 +296,161 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             };
         });
 
-        ui.label("load predefined configs:");
+        ui.label("load generation configs:");
         egui::ComboBox::from_label("")
-            //.selected_text(format!("{:}", editor.config.name.clone()))
+            .selected_text(format!("{:}", editor.gen_config.name))
             .show_ui(ui, |ui| {
                 for (name, cfg) in editor.configs.iter() {
                     ui.selectable_value(&mut editor.gen_config, cfg.clone(), name);
                 }
             });
 
-        ui.checkbox(&mut editor.edit_preset, "show config");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut editor.edit_gen_config, "edit gen");
+            ui.checkbox(&mut editor.edit_map_config, "edit map");
+        });
 
-        // =======================================[ CONFIG EDIT ]===================================
-        if editor.edit_preset {
-            ui.separator();
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            // =======================================[ GENERATION CONFIG EDIT ]===================================
+            if editor.edit_gen_config {
+                ui.separator();
 
-            field_edit_widget(ui, &mut editor.gen_config.name, edit_string, "name", false);
+                field_edit_widget(ui, &mut editor.gen_config.name, edit_string, "name", false);
 
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.inner_rad_mut_prob,
-                edit_f32_prob,
-                "inner rad mut prob",
-                true,
-            );
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.inner_size_mut_prob,
-                edit_f32_prob,
-                "inner size mut prob",
-                true,
-            );
-
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.outer_rad_mut_prob,
-                edit_f32_prob,
-                "outer rad mut prob",
-                true,
-            );
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.outer_size_mut_prob,
-                edit_f32_prob,
-                "outer size mut prob",
-                true,
-            );
-
-            ui.add_enabled_ui(editor.is_setup(), |ui| {
-                vec_edit_widget(
+                field_edit_widget(
                     ui,
-                    &mut editor.gen_config.inner_size_probs,
-                    edit_probability_tuple,
-                    "inner size probs",
-                    true,
-                    false,
-                );
-                normalize_probs(&mut editor.gen_config.inner_size_probs);
-
-                vec_edit_widget(
-                    ui,
-                    &mut editor.gen_config.outer_margin_probs,
-                    edit_probability_tuple,
-                    "outer margin probs",
-                    true,
-                    false,
-                );
-                normalize_probs(&mut editor.gen_config.outer_margin_probs);
-            });
-
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.platform_distance_bounds,
-                edit_range_usize,
-                "platform distances",
-                true,
-            );
-
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.momentum_prob,
-                edit_f32_prob,
-                "momentum prob",
-                true,
-            );
-
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.max_distance,
-                edit_f32_wtf,
-                "max distance",
-                true,
-            );
-
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.waypoint_reached_dist,
-                edit_usize,
-                "waypoint reached dist",
-                true,
-            );
-
-            // only show these in setup mode
-            ui.add_enabled_ui(editor.is_setup(), |ui| {
-                vec_edit_widget(
-                    ui,
-                    &mut editor.map_config.waypoints,
-                    edit_position,
-                    "waypoints",
-                    true,
-                    false,
-                );
-
-                vec_edit_widget(
-                    ui,
-                    &mut editor.gen_config.shift_weights,
-                    edit_pos_i32,
-                    "step weights",
-                    false,
+                    &mut editor.gen_config.inner_rad_mut_prob,
+                    edit_f32_prob,
+                    "inner rad mut prob",
                     true,
                 );
-            });
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.inner_size_mut_prob,
+                    edit_f32_prob,
+                    "inner size mut prob",
+                    true,
+                );
 
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.skip_length_bounds,
-                edit_range_usize,
-                "skip length bounds",
-                true,
-            );
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.outer_rad_mut_prob,
+                    edit_f32_prob,
+                    "outer rad mut prob",
+                    true,
+                );
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.outer_size_mut_prob,
+                    edit_f32_prob,
+                    "outer size mut prob",
+                    true,
+                );
 
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.skip_min_spacing_sqr,
-                edit_usize,
-                "skip min spacing sqr",
-                true,
-            );
+                ui.add_enabled_ui(editor.is_setup(), |ui| {
+                    vec_edit_widget(
+                        ui,
+                        &mut editor.gen_config.inner_size_probs,
+                        edit_probability_tuple,
+                        "inner size probs",
+                        true,
+                        false,
+                    );
+                    normalize_probs(&mut editor.gen_config.inner_size_probs);
 
-            field_edit_widget(
-                ui,
-                &mut editor.gen_config.min_freeze_size,
-                edit_usize,
-                "min freeze size",
-                true,
-            );
-        }
+                    vec_edit_widget(
+                        ui,
+                        &mut editor.gen_config.outer_margin_probs,
+                        edit_probability_tuple,
+                        "outer margin probs",
+                        true,
+                        false,
+                    );
+                    normalize_probs(&mut editor.gen_config.outer_margin_probs);
+                });
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.platform_distance_bounds,
+                    edit_range_usize,
+                    "platform distances",
+                    true,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.momentum_prob,
+                    edit_f32_prob,
+                    "momentum prob",
+                    true,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.max_distance,
+                    edit_f32_wtf,
+                    "max distance",
+                    true,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.waypoint_reached_dist,
+                    edit_usize,
+                    "waypoint reached dist",
+                    true,
+                );
+
+                ui.add_enabled_ui(editor.is_setup(), |ui| {
+                    vec_edit_widget(
+                        ui,
+                        &mut editor.gen_config.shift_weights,
+                        edit_pos_i32,
+                        "step weights",
+                        false,
+                        true,
+                    );
+                });
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.skip_length_bounds,
+                    edit_range_usize,
+                    "skip length bounds",
+                    true,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.skip_min_spacing_sqr,
+                    edit_usize,
+                    "skip min spacing sqr",
+                    true,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.min_freeze_size,
+                    edit_usize,
+                    "min freeze size",
+                    true,
+                );
+            }
+
+            // =======================================[ MAP CONFIG EDIT ]===================================
+            if editor.edit_map_config {
+                ui.add_enabled_ui(editor.is_setup(), |ui| {
+                    vec_edit_widget(
+                        ui,
+                        &mut editor.map_config.waypoints,
+                        edit_position,
+                        "waypoints",
+                        true,
+                        false,
+                    );
+                });
+            }
+        });
     });
 }
 
@@ -455,11 +464,8 @@ pub fn debug_window(ctx: &Context, editor: &mut Editor) {
                 "avg: {:}",
                 editor.average_fps.round() as usize
             )));
-
             ui.add(Label::new(format!("seed: {:?}", editor.user_seed)));
-
             ui.add(Label::new(format!("config: {:?}", &editor.gen_config)));
-
             ui.add(Label::new(format!("walker: {:?}", &editor.gen.walker)));
         });
 }
