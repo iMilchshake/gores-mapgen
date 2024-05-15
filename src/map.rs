@@ -8,6 +8,8 @@ const CHUNK_SIZE: usize = 5;
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockType {
     Empty,
+    /// Empty Block that should not be overwritten
+    EmptyReserved,
     Hookable,
     Freeze,
     Spawn,
@@ -20,9 +22,8 @@ impl BlockType {
     /// maps BlockType to tw game layer id for map export
     pub fn to_tw_game_id(&self) -> u8 {
         match self {
-            BlockType::Empty => 0,
-            BlockType::Hookable => 1,
-            BlockType::Platform => 1,
+            BlockType::Empty | BlockType::EmptyReserved => 0,
+            BlockType::Hookable | BlockType::Platform => 1,
             BlockType::Freeze => 9,
             BlockType::Spawn => 192,
             BlockType::Start => 33,
@@ -178,10 +179,19 @@ impl Map {
         let platform_margin: i32 = platform_margin.to_i32().unwrap();
 
         // carve room
-        self.set_area(
+        self.set_area_border(
             &pos.shifted_by(-room_size, -room_size)?,
             &pos.shifted_by(room_size, room_size)?,
             &BlockType::Empty,
+            &Overwrite::Force,
+        );
+
+        let inner_room_size = room_size - 1;
+        assert!(inner_room_size > 0);
+        self.set_area(
+            &pos.shifted_by(-inner_room_size, -inner_room_size)?,
+            &pos.shifted_by(inner_room_size, inner_room_size)?,
+            &BlockType::EmptyReserved,
             &Overwrite::Force,
         );
 
