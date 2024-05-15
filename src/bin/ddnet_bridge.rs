@@ -170,8 +170,7 @@ fn start_bridge(args: &BridgeArgs) {
                 generate_and_change_map(
                     args,
                     &Seed::from_u64(1337),
-                    // TODO: also here, i shoulnt use ::default() but some actual default config
-                    &GenerationConfig::default(),
+                    &GenerationConfig::get_initial_config(),
                     &MapConfig::default(),
                     &mut econ,
                 );

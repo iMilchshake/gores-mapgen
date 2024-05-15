@@ -1,5 +1,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
+use std::process::exit;
+
 use clap::Parser;
 use gores_mapgen_rust::{
     config::{GenerationConfig, MapConfig},
@@ -41,8 +43,7 @@ fn window_conf() -> Conf {
 async fn main() {
     let args = Args::parse();
 
-    // TODO: load some config as default?
-    let mut editor = Editor::new(GenerationConfig::default(), MapConfig::default());
+    let mut editor = Editor::new(GenerationConfig::get_initial_config(), MapConfig::default());
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     if args.testing {

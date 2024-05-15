@@ -107,9 +107,19 @@ impl GenerationConfig {
 
         configs
     }
+
+    /// This function defines the initial default config for actual map generator
+    pub fn get_initial_config() -> GenerationConfig {
+        let file = GenerationConfigStorage::get("hardV2.json").unwrap();
+        let data = std::str::from_utf8(&file.data).unwrap();
+        let config: GenerationConfig = serde_json::from_str(data).unwrap();
+        config
+    }
 }
 
 impl Default for GenerationConfig {
+    /// Default trait should mainly be used to get default values for individual arguments
+    /// instead of being used as an actual generation config. (use get_initial_config())
     fn default() -> GenerationConfig {
         GenerationConfig {
             name: "default".to_string(),
