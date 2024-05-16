@@ -3,6 +3,7 @@ use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use gores_mapgen_rust::config::MapConfig;
 use gores_mapgen_rust::random::Seed;
 use gores_mapgen_rust::{config::GenerationConfig, generator::Generator};
+use itertools::Itertools;
 use std::collections::HashMap;
 
 use regex::Regex;
@@ -18,10 +19,10 @@ enum Command {
     StartBridge(BridgeArgs),
 
     #[clap(
-        name = "presets",
-        about = "print a list of available generation configs"
+        name = "list",
+        about = "print a list of available map- & generation configs"
     )]
-    ListPresets,
+    ListConfigs,
 }
 
 #[derive(Parser, Debug)]
@@ -48,6 +49,53 @@ struct BridgeArgs {
     generation_retries: usize,
 }
 
+#[derive(Debug)]
+struct Vote {
+    _player_name: String,
+    vote_name: String,
+    vote_reason: String,
+}
+
+struct Econ {
+    telnet: Telnet,
+    authed: bool,
+}
+
+impl Econ {
+    pub fn new(port: u16, buffer_size: usize) -> Econ {
+        let address = SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::from_str("127.0.0.1").expect("Invalid address")),
+            port,
+        );
+
+        Econ {
+            telnet: Telnet::connect_timeout(&address, buffer_size, Duration::from_secs(10))
+                .unwrap_or_else(|err| {
+                    println!("Coulnt establish telnet connection\nError: {:?}", err);
+                    exit(1);
+                }),
+            authed: false,
+        }
+    }
+
+    pub fn read(&mut self) -> Option<String> {
+        let event = self.telnet.read().expect("telnet read error");
+
+        if let Event::Data(buffer) = event {
+            Some(String::from_utf8_lossy(&buffer).replace('\0', ""))
+        } else {
+            None
+        }
+    }
+
+    pub fn send_rcon_cmd(&mut self, mut command: String) {
+        command.push('\n');
+        self.telnet
+            .write(command.as_bytes())
+            .expect("telnet write error");
+    }
+}
+
 /// keeps track of the server bridge state
 struct ServerBridge {
     /// econ connection to game server
@@ -56,8 +104,14 @@ struct ServerBridge {
     /// stores information about vote while its still pending
     pending_vote: Option<Vote>,
 
-    /// stores all available map generation configs
+    /// stores all available generation configs
     gen_configs: HashMap<String, GenerationConfig>,
+
+    /// stores all available map configs
+    map_configs: HashMap<String, MapConfig>,
+
+    /// selected map config
+    current_map_config: MapConfig,
 
     /// stores start arguments
     args: BridgeArgs,
@@ -69,6 +123,8 @@ impl ServerBridge {
             econ: Econ::new(args.econ_port, args.telnet_buffer),
             pending_vote: None,
             gen_configs: GenerationConfig::get_all_configs(),
+            map_configs: MapConfig::get_all_configs(),
+            current_map_config: MapConfig::get_initial_config(),
             args,
         }
     }
@@ -146,7 +202,6 @@ impl ServerBridge {
             self.generate_and_change_map(
                 &Seed::from_u64(1337),
                 &GenerationConfig::get_initial_config(),
-                &MapConfig::get_initial_config(),
                 self.args.generation_retries,
             );
         } else if data.starts_with("Wrong password") {
@@ -169,25 +224,41 @@ impl ServerBridge {
             };
 
             // split vote name to get selected preset
-            let mut vote_parts = vote.vote_name.split_whitespace();
-            let vote_type = vote_parts.next().expect("should have exactly two parts");
-            assert_eq!(vote_type, "generate");
-            let vote_preset = vote_parts.next().expect("should have exactly two parts");
-            assert!(vote_parts.next().is_none(), "should have exactly two parts");
+            let config_name = vote
+                .vote_name
+                .splitn(2, char::is_whitespace)
+                .nth(1)
+                .unwrap();
 
-            // get config based on preset name
+            // get config based on name
             let gen_config = self
                 .gen_configs
-                .get(vote_preset)
-                .expect("preset does not exist!")
+                .get(config_name)
+                .expect("config does not exist!")
                 .clone();
 
-            self.generate_and_change_map(
-                &seed,
-                &gen_config,
-                &MapConfig::get_initial_config(),
-                self.args.generation_retries,
-            );
+            self.generate_and_change_map(&seed, &gen_config, self.args.generation_retries);
+        } else if vote.vote_name.starts_with("change_layout") {
+            // split vote name to get selected preset
+            let config_name = vote
+                .vote_name
+                .splitn(2, char::is_whitespace)
+                .nth(1)
+                .unwrap();
+
+            dbg!(&config_name);
+
+            // get config based on name
+            let map_config = self
+                .map_configs
+                .get(config_name)
+                .expect("config does not exist!")
+                .clone();
+
+            dbg!(&map_config);
+
+            // overwrite current map config
+            self.current_map_config = map_config;
         }
     }
 
@@ -195,7 +266,6 @@ impl ServerBridge {
         &mut self,
         seed: &Seed,
         gen_config: &GenerationConfig,
-        map_config: &MapConfig,
         retries: usize,
     ) {
         println!("[GEN] Starting Map Generation!");
@@ -210,7 +280,7 @@ impl ServerBridge {
         self.econ
             .send_rcon_cmd(format!("say [GEN] Generating Map, seed={:?}", &seed));
 
-        match Generator::generate_map(30_000, &seed, gen_config, map_config) {
+        match Generator::generate_map(30_000, &seed, gen_config, &self.current_map_config) {
             Ok(map) => {
                 println!("[GEN] Finished Map Generation!");
                 map.export(&map_path);
@@ -229,65 +299,25 @@ impl ServerBridge {
                     let mut seed = seed.clone();
                     seed.seed_str = String::new();
                     seed.seed_u64 = seed.seed_u64.wrapping_add(1);
-                    self.generate_and_change_map(&seed, gen_config, map_config, retries - 1);
+                    self.generate_and_change_map(&seed, gen_config, retries - 1);
                 }
             }
         }
     }
 }
 
-#[derive(Debug)]
-struct Vote {
-    _player_name: String,
-    vote_name: String,
-    vote_reason: String,
-}
-
-struct Econ {
-    telnet: Telnet,
-    authed: bool,
-}
-
-impl Econ {
-    pub fn new(port: u16, buffer_size: usize) -> Econ {
-        let address = SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::from_str("127.0.0.1").expect("Invalid address")),
-            port,
-        );
-
-        Econ {
-            telnet: Telnet::connect_timeout(&address, buffer_size, Duration::from_secs(10))
-                .unwrap_or_else(|err| {
-                    println!("Coulnt establish telnet connection\nError: {:?}", err);
-                    exit(1);
-                }),
-            authed: false,
-        }
-    }
-
-    pub fn read(&mut self) -> Option<String> {
-        let event = self.telnet.read().expect("telnet read error");
-
-        if let Event::Data(buffer) = event {
-            Some(String::from_utf8_lossy(&buffer).replace('\0', ""))
-        } else {
-            None
-        }
-    }
-
-    pub fn send_rcon_cmd(&mut self, mut command: String) {
-        command.push('\n');
-        self.telnet
-            .write(command.as_bytes())
-            .expect("telnet write error");
-    }
-}
-
-fn list_presets() {
-    let configs = GenerationConfig::get_all_configs();
-    for preset in configs.keys() {
-        println!("{}", preset);
-    }
+fn print_configs() {
+    println!(
+        "GenerationConfig: {}",
+        GenerationConfig::get_all_configs()
+            .keys()
+            .into_iter()
+            .join(",")
+    );
+    println!(
+        "MapConfig: {}",
+        MapConfig::get_all_configs().keys().into_iter().join(",")
+    );
 }
 
 fn main() {
@@ -296,6 +326,6 @@ fn main() {
             let mut bridge = ServerBridge::new(bridge_args);
             bridge.start();
         }
-        Command::ListPresets => list_presets(),
+        Command::ListConfigs => print_configs(),
     }
 }
