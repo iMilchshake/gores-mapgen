@@ -205,8 +205,8 @@ impl Map {
         // set spawns
         if zone_type == Some(&BlockType::Start) {
             self.set_area(
-                &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
-                &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
+                &pos.shifted_by(-(room_size - platform_margin), room_size - 4)?,
+                &pos.shifted_by(room_size - platform_margin, room_size - 4)?,
                 &BlockType::Spawn,
                 &Overwrite::Force,
             );

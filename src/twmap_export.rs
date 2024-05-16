@@ -54,7 +54,7 @@ impl TwExport {
             let automapper_config = TwExport::get_automapper_config(image_name.clone(), layer);
 
             let tiles = layer.tiles_mut().unwrap_mut();
-            *tiles = Array2::<Tile>::default((map.width, map.height));
+            *tiles = Array2::<Tile>::default((map.height, map.width));
 
             for ((x, y), value) in map.grid.indexed_iter() {
                 if block_type_in_layer(value) {
@@ -85,7 +85,7 @@ impl TwExport {
             .unwrap_mut();
 
         *game_layer = Array2::<GameTile>::from_elem(
-            (map.width, map.height),
+            (map.height, map.width),
             GameTile::new(0, TileFlags::empty()),
         );
 
