@@ -42,6 +42,10 @@ struct BridgeArgs {
 
     /// path to maps folder
     maps: PathBuf,
+
+    /// how many times generation is retried
+    #[arg(default_value_t = 10, long, short('r'))]
+    generation_retries: usize,
 }
 
 /// keeps track of the server bridge state
@@ -143,6 +147,7 @@ impl ServerBridge {
                 &Seed::from_u64(1337),
                 &GenerationConfig::get_initial_config(),
                 &MapConfig::get_initial_config(),
+                self.args.generation_retries,
             );
         } else if data.starts_with("Wrong password") {
             println!("[AUTH] Wrong Password!");
@@ -151,7 +156,7 @@ impl ServerBridge {
     }
 
     pub fn handle_vote(&mut self) {
-        let vote = std::mem::replace(&mut self.pending_vote, None).expect("no pending vote");
+        let vote = std::mem::replace(&mut self.pending_vote, None).expect("pending vote");
 
         if vote.vote_name.starts_with("generate") {
             // derive Seed from vote reason
@@ -177,7 +182,12 @@ impl ServerBridge {
                 .expect("preset does not exist!")
                 .clone();
 
-            self.generate_and_change_map(&seed, &gen_config, &MapConfig::get_initial_config());
+            self.generate_and_change_map(
+                &seed,
+                &gen_config,
+                &MapConfig::get_initial_config(),
+                self.args.generation_retries,
+            );
         }
     }
 
@@ -186,17 +196,21 @@ impl ServerBridge {
         seed: &Seed,
         gen_config: &GenerationConfig,
         map_config: &MapConfig,
+        retries: usize,
     ) {
         println!("[GEN] Starting Map Generation!");
-        self.econ
-            .send_rcon_cmd(format!("say [GEN] Generating Map, seed={:?}", &seed));
+
         let map_path = self
             .args
             .maps
             .canonicalize()
             .unwrap()
             .join("random_map.map");
-        match Generator::generate_map(30_000, seed, gen_config, map_config) {
+
+        self.econ
+            .send_rcon_cmd(format!("say [GEN] Generating Map, seed={:?}", &seed));
+
+        match Generator::generate_map(30_000, &seed, gen_config, map_config) {
             Ok(map) => {
                 println!("[GEN] Finished Map Generation!");
                 map.export(&map_path);
@@ -209,7 +223,14 @@ impl ServerBridge {
                 println!("[GEN] Generation Error: {:?}", err);
                 self.econ
                     .send_rcon_cmd(format!("say [GEN] Failed due to: {:}", err));
-                self.econ.send_rcon_cmd("say just try again :)".to_string());
+
+                if retries > 0 {
+                    // retry with different seed
+                    let mut seed = seed.clone();
+                    seed.seed_str = String::new();
+                    seed.seed_u64 = seed.seed_u64.wrapping_add(1);
+                    self.generate_and_change_map(&seed, gen_config, map_config, retries - 1);
+                }
             }
         }
     }
