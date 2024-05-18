@@ -96,6 +96,7 @@ pub fn draw_walker_kernel(walker: &CuteWalker, kernel_type: KernelType) {
     let kernel = match kernel_type {
         KernelType::Inner => &walker.inner_kernel,
         KernelType::Outer => &walker.outer_kernel,
+        _ => panic!(),
     };
     let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
 
@@ -117,6 +118,7 @@ pub fn draw_walker_kernel(walker: &CuteWalker, kernel_type: KernelType) {
                 match kernel_type {
                     KernelType::Inner => Color::new(0.0, 0.0, 1.0, 0.1),
                     KernelType::Outer => Color::new(0.0, 1.0, 0.0, 0.1),
+                    KernelType::Pulse => panic!(),
                 },
             );
         }

@@ -1,4 +1,4 @@
-use crate::{position::Position, twmap_export::TwExport, walker::CuteWalker};
+use crate::{kernel::Kernel, position::Position, twmap_export::TwExport, walker::CuteWalker};
 use ndarray::{s, Array2};
 use rand_distr::num_traits::ToPrimitive;
 use std::path::PathBuf;
@@ -66,6 +66,7 @@ impl Overwrite {
 pub enum KernelType {
     Outer,
     Inner,
+    Pulse,
 }
 
 #[derive(Debug)]
@@ -111,9 +112,14 @@ impl Map {
         walker: &CuteWalker,
         kernel_type: KernelType,
     ) -> Result<(), &'static str> {
+        let pulse_kernel;
         let kernel = match kernel_type {
             KernelType::Inner => &walker.inner_kernel,
             KernelType::Outer => &walker.outer_kernel,
+            KernelType::Pulse => {
+                pulse_kernel = Kernel::new(&walker.inner_kernel.size + 2, 0.0);
+                &pulse_kernel
+            }
         };
         let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
@@ -135,8 +141,12 @@ impl Map {
 
                 let new_type = match (&kernel_type, current_type) {
                     // inner kernel removes everything
-                    (KernelType::Inner, BlockType::Hookable) => Some(BlockType::Empty),
-                    (KernelType::Inner, BlockType::Freeze) => Some(BlockType::Empty),
+                    (KernelType::Inner | KernelType::Pulse, BlockType::Hookable) => {
+                        Some(BlockType::Empty)
+                    }
+                    (KernelType::Inner | KernelType::Pulse, BlockType::Freeze) => {
+                        Some(BlockType::Empty)
+                    }
 
                     // outer kernel will turn hookables to freeze
                     (KernelType::Outer, BlockType::Hookable) => Some(BlockType::Freeze),

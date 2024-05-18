@@ -458,6 +458,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     "min freeze size",
                     true,
                 );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.pulse,
+                    edit_bool,
+                    "enable pulse",
+                    true,
+                );
             }
 
             // =======================================[ MAP CONFIG EDIT ]===================================

@@ -109,6 +109,9 @@ pub struct GenerationConfig {
 
     // min unconnected freeze obstacle size
     pub min_freeze_size: usize,
+
+    // enable pulse
+    pub pulse: bool,
 }
 
 impl GenerationConfig {
@@ -181,6 +184,7 @@ impl Default for GenerationConfig {
             skip_min_spacing_sqr: 45,
             skip_length_bounds: (3, 11),
             min_freeze_size: 0, // TODO: disable by default for now
+            pulse: true,
         }
     }
 }

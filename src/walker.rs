@@ -23,6 +23,8 @@ pub struct CuteWalker {
     pub steps_since_platform: usize,
 
     pub last_direction: Option<ShiftDirection>,
+
+    pub same_direction_count: usize,
 }
 
 impl CuteWalker {
@@ -43,6 +45,7 @@ impl CuteWalker {
             finished: false,
             steps_since_platform: 0,
             last_direction: None,
+            same_direction_count: 0,
         }
     }
 
@@ -123,16 +126,29 @@ impl CuteWalker {
         // with a certain probabiliy re-use last direction instead
         if rnd.with_probability(config.momentum_prob) && self.last_direction.is_some() {
             sampled_shift = self.last_direction.as_ref().unwrap();
+            self.same_direction_count += 1;
+        } else {
+            self.same_direction_count = 0;
         }
 
         // apply that shift
         self.pos.shift_in_direction(sampled_shift, map)?;
         self.steps += 1;
-        self.last_direction = Some(sampled_shift.clone());
 
-        // remove blocks using a kernel at current position
         map.update(self, KernelType::Outer)?;
-        map.update(self, KernelType::Inner)?;
+
+        // direction change -> pulse
+        if config.pulse
+            && self.same_direction_count > 5 // TODO: wait this SHOULD never happen XD
+            && self.last_direction.is_some()
+            && (self.last_direction.as_ref().unwrap() == sampled_shift)
+        {
+            map.update(self, KernelType::Pulse)?;
+        } else {
+            map.update(self, KernelType::Inner)?;
+        }
+
+        self.last_direction = Some(sampled_shift.clone());
 
         Ok(())
     }
