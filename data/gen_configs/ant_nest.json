@@ -1,0 +1,51 @@
+{
+  "name": "ant_nest",
+  "description": null,
+  "inner_rad_mut_prob": 0.15,
+  "inner_size_mut_prob": 0.67,
+  "outer_rad_mut_prob": 0.2,
+  "outer_size_mut_prob": 0.9,
+  "shift_weights": [
+    18,
+    16,
+    15,
+    14
+  ],
+  "platform_distance_bounds": [
+    0,
+    250
+  ],
+  "momentum_prob": 0.5,
+  "max_distance": 2.7,
+  "waypoint_reached_dist": 1200,
+  "inner_size_probs": [
+    [
+      2,
+      0.97
+    ],
+    [
+      8,
+      0.03
+    ]
+  ],
+  "outer_margin_probs": [
+    [
+      2,
+      0.94736844
+    ],
+    [
+      4,
+      0.05263158
+    ]
+  ],
+  "skip_length_bounds": [
+    4,
+    12
+  ],
+  "skip_min_spacing_sqr": 10,
+  "min_freeze_size": 25,
+  "enable_pulse": false,
+  "pulse_straight_delay": 10,
+  "pulse_corner_delay": 4,
+  "pulse_max_kernel_size": 3
+}
