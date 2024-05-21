@@ -1,10 +1,10 @@
 use crate::{
     generator::Generator,
-    map::{BlockType, Map, Overwrite},
+    map::{BlockType, Overwrite},
     position::{Position, ShiftDirection},
 };
 
-use std::{f32::consts::SQRT_2, marker, usize};
+use std::{f32::consts::SQRT_2, usize};
 
 use dt::dt_bool;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};

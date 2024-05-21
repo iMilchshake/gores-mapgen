@@ -4,7 +4,6 @@ use egui::RichText;
 use tinyfiledialogs;
 
 use crate::{
-    config::GenerationConfig,
     editor::{window_frame, Editor},
     position::Position,
     random::Seed,
@@ -456,15 +455,39 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     &mut editor.gen_config.min_freeze_size,
                     edit_usize,
                     "min freeze size",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.enable_pulse,
+                    edit_bool,
+                    "enable pulse",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.pulse_straight_delay,
+                    edit_usize,
+                    "pulse straight delay",
                     true,
                 );
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.pulse,
-                    edit_bool,
-                    "enable pulse",
-                    true,
+                    &mut editor.gen_config.pulse_corner_delay,
+                    edit_usize,
+                    "pulse corner delay",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.pulse_max_kernel_size,
+                    edit_usize,
+                    "pulse max kernel",
+                    false,
                 );
             }
 

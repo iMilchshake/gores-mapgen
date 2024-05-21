@@ -101,17 +101,26 @@ pub struct GenerationConfig {
     /// probabilities for (outer_kernel_margin, probability)
     pub outer_margin_probs: Vec<(usize, f32)>,
 
-    // (min, max) distance for skips
+    /// (min, max) distance for skips
     pub skip_length_bounds: (usize, usize),
 
-    // min distance between skips
+    /// min distance between skips
     pub skip_min_spacing_sqr: usize,
 
-    // min unconnected freeze obstacle size
+    /// min unconnected freeze obstacle size
     pub min_freeze_size: usize,
 
-    // enable pulse
-    pub pulse: bool,
+    /// enable pulse
+    pub enable_pulse: bool,
+
+    /// TODO:
+    pub pulse_straight_delay: usize,
+
+    /// TODO:
+    pub pulse_corner_delay: usize,
+
+    /// TODO:
+    pub pulse_max_kernel_size: usize,
 }
 
 impl GenerationConfig {
@@ -184,7 +193,10 @@ impl Default for GenerationConfig {
             skip_min_spacing_sqr: 45,
             skip_length_bounds: (3, 11),
             min_freeze_size: 0, // TODO: disable by default for now
-            pulse: true,
+            enable_pulse: false,
+            pulse_corner_delay: 5,
+            pulse_straight_delay: 10,
+            pulse_max_kernel_size: 4,
         }
     }
 }
