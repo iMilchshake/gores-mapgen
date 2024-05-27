@@ -145,7 +145,7 @@ impl ServerBridge {
         }
     }
 
-    /// checks whether the econ message regards votes, if yes return a Vote struct
+    /// checks whether the econ message regards votes
     pub fn check_vote(&mut self, data: &String) {
         // this regex detects all possible chat messages involving votes
         let vote_regex = Regex::new(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I chat: \*\*\* (Vote passed|Vote failed|'(.+?)' called .+ option '(.+?)' \((.+?)\))\n").unwrap();
@@ -211,54 +211,56 @@ impl ServerBridge {
     }
 
     pub fn handle_vote(&mut self) {
-        let vote = std::mem::replace(&mut self.pending_vote, None).expect("pending vote");
+        if let Some(vote) = self.pending_vote.take() {
+            if vote.vote_name.starts_with("generate") {
+                // derive Seed from vote reason
+                let seed = if vote.vote_reason == "No reason given" {
+                    Seed::random()
+                } else if let Ok(seed_u64) = vote.vote_reason.parse::<u64>() {
+                    Seed::from_u64(seed_u64)
+                } else {
+                    Seed::from_string(&vote.vote_reason)
+                };
 
-        if vote.vote_name.starts_with("generate") {
-            // derive Seed from vote reason
-            let seed = if vote.vote_reason == "No reason given" {
-                Seed::random()
-            } else if let Ok(seed_u64) = vote.vote_reason.parse::<u64>() {
-                Seed::from_u64(seed_u64)
-            } else {
-                Seed::from_string(&vote.vote_reason)
-            };
+                // split vote name to get selected preset
+                let config_name = vote
+                    .vote_name
+                    .splitn(2, char::is_whitespace)
+                    .nth(1)
+                    .unwrap();
 
-            // split vote name to get selected preset
-            let config_name = vote
-                .vote_name
-                .splitn(2, char::is_whitespace)
-                .nth(1)
-                .unwrap();
+                // get config based on name
+                let gen_config = self
+                    .gen_configs
+                    .get(config_name)
+                    .expect("config does not exist!")
+                    .clone();
 
-            // get config based on name
-            let gen_config = self
-                .gen_configs
-                .get(config_name)
-                .expect("config does not exist!")
-                .clone();
+                self.generate_and_change_map(&seed, &gen_config, self.args.generation_retries);
+            } else if vote.vote_name.starts_with("change_layout") {
+                // split vote name to get selected preset
+                let config_name = vote
+                    .vote_name
+                    .splitn(2, char::is_whitespace)
+                    .nth(1)
+                    .unwrap();
 
-            self.generate_and_change_map(&seed, &gen_config, self.args.generation_retries);
-        } else if vote.vote_name.starts_with("change_layout") {
-            // split vote name to get selected preset
-            let config_name = vote
-                .vote_name
-                .splitn(2, char::is_whitespace)
-                .nth(1)
-                .unwrap();
+                dbg!(&config_name);
 
-            dbg!(&config_name);
+                // get config based on name
+                let map_config = self
+                    .map_configs
+                    .get(config_name)
+                    .expect("config does not exist!")
+                    .clone();
 
-            // get config based on name
-            let map_config = self
-                .map_configs
-                .get(config_name)
-                .expect("config does not exist!")
-                .clone();
+                dbg!(&map_config);
 
-            dbg!(&map_config);
-
-            // overwrite current map config
-            self.current_map_config = map_config;
+                // overwrite current map config
+                self.current_map_config = map_config;
+            }
+        } else {
+            println!("[VOTE] Vote Success, but no pending vote! unhandled vote type?");
         }
     }
 
