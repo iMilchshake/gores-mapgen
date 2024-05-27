@@ -58,6 +58,8 @@ tinyfiledialogs = "3.9.1"
 dt = {git = "https://github.com/iMilchshake/dt"}
 derivative = "2.2.0"
 timing = "0.2.3"
+log = "0.4.21"
+simple_logger = "5.0.0"
 
 
 [dev-dependencies]

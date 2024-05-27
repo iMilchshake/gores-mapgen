@@ -4,6 +4,8 @@ use gores_mapgen_rust::config::MapConfig;
 use gores_mapgen_rust::random::Seed;
 use gores_mapgen_rust::{config::GenerationConfig, generator::Generator};
 use itertools::Itertools;
+use log::{debug, error, info, warn};
+use simple_logger::SimpleLogger;
 use std::collections::HashMap;
 
 use regex::Regex;
@@ -71,7 +73,7 @@ impl Econ {
         Econ {
             telnet: Telnet::connect_timeout(&address, buffer_size, Duration::from_secs(10))
                 .unwrap_or_else(|err| {
-                    println!("Coulnt establish telnet connection\nError: {:?}", err);
+                    error!("Coulnt establish telnet connection\nError: {:?}", err);
                     exit(1);
                 }),
             authed: false,
@@ -132,9 +134,7 @@ impl ServerBridge {
     fn start(&mut self) {
         loop {
             if let Some(data) = self.econ.read() {
-                if self.args.debug {
-                    println!("[RECV DEBUG]: {:?}", data);
-                }
+                debug!("[RECV DEBUG]: {:?}", data);
 
                 if !self.econ.authed {
                     self.check_auth(&data);
@@ -159,12 +159,12 @@ impl ServerBridge {
             if let Some(message) = message.map(|v| v.as_str()) {
                 match message {
                     "Vote passed" => {
-                        println!("[VOTE]: Success");
+                        info!("[VOTE]: Success");
                         self.handle_vote();
                     }
                     "Vote failed" => {
                         self.pending_vote = None;
-                        println!("[VOTE]: Failed");
+                        info!("[VOTE]: Failed");
                     }
                     // vote started messages begin with 'player_name'
                     _ if message.starts_with('\'') => {
@@ -172,7 +172,7 @@ impl ServerBridge {
                         let vote_name = mat.get(4).unwrap().as_str().to_string();
                         let vote_reason = mat.get(5).unwrap().as_str().to_string();
 
-                        println!(
+                        info!(
                             "[VOTE]: vote_name={}, vote_reason={}, player={}",
                             &vote_name, &vote_reason, &player_name
                         );
@@ -194,10 +194,10 @@ impl ServerBridge {
     pub fn check_auth(&mut self, data: &String) {
         if data == "Enter password:\n" {
             self.econ.send_rcon_cmd(self.args.econ_pass.clone());
-            println!("[AUTH] Sending login");
+            info!("[AUTH] Sending login");
         } else if data.starts_with("Authentication successful") {
-            println!("[AUTH] Success");
-            println!("[GEN] Generating initial map");
+            info!("[AUTH] Success");
+            info!("[GEN] Generating initial map");
             self.econ.authed = true;
             self.generate_and_change_map(
                 &Seed::from_u64(1337),
@@ -205,7 +205,7 @@ impl ServerBridge {
                 self.args.generation_retries,
             );
         } else if data.starts_with("Wrong password") {
-            println!("[AUTH] Wrong Password!");
+            info!("[AUTH] Wrong Password!");
             std::process::exit(1);
         }
     }
@@ -260,7 +260,7 @@ impl ServerBridge {
                 self.current_map_config = map_config;
             }
         } else {
-            println!("[VOTE] Vote Success, but no pending vote! unhandled vote type?");
+            warn!("[VOTE] Vote Success, but no pending vote! unhandled vote type?");
         }
     }
 
@@ -270,7 +270,7 @@ impl ServerBridge {
         gen_config: &GenerationConfig,
         retries: usize,
     ) {
-        println!("[GEN] Starting Map Generation!");
+        info!("[GEN] Starting Map Generation!");
 
         let map_path = self
             .args
@@ -284,15 +284,15 @@ impl ServerBridge {
 
         match Generator::generate_map(30_000, &seed, gen_config, &self.current_map_config) {
             Ok(map) => {
-                println!("[GEN] Finished Map Generation!");
+                info!("[GEN] Finished Map Generation!");
                 map.export(&map_path);
-                println!("[GEN] Map was exported");
+                info!("[GEN] Map was exported");
                 self.econ.send_rcon_cmd("change_map random_map".to_string());
                 self.econ.send_rcon_cmd("reload".to_string());
                 self.econ.send_rcon_cmd("say [GEN] Done...".to_string());
             }
             Err(err) => {
-                println!("[GEN] Generation Error: {:?}", err);
+                warn!("[GEN] Generation Error: {:?}", err);
                 self.econ
                     .send_rcon_cmd(format!("say [GEN] Failed due to: {:}", err));
 
@@ -325,6 +325,7 @@ fn print_configs() {
 fn main() {
     match Command::parse() {
         Command::StartBridge(bridge_args) => {
+            SimpleLogger::new().init().unwrap();
             let mut bridge = ServerBridge::new(bridge_args);
             bridge.start();
         }
