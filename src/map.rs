@@ -1,4 +1,4 @@
-use crate::{position::Position, twmap_export::TwExport, walker::CuteWalker};
+use crate::{kernel::Kernel, position::Position, twmap_export::TwExport, walker::CuteWalker};
 use ndarray::{s, Array2};
 use rand_distr::num_traits::ToPrimitive;
 use std::path::PathBuf;
@@ -109,12 +109,9 @@ impl Map {
     pub fn update(
         &mut self,
         walker: &CuteWalker,
+        kernel: &Kernel,
         kernel_type: KernelType,
     ) -> Result<(), &'static str> {
-        let kernel = match kernel_type {
-            KernelType::Inner => &walker.inner_kernel,
-            KernelType::Outer => &walker.outer_kernel,
-        };
         let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
 

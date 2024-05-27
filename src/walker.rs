@@ -1,3 +1,5 @@
+use macroquad::miniquad::conf;
+
 use crate::{
     config::{GenerationConfig, MapConfig},
     kernel::Kernel,
@@ -22,7 +24,10 @@ pub struct CuteWalker {
 
     pub steps_since_platform: usize,
 
-    pub last_direction: Option<ShiftDirection>,
+    pub last_shift: Option<ShiftDirection>,
+
+    /// counts how many steps the pulse constraints have been fulfilled
+    pub pulse_counter: usize,
 }
 
 impl CuteWalker {
@@ -42,7 +47,8 @@ impl CuteWalker {
             waypoints: map_config.waypoints.clone(),
             finished: false,
             steps_since_platform: 0,
-            last_direction: None,
+            last_shift: None,
+            pulse_counter: 0,
         }
     }
 
@@ -116,23 +122,59 @@ impl CuteWalker {
             return Err("Walker is finished");
         }
 
+        // sample next shift
         let goal = self.goal.as_ref().ok_or("Error: Goal is None")?;
         let shifts = self.pos.get_rated_shifts(goal, map);
-        let mut sampled_shift = &rnd.sample_move(&shifts);
+        let mut current_shift = &rnd.sample_move(&shifts);
 
-        // with a certain probabiliy re-use last direction instead
-        if rnd.with_probability(config.momentum_prob) && self.last_direction.is_some() {
-            sampled_shift = self.last_direction.as_ref().unwrap();
-        }
+        let same_dir = match self.last_shift {
+            Some(ref last_shift) => {
+                // Momentum: re-use last shift direction
+                if rnd.with_probability(config.momentum_prob) {
+                    current_shift = last_shift;
+                }
 
-        // apply that shift
-        self.pos.shift_in_direction(sampled_shift, map)?;
+                // check whether walker hasnt changed direction
+                current_shift == last_shift
+            }
+            None => false,
+        };
+
+        // apply selected shift
+        self.pos.shift_in_direction(current_shift, map)?;
         self.steps += 1;
-        self.last_direction = Some(sampled_shift.clone());
 
-        // remove blocks using a kernel at current position
-        map.update(self, KernelType::Outer)?;
-        map.update(self, KernelType::Inner)?;
+        // perform pulse if direction changed and config constraints allows it
+        let perform_pulse = config.enable_pulse
+            && ((same_dir && self.pulse_counter > config.pulse_straight_delay)
+                || (!same_dir && self.pulse_counter > config.pulse_corner_delay));
+
+        if perform_pulse {
+            self.pulse_counter = 0; // reset pulse counter
+            map.update(
+                self,
+                &Kernel::new(&self.inner_kernel.size + 4, 0.0),
+                KernelType::Outer,
+            )?;
+            map.update(
+                self,
+                &Kernel::new(&self.inner_kernel.size + 2, 0.0),
+                KernelType::Inner,
+            )?;
+        } else {
+            map.update(self, &self.outer_kernel, KernelType::Outer)?;
+            map.update(self, &self.inner_kernel, KernelType::Inner)?;
+        };
+
+        // apply kernels
+
+        if same_dir && self.inner_kernel.size <= config.pulse_max_kernel_size {
+            self.pulse_counter += 1;
+        } else {
+            self.pulse_counter = 0;
+        };
+
+        self.last_shift = Some(current_shift.clone());
 
         Ok(())
     }

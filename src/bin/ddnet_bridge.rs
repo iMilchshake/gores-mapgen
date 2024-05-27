@@ -282,7 +282,7 @@ impl ServerBridge {
         self.econ
             .send_rcon_cmd(format!("say [GEN] Generating Map, seed={:?}", &seed));
 
-        match Generator::generate_map(30_000, &seed, gen_config, &self.current_map_config) {
+        match Generator::generate_map(100_000, &seed, gen_config, &self.current_map_config) {
             Ok(map) => {
                 info!("[GEN] Finished Map Generation!");
                 map.export(&map_path);

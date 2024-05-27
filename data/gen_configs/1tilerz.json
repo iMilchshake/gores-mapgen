@@ -1,0 +1,46 @@
+{
+  "name": "1tilerz",
+  "description": null,
+  "inner_rad_mut_prob": 1.0,
+  "inner_size_mut_prob": 0.2,
+  "outer_rad_mut_prob": 0.2,
+  "outer_size_mut_prob": 0.2,
+  "shift_weights": [
+    20,
+    5,
+    4,
+    2
+  ],
+  "platform_distance_bounds": [
+    150,
+    150
+  ],
+  "momentum_prob": 0.72,
+  "max_distance": 4.0,
+  "waypoint_reached_dist": 300,
+  "inner_size_probs": [
+    [
+      1,
+      0.8015226
+    ],
+    [
+      2,
+      0.1984774
+    ]
+  ],
+  "outer_margin_probs": [
+    [
+      2,
+      1.0
+    ]
+  ],
+  "skip_length_bounds": [
+    3,
+    11
+  ],
+  "skip_min_spacing_sqr": 45,
+  "min_freeze_size": 2,
+  "enable_pulse": false,
+  "pulse_delay": 5,
+  "pulse_max_kernel_size": 4
+}
