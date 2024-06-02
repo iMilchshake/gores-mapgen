@@ -24,6 +24,9 @@ name = "twmap_test"
 name = "ddnet_bridge"
 
 [[bin]]
+name = "check_generator"
+
+[[bin]]
 name = "automap_test"
 # required-features = ["ddnet_bridge"]
 
@@ -75,7 +78,7 @@ opt-level = 3
 
 [profile.release]
 opt-level = 3
-panic = "abort"                    # abort on panic!()
+# panic = "abort"                    # abort on panic!()
 lto = true                      # enable link time optimization
 strip = true                    # strip debug symbols
 codegen-units = 1               # use a single codegen-unit for better optimizations

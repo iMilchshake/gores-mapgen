@@ -7,6 +7,7 @@ use itertools::Itertools;
 use log::{debug, error, info, warn};
 use simple_logger::SimpleLogger;
 use std::collections::HashMap;
+use std::panic;
 
 use regex::Regex;
 use std::{path::PathBuf, process::exit, str::FromStr, time::Duration};
@@ -95,6 +96,10 @@ impl Econ {
         self.telnet
             .write(command.as_bytes())
             .expect("telnet write error");
+    }
+
+    pub fn rcon_say(&mut self, message: String) {
+        self.send_rcon_cmd(format!("say {message}"));
     }
 }
 
@@ -245,8 +250,6 @@ impl ServerBridge {
                     .nth(1)
                     .unwrap();
 
-                dbg!(&config_name);
-
                 // get config based on name
                 let map_config = self
                     .map_configs
@@ -254,13 +257,18 @@ impl ServerBridge {
                     .expect("config does not exist!")
                     .clone();
 
-                dbg!(&map_config);
+                info!("[GEN] changed layout to {config_name}");
+                self.econ
+                    .rcon_say(format!("[GEN] changed layout to {config_name}"));
 
                 // overwrite current map config
                 self.current_map_config = map_config;
             }
         } else {
             warn!("[VOTE] Vote Success, but no pending vote! unhandled vote type?");
+            self.econ.rcon_say(
+                "[VOTE] Vote Success, but no pending vote! unhandled vote type?".to_string(),
+            );
         }
     }
 
@@ -270,8 +278,6 @@ impl ServerBridge {
         gen_config: &GenerationConfig,
         retries: usize,
     ) {
-        info!("[GEN] Starting Map Generation!");
-
         let map_path = self
             .args
             .maps
@@ -279,11 +285,20 @@ impl ServerBridge {
             .unwrap()
             .join("random_map.map");
 
-        self.econ
-            .send_rcon_cmd(format!("say [GEN] Generating Map, seed={:?}", &seed));
+        let info_txt = format!(
+            "[GEN] Generating | seed={:?} | gen_cfg={:?} | map_cfg={:?}",
+            &seed, &gen_config.name, &self.current_map_config.name
+        );
+        info!("{info_txt}");
+        self.econ.rcon_say(info_txt);
 
-        match Generator::generate_map(100_000, &seed, gen_config, &self.current_map_config) {
-            Ok(map) => {
+        let gen_status = panic::catch_unwind(|| {
+            Generator::generate_map(100_000, &seed, gen_config, &self.current_map_config)
+        });
+
+        match gen_status {
+            // map was generated successfully
+            Ok(Ok(map)) => {
                 info!("[GEN] Finished Map Generation!");
                 map.export(&map_path);
                 info!("[GEN] Map was exported");
@@ -291,10 +306,11 @@ impl ServerBridge {
                 self.econ.send_rcon_cmd("reload".to_string());
                 self.econ.send_rcon_cmd("say [GEN] Done...".to_string());
             }
-            Err(err) => {
-                warn!("[GEN] Generation Error: {:?}", err);
+            // map generation failed -> just retry
+            Ok(Err(generation_error)) => {
+                warn!("[GEN] Generation Error: {:?}", generation_error);
                 self.econ
-                    .send_rcon_cmd(format!("say [GEN] Failed due to: {:}", err));
+                    .send_rcon_cmd(format!("say [GEN] Failed due to: {:}", generation_error));
 
                 if retries > 0 {
                     // retry with different seed
@@ -303,6 +319,15 @@ impl ServerBridge {
                     seed.seed_u64 = seed.seed_u64.wrapping_add(1);
                     self.generate_and_change_map(&seed, gen_config, retries - 1);
                 }
+            }
+            // map generation panic -> STOP
+            Err(panic_info) => {
+                error!("[ERROR] Generation panicked!");
+                error!("{:?}", panic_info);
+                self.econ
+                    .rcon_say("[GEN] GENERATION PANICKED, THIS SHOULD NOT HAPPEN".to_string());
+                self.econ
+                    .rcon_say("[GEN] please report this to iMilchshake, thanks :D".to_string());
             }
         }
     }
