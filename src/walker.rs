@@ -1,7 +1,6 @@
-use macroquad::miniquad::conf;
-
 use crate::{
     config::{GenerationConfig, MapConfig},
+    generator,
     kernel::Kernel,
     map::{BlockType, KernelType, Map, Overwrite},
     position::{Position, ShiftDirection},
@@ -87,8 +86,7 @@ impl CuteWalker {
 
         // Case 2: max distance has been exceeded -> force platform using a room
         if self.steps_since_platform > max_distance {
-            // TODO: for now this is hardcoded so that platform is shifted down by 6 blocks.
-            map.generate_room(&walker_pos.shifted_by(0, 6)?, 5, 3, None)?;
+            generator::generate_room(map, &walker_pos.shifted_by(0, 6)?, 5, 3, None)?;
             self.steps_since_platform = 0;
             return Ok(());
         }
@@ -104,7 +102,7 @@ impl CuteWalker {
                 &walker_pos.shifted_by(-1, 0)?,
                 &walker_pos.shifted_by(1, 0)?,
                 &BlockType::Platform,
-                &Overwrite::ReplaceSolidFreeze,
+                &Overwrite::ReplaceEmptyOnly,
             );
             self.steps_since_platform = 0;
         }
@@ -151,19 +149,25 @@ impl CuteWalker {
 
         if perform_pulse {
             self.pulse_counter = 0; // reset pulse counter
-            map.update(
+            map.apply_kernel(
                 self,
                 &Kernel::new(&self.inner_kernel.size + 4, 0.0),
-                KernelType::Outer,
+                BlockType::Freeze,
             )?;
-            map.update(
+            map.apply_kernel(
                 self,
                 &Kernel::new(&self.inner_kernel.size + 2, 0.0),
-                KernelType::Inner,
+                BlockType::EmptyReserved,
             )?;
         } else {
-            map.update(self, &self.outer_kernel, KernelType::Outer)?;
-            map.update(self, &self.inner_kernel, KernelType::Inner)?;
+            map.apply_kernel(self, &self.outer_kernel, BlockType::Freeze)?;
+
+            let empty = if self.steps < config.fade_steps {
+                BlockType::EmptyReserved
+            } else {
+                BlockType::Empty
+            };
+            map.apply_kernel(self, &self.inner_kernel, empty)?;
         };
 
         // apply kernels
@@ -181,6 +185,22 @@ impl CuteWalker {
 
     pub fn cuddle(&self) {
         println!("Cute walker was cuddled!");
+    }
+
+    /// fades kernel size from max_size to min_size for fade_steps
+    pub fn set_fade_kernel(
+        &mut self,
+        step: usize,
+        min_size: usize,
+        max_size: usize,
+        fade_steps: usize,
+    ) {
+        let slope = (min_size as f32 - max_size as f32) / fade_steps as f32;
+        let kernel_size_f = (step as f32) * slope + max_size as f32;
+        let kernel_size = kernel_size_f.floor() as usize;
+        dbg!(step, kernel_size_f, kernel_size);
+        self.inner_kernel = Kernel::new(kernel_size, 0.0);
+        self.outer_kernel = Kernel::new(kernel_size + 2, 0.0);
     }
 
     pub fn mutate_kernel(&mut self, config: &GenerationConfig, rnd: &mut Random) {

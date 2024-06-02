@@ -40,13 +40,23 @@ impl BlockType {
 }
 
 pub enum Overwrite {
-    /// will replace EVERYTHING
+    /// Replace EVERYTHING
     Force,
 
+    /// Replace Hookable+Freeze
     ReplaceSolidFreeze,
+
+    /// Replace Hookable
     ReplaceSolidOnly,
+
+    /// Replace Empty
     ReplaceEmptyOnly,
+
+    /// Replace Freeze+Empty
     ReplaceNonSolid,
+
+    /// Replace Freeze+Empty+EmptyReserved
+    ReplaceNonSolidForce,
 }
 
 impl Overwrite {
@@ -59,6 +69,10 @@ impl Overwrite {
             Overwrite::ReplaceSolidOnly => matches!(&btype, BlockType::Hookable),
             Overwrite::ReplaceEmptyOnly => matches!(&btype, BlockType::Empty),
             Overwrite::ReplaceNonSolid => matches!(&btype, BlockType::Freeze | BlockType::Empty),
+            Overwrite::ReplaceNonSolidForce => matches!(
+                &btype,
+                BlockType::Freeze | BlockType::Empty | BlockType::EmptyReserved
+            ),
         }
     }
 }
@@ -106,11 +120,11 @@ impl Map {
         }
     }
 
-    pub fn update(
+    pub fn apply_kernel(
         &mut self,
         walker: &CuteWalker,
         kernel: &Kernel,
-        kernel_type: KernelType,
+        block_type: BlockType,
     ) -> Result<(), &'static str> {
         let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
@@ -121,7 +135,7 @@ impl Map {
         let exceeds_lower_bound = (walker.pos.y + extend) > self.height;
 
         if exceeds_left_bound || exceeds_upper_bound || exceeds_right_bound || exceeds_lower_bound {
-            return Err("kernel out of bounds");
+            return Err("Kernel out of bounds");
         }
 
         let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
@@ -130,17 +144,9 @@ impl Map {
             if *kernel_active {
                 let current_type = &self.grid[absolute_pos.as_index()];
 
-                let new_type = match (&kernel_type, current_type) {
-                    // inner kernel removes everything
-                    (KernelType::Inner, BlockType::Hookable) => Some(BlockType::Empty),
-                    (KernelType::Inner, BlockType::Freeze) => Some(BlockType::Empty),
-
-                    // outer kernel will turn hookables to freeze
-                    (KernelType::Outer, BlockType::Hookable) => Some(BlockType::Freeze),
-                    (KernelType::Outer, BlockType::Freeze) => Some(BlockType::Freeze),
-
-                    // ignore everything else
-                    (_, _) => None,
+                let new_type = match current_type {
+                    BlockType::Hookable | BlockType::Freeze => Some(block_type.clone()),
+                    _ => None,
                 };
 
                 if let Some(new_type) = new_type {
@@ -150,72 +156,6 @@ impl Map {
                 let chunk_pos = self.pos_to_chunk_pos(absolute_pos);
                 self.chunk_edited[chunk_pos.as_index()] = true;
             }
-        }
-
-        Ok(())
-    }
-
-    pub fn generate_room(
-        &mut self,
-        pos: &Position,
-        room_size: usize,
-        platform_margin: usize,
-        zone_type: Option<&BlockType>,
-    ) -> Result<(), &'static str> {
-        if pos.x < (room_size + 1)
-            || pos.y < (room_size + 1)
-            || pos.x > self.width - (room_size + 1)
-            || pos.y > self.height - (room_size + 1)
-        {
-            return Err("generate room out of bounds");
-        }
-
-        // TODO: i feel like this is utterly stupid
-        let room_size: i32 = room_size.to_i32().unwrap();
-        let platform_margin: i32 = platform_margin.to_i32().unwrap();
-
-        // carve room
-        self.set_area_border(
-            &pos.shifted_by(-room_size, -room_size)?,
-            &pos.shifted_by(room_size, room_size)?,
-            &BlockType::Empty,
-            &Overwrite::Force,
-        );
-
-        let inner_room_size = room_size - 1;
-        assert!(inner_room_size > 0);
-        self.set_area(
-            &pos.shifted_by(-inner_room_size, -inner_room_size)?,
-            &pos.shifted_by(inner_room_size, inner_room_size)?,
-            &BlockType::EmptyReserved,
-            &Overwrite::Force,
-        );
-
-        // set platform
-        self.set_area(
-            &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
-            &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
-            &BlockType::Platform,
-            &Overwrite::Force,
-        );
-
-        // set spawns
-        if zone_type == Some(&BlockType::Start) {
-            self.set_area(
-                &pos.shifted_by(-(room_size - platform_margin), room_size - 4)?,
-                &pos.shifted_by(room_size - platform_margin, room_size - 4)?,
-                &BlockType::Spawn,
-                &Overwrite::Force,
-            );
-        }
-        // set start/finish line
-        if let Some(zone_type) = zone_type {
-            self.set_area_border(
-                &pos.shifted_by(-room_size - 1, -room_size - 1)?,
-                &pos.shifted_by(room_size + 1, room_size + 1)?,
-                zone_type,
-                &Overwrite::ReplaceNonSolid,
-            );
         }
 
         Ok(())

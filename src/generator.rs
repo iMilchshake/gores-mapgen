@@ -5,14 +5,14 @@ use crate::{
     config::{GenerationConfig, MapConfig},
     debug::DebugLayer,
     kernel::Kernel,
-    map::{BlockType, Map},
+    map::{BlockType, Map, Overwrite},
     position::Position,
     post_processing as post,
     random::{Random, Seed},
     walker::CuteWalker,
 };
 
-use macroquad::color::colors;
+use macroquad::{color::colors, miniquad::conf};
 
 pub fn print_time(timer: &Timer, message: &str) {
     println!("{}: {:?}", message, timer.elapsed());
@@ -28,6 +28,75 @@ pub struct Generator {
 
     /// remember where generation began, so a start room can be placed in post processing
     spawn: Position,
+}
+
+pub fn generate_room(
+    map: &mut Map,
+    pos: &Position,
+    room_size: usize,
+    platform_margin: usize,
+    zone_type: Option<&BlockType>,
+) -> Result<(), &'static str> {
+    let room_size: i32 = room_size as i32;
+    let platform_margin: i32 = platform_margin as i32;
+
+    if !map.pos_in_bounds(&pos.shifted_by(room_size + 2, room_size + 1).unwrap())
+        || !map.pos_in_bounds(&pos.shifted_by(room_size + 1, room_size + 1).unwrap())
+    {
+        return Err("generate room out of bounds");
+    }
+
+    // carve room
+    map.set_area_border(
+        &pos.shifted_by(-room_size, -room_size)?,
+        &pos.shifted_by(room_size, room_size)?,
+        &BlockType::Empty,
+        &Overwrite::Force,
+    );
+
+    // only reserve - 1 so that when this is used for platforms
+    map.set_area(
+        &pos.shifted_by(-room_size + 1, -room_size + 1)?,
+        &pos.shifted_by(room_size - 1, room_size - 1)?,
+        &BlockType::EmptyReserved,
+        &Overwrite::Force,
+    );
+
+    // set spawns
+    if zone_type == Some(&BlockType::Start) {
+        map.set_area(
+            &pos.shifted_by(-(room_size - platform_margin), room_size - 1)?,
+            &pos.shifted_by(room_size - platform_margin, room_size - 1)?,
+            &BlockType::Spawn,
+            &Overwrite::Force,
+        );
+    }
+
+    if let Some(zone_type) = zone_type {
+        map.set_area_border(
+            &pos.shifted_by(-room_size - 1, -room_size - 1)?,
+            &pos.shifted_by(room_size + 1, room_size + 1)?,
+            zone_type,
+            &Overwrite::ReplaceNonSolidForce,
+        );
+
+        map.set_area(
+            &pos.shifted_by(-(room_size - platform_margin), room_size + 1)?,
+            &pos.shifted_by(room_size - platform_margin, room_size + 1)?,
+            &BlockType::Platform,
+            &Overwrite::Force,
+        );
+    } else {
+        // set center platform
+        map.set_area(
+            &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
+            &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
+            &BlockType::Platform,
+            &Overwrite::Force,
+        );
+    }
+
+    Ok(())
 }
 
 impl Generator {
@@ -71,7 +140,16 @@ impl Generator {
             config.validate()?;
 
             // randomly mutate kernel
-            self.walker.mutate_kernel(config, &mut self.rnd);
+            if self.walker.steps > config.fade_steps {
+                self.walker.mutate_kernel(config, &mut self.rnd);
+            } else {
+                self.walker.set_fade_kernel(
+                    self.walker.steps,
+                    config.fade_min_size,
+                    config.fade_max_size,
+                    config.fade_steps,
+                );
+            }
 
             // perform one step
             self.walker
@@ -95,12 +173,16 @@ impl Generator {
         self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
         print_time(&timer, "fix edge bugs");
 
-        self.map
-            .generate_room(&self.spawn, 4, 3, Some(&BlockType::Start))
+        generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
             .expect("start room generation failed");
-        self.map
-            .generate_room(&self.walker.pos.clone(), 4, 3, Some(&BlockType::Finish))
-            .expect("start finish room generation");
+        generate_room(
+            &mut self.map,
+            &self.walker.pos.clone(),
+            4,
+            3,
+            Some(&BlockType::Finish),
+        )
+        .expect("start finish room generation");
         print_time(&timer, "place rooms");
 
         if config.min_freeze_size > 0 {

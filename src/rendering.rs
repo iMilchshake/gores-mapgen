@@ -12,8 +12,8 @@ fn blocktype_to_color(value: &BlockType) -> Color {
         BlockType::EmptyReserved => Color::new(0.3, 0.0, 0.0, 0.1),
         BlockType::Finish => Color::new(1.0, 0.1, 0.1, 0.8),
         BlockType::Start => Color::new(0.1, 1.0, 0.1, 0.8),
-        BlockType::Spawn => Color::new(0.5, 0.5, 0.0, 0.8),
-        BlockType::Platform => Color::new(0.2, 0.2, 0.7, 0.8),
+        BlockType::Platform => Color::new(0.5, 0.5, 0.0, 0.8),
+        BlockType::Spawn => Color::new(0.2, 0.2, 0.7, 0.8),
     }
 }
 

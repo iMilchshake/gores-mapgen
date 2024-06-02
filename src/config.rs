@@ -115,12 +115,13 @@ pub struct GenerationConfig {
 
     /// TODO:
     pub pulse_straight_delay: usize,
-
-    /// TODO:
     pub pulse_corner_delay: usize,
+    pub pulse_max_kernel_size: usize,
 
     /// TODO:
-    pub pulse_max_kernel_size: usize,
+    pub fade_steps: usize,
+    pub fade_max_size: usize,
+    pub fade_min_size: usize,
 }
 
 impl GenerationConfig {
@@ -197,6 +198,9 @@ impl Default for GenerationConfig {
             pulse_corner_delay: 5,
             pulse_straight_delay: 10,
             pulse_max_kernel_size: 4,
+            fade_steps: 60,
+            fade_max_size: 6,
+            fade_min_size: 3,
         }
     }
 }
