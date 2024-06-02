@@ -157,7 +157,7 @@ impl CuteWalker {
             map.apply_kernel(
                 self,
                 &Kernel::new(&self.inner_kernel.size + 2, 0.0),
-                BlockType::EmptyReserved,
+                BlockType::Empty,
             )?;
         } else {
             map.apply_kernel(self, &self.outer_kernel, BlockType::Freeze)?;
