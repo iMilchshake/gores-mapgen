@@ -12,7 +12,7 @@
     14
   ],
   "platform_distance_bounds": [
-    0,
+    200,
     250
   ],
   "momentum_prob": 0.5,
@@ -47,5 +47,8 @@
   "enable_pulse": false,
   "pulse_straight_delay": 10,
   "pulse_corner_delay": 4,
-  "pulse_max_kernel_size": 3
+  "pulse_max_kernel_size": 3,
+  "fade_steps": 60,
+  "fade_max_size": 6,
+  "fade_min_size": 3
 }
