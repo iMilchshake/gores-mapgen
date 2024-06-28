@@ -153,7 +153,7 @@ impl ServerBridge {
     /// checks whether the econ message regards votes
     pub fn check_vote(&mut self, data: &String) {
         // this regex detects all possible chat messages involving votes
-        let vote_regex = Regex::new(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I chat: \*\*\* (Vote passed|Vote failed|'(.+?)' called .+ option '(.+?)' \((.+?)\))\n").unwrap();
+        let vote_regex = Regex::new(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) I chat: \*\*\* (Vote passed.*|Vote failed|'(.+?)' called .+ option '(.+?)' \((.+?)\))\n").unwrap();
         let result = vote_regex.captures_iter(&data);
 
         for mat in result {
@@ -163,9 +163,9 @@ impl ServerBridge {
             // determine vote event type
             if let Some(message) = message.map(|v| v.as_str()) {
                 match message {
-                    "Vote passed" => {
+                    _ if message.starts_with("Vote passed") => {
                         info!("[VOTE]: Success");
-                        self.handle_vote();
+                        self.handle_pending_vote();
                     }
                     "Vote failed" => {
                         self.pending_vote = None;
@@ -215,7 +215,7 @@ impl ServerBridge {
         }
     }
 
-    pub fn handle_vote(&mut self) {
+    pub fn handle_pending_vote(&mut self) {
         if let Some(vote) = self.pending_vote.take() {
             if vote.vote_name.starts_with("generate") {
                 // derive Seed from vote reason
