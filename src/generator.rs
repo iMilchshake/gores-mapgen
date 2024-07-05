@@ -143,7 +143,7 @@ impl Generator {
         }
 
         if !self.walker.finished {
-            config.validate()?;
+            config.validate()?; // TODO: how much does this slow down generation?
 
             // randomly mutate kernel
             if self.walker.steps > config.fade_steps {

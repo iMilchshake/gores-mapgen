@@ -489,6 +489,30 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     "pulse max kernel",
                     false,
                 );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.fade_steps,
+                    edit_usize,
+                    "fade steps",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.fade_max_size,
+                    edit_usize,
+                    "fade max size",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.fade_min_size,
+                    edit_usize,
+                    "fade min size",
+                    false,
+                );
             }
 
             // =======================================[ MAP CONFIG EDIT ]===================================

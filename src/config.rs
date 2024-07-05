@@ -118,9 +118,13 @@ pub struct GenerationConfig {
     pub pulse_corner_delay: usize,
     pub pulse_max_kernel_size: usize,
 
-    /// TODO:
+    /// number of initial walker steps to perform fading. Will fade from max to min kernel size.
     pub fade_steps: usize,
+
+    /// initial max kernel size for fading
     pub fade_max_size: usize,
+
+    /// goal min kernel size for fading
     pub fade_min_size: usize,
 }
 
@@ -133,6 +137,12 @@ impl GenerationConfig {
                 return Err("Invalid Config! (inner_size = 0)");
             }
         }
+
+        // 2. Check fade config
+        if self.fade_max_size == 0 || self.fade_min_size == 0 {
+            return Err("fade kernel sizes must be larger than zero");
+        }
+
         Ok(())
     }
 

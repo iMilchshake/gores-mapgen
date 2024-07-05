@@ -42,26 +42,17 @@
       0.02571042
     ]
   ],
-  "waypoints": [
-    {
-      "x": 250,
-      "y": 250
-    },
-    {
-      "x": 250,
-      "y": 150
-    },
-    {
-      "x": 50,
-      "y": 150
-    },
-    {
-      "x": 50,
-      "y": 50
-    },
-    {
-      "x": 250,
-      "y": 50
-    }
-  ]
+  "skip_length_bounds": [
+    3,
+    11
+  ],
+  "skip_min_spacing_sqr": 45,
+  "min_freeze_size": 0,
+  "enable_pulse": false,
+  "pulse_straight_delay": 10,
+  "pulse_corner_delay": 5,
+  "pulse_max_kernel_size": 4,
+  "fade_steps": 90,
+  "fade_max_size": 7,
+  "fade_min_size": 4
 }
