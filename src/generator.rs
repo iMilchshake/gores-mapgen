@@ -62,6 +62,16 @@ pub fn generate_room(
         &Overwrite::Force,
     );
 
+    // set start/finish line
+    if let Some(zone_type) = zone_type {
+        map.set_area_border(
+            &pos.shifted_by(-room_size - 1, -room_size - 1)?,
+            &pos.shifted_by(room_size + 1, room_size + 1)?,
+            zone_type,
+            &Overwrite::ReplaceNonSolidForce,
+        );
+    }
+
     // set spawns
     if zone_type == Some(&BlockType::Start) {
         map.set_area(
@@ -72,22 +82,18 @@ pub fn generate_room(
         );
     }
 
-    if let Some(zone_type) = zone_type {
-        map.set_area_border(
-            &pos.shifted_by(-room_size - 1, -room_size - 1)?,
-            &pos.shifted_by(room_size + 1, room_size + 1)?,
-            zone_type,
-            &Overwrite::ReplaceNonSolidForce,
-        );
-
+    // set platform below spawns
+    if zone_type == Some(&BlockType::Start) {
         map.set_area(
             &pos.shifted_by(-(room_size - platform_margin), room_size + 1)?,
             &pos.shifted_by(room_size - platform_margin, room_size + 1)?,
             &BlockType::Platform,
             &Overwrite::Force,
         );
-    } else {
-        // set center platform
+    }
+
+    // for non start/finish rooms -> place center platform
+    if zone_type.is_none() {
         map.set_area(
             &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
             &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
