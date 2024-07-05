@@ -12,8 +12,8 @@
     2
   ],
   "platform_distance_bounds": [
-    150,
-    150
+    88,
+    100
   ],
   "momentum_prob": 0.72,
   "max_distance": 4.0,
@@ -21,11 +21,7 @@
   "inner_size_probs": [
     [
       1,
-      0.8015226
-    ],
-    [
-      2,
-      0.1984774
+      1.0
     ]
   ],
   "outer_margin_probs": [
@@ -40,7 +36,11 @@
   ],
   "skip_min_spacing_sqr": 45,
   "min_freeze_size": 2,
-  "enable_pulse": false,
-  "pulse_delay": 5,
-  "pulse_max_kernel_size": 4
+  "enable_pulse": true,
+  "pulse_straight_delay": 20,
+  "pulse_corner_delay": 2,
+  "pulse_max_kernel_size": 4,
+  "fade_steps": 30,
+  "fade_max_size": 5,
+  "fade_min_size": 2
 }
