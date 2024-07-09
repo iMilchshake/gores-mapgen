@@ -207,7 +207,7 @@ pub fn find_corners(gen: &Generator) -> Result<Vec<(Position, ShiftDirection)>, 
     Ok(candidates)
 }
 
-struct Skip {
+pub struct Skip {
     start_pos: Position,
     end_pos: Position,
     length: usize,
@@ -264,7 +264,47 @@ pub fn check_corner_skip(
     }
 }
 
-// pub fn check_skip_neighbours(gen: &mut Generator)
+pub fn check_skip_neighbours(gen: &mut Generator, skip: &Skip) -> Result<usize, &'static str> {
+    let top_left = Position::new(
+        usize::min(skip.start_pos.x, skip.end_pos.x),
+        usize::min(skip.start_pos.y, skip.end_pos.y),
+    );
+    let bot_right = Position::new(
+        usize::max(skip.start_pos.x, skip.end_pos.x),
+        usize::max(skip.start_pos.y, skip.end_pos.y),
+    );
+
+    match skip.direction {
+        ShiftDirection::Left | ShiftDirection::Right => {
+            let bot_count = gen.map.count_occurence_in_area(
+                &top_left.shifted_by(0, 2)?,
+                &bot_right.shifted_by(0, 2)?,
+                &BlockType::Hookable,
+            )?;
+            let top_count = gen.map.count_occurence_in_area(
+                &top_left.shifted_by(0, -2)?,
+                &bot_right.shifted_by(0, -2)?,
+                &BlockType::Hookable,
+            )?;
+
+            Ok(usize::min(bot_count, top_count))
+        }
+        ShiftDirection::Up | ShiftDirection::Down => {
+            let left_count = gen.map.count_occurence_in_area(
+                &top_left.shifted_by(-2, 0)?,
+                &bot_right.shifted_by(-2, 0)?,
+                &BlockType::Hookable,
+            )?;
+            let right_count = gen.map.count_occurence_in_area(
+                &top_left.shifted_by(2, 0)?,
+                &bot_right.shifted_by(2, 0)?,
+                &BlockType::Hookable,
+            )?;
+
+            Ok(usize::min(left_count, right_count))
+        }
+    }
+}
 
 pub fn generate_skip(gen: &mut Generator, skip: &Skip) {
     let top_left = Position::new(
@@ -340,9 +380,16 @@ pub fn generate_all_skips(
             continue;
         }
 
+        let skip = &skips[skip_index];
+
+        // skip if no neighboring blocks TODO: where to do dis?
+        if check_skip_neighbours(gen, skip).unwrap_or(0) <= 0 {
+            valid_skips[skip_index] = false;
+            continue;
+        }
+
         // skip is valid -> invalidate all following conflicting skips
         // TODO: right now skips can still cross each other
-        let skip = &skips[skip_index];
         for other_index in (skip_index + 1)..skips.len() {
             let skip_other = &skips[other_index];
 

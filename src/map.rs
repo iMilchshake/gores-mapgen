@@ -207,6 +207,22 @@ impl Map {
         Ok(area.iter().all(|block| block == value))
     }
 
+    pub fn count_occurence_in_area(
+        &self,
+        top_left: &Position,
+        bot_right: &Position,
+        value: &BlockType,
+    ) -> Result<usize, &'static str> {
+        if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
+            return Err("checking area out of bounds");
+        }
+        let area = self
+            .grid
+            .slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
+
+        Ok(area.iter().filter(|&block| block == value).count())
+    }
+
     pub fn set_area(
         &mut self,
         top_left: &Position,
