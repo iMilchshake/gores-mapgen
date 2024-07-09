@@ -207,18 +207,25 @@ pub fn find_corners(gen: &Generator) -> Result<Vec<(Position, ShiftDirection)>, 
     Ok(candidates)
 }
 
-/// if a skip has been found, this returns the end position
+struct Skip {
+    start_pos: Position,
+    end_pos: Position,
+    length: usize,
+    direction: ShiftDirection,
+}
+
+/// if a skip has been found, this returns the end position and length
 pub fn check_corner_skip(
     gen: &Generator,
     init_pos: &Position,
     shift: &ShiftDirection,
     tunnel_bounds: (usize, usize),
-) -> Option<(Position, usize)> {
+) -> Option<Skip> {
     let mut pos = init_pos.clone();
 
-    let mut skip_length = 0;
+    let mut length = 0;
     let mut stage = 0;
-    while stage != 4 && skip_length < tunnel_bounds.1 {
+    while stage != 4 && length < tunnel_bounds.1 {
         // shift into given direction, abort if invalid shift
         if pos.shift_in_direction(shift, &gen.map).is_err() {
             return None;
@@ -242,29 +249,31 @@ pub fn check_corner_skip(
             _ => return None,
         };
 
-        skip_length += 1;
+        length += 1;
     }
 
-    if stage == 4 && skip_length > tunnel_bounds.0 {
-        Some((pos, skip_length))
+    if stage == 4 && length > tunnel_bounds.0 {
+        Some(Skip {
+            start_pos: init_pos.clone(),
+            end_pos: pos,
+            length,
+            direction: shift.clone(),
+        })
     } else {
         None
     }
 }
 
-pub fn generate_skip(
-    gen: &mut Generator,
-    start_pos: &Position,
-    end_pos: &Position,
-    shift: &ShiftDirection,
-) {
+// pub fn check_skip_neighbours(gen: &mut Generator)
+
+pub fn generate_skip(gen: &mut Generator, skip: &Skip) {
     let top_left = Position::new(
-        usize::min(start_pos.x, end_pos.x),
-        usize::min(start_pos.y, end_pos.y),
+        usize::min(skip.start_pos.x, skip.end_pos.x),
+        usize::min(skip.start_pos.y, skip.end_pos.y),
     );
     let bot_right = Position::new(
-        usize::max(start_pos.x, end_pos.x),
-        usize::max(start_pos.y, end_pos.y),
+        usize::max(skip.start_pos.x, skip.end_pos.x),
+        usize::max(skip.start_pos.y, skip.end_pos.y),
     );
 
     gen.map.set_area(
@@ -274,7 +283,7 @@ pub fn generate_skip(
         &Overwrite::ReplaceSolidFreeze,
     );
 
-    match shift {
+    match skip.direction {
         ShiftDirection::Left | ShiftDirection::Right => {
             gen.map.set_area(
                 &top_left.shifted_by(0, -1).unwrap(),
@@ -315,15 +324,15 @@ pub fn generate_all_skips(
     let corner_candidates = find_corners(gen).expect("corner detection failed");
 
     // get possible skips
-    let mut skips: Vec<(Position, Position, ShiftDirection, usize)> = Vec::new();
+    let mut skips: Vec<Skip> = Vec::new();
     for (start_pos, shift) in corner_candidates {
-        if let Some((end_pos, length)) = check_corner_skip(gen, &start_pos, &shift, length_bounds) {
-            skips.push((start_pos.clone(), end_pos, shift.clone(), length));
+        if let Some(skip) = check_corner_skip(gen, &start_pos, &shift, length_bounds) {
+            skips.push(skip);
         }
     }
 
     // pick final selection of skips
-    skips.sort_unstable_by(|s1, s2| usize::cmp(&s1.3, &s2.3)); // sort by length
+    skips.sort_unstable_by(|s1, s2| usize::cmp(&s1.length, &s2.length)); // sort by length
     let mut valid_skips = vec![true; skips.len()];
     for skip_index in 0..skips.len() {
         // skip if already invalidated
@@ -333,14 +342,15 @@ pub fn generate_all_skips(
 
         // skip is valid -> invalidate all following conflicting skips
         // TODO: right now skips can still cross each other
-        let (start, end, _, _) = &skips[skip_index];
+        let skip = &skips[skip_index];
         for other_index in (skip_index + 1)..skips.len() {
-            let (other_start, other_end, _, _) = &skips[other_index];
+            let skip_other = &skips[other_index];
 
-            if start.distance_squared(other_start) < min_spacing_sqr
-                || start.distance_squared(other_end) < min_spacing_sqr
-                || end.distance_squared(other_start) < min_spacing_sqr
-                || end.distance_squared(other_start) < min_spacing_sqr
+            // check if skips are too close
+            if skip.start_pos.distance_squared(&skip_other.start_pos) < min_spacing_sqr
+                || skip.start_pos.distance_squared(&skip_other.end_pos) < min_spacing_sqr
+                || skip.end_pos.distance_squared(&skip_other.start_pos) < min_spacing_sqr
+                || skip.end_pos.distance_squared(&skip_other.end_pos) < min_spacing_sqr
             {
                 valid_skips[other_index] = false;
             }
@@ -350,26 +360,26 @@ pub fn generate_all_skips(
     // generate all remaining valid skips
     for skip_index in 0..skips.len() {
         if valid_skips[skip_index] {
-            let (start, end, shift, _) = &skips[skip_index];
-            generate_skip(gen, start, end, shift);
+            generate_skip(gen, &skips[skip_index]);
         }
     }
 
     // set debug layer for valid skips
     let debug_skips = &mut gen.debug_layers.get_mut("skips").unwrap().grid;
-    for ((start, end, _, _), valid) in skips.iter().zip(valid_skips.iter()) {
+    for (skip, valid) in skips.iter().zip(valid_skips.iter()) {
         if *valid {
-            debug_skips[start.as_index()] = true;
-            debug_skips[end.as_index()] = true;
+            debug_skips[skip.start_pos.as_index()] = true;
+            debug_skips[skip.end_pos.as_index()] = true;
         }
     }
 
     // set debug layer for invalid skips
     let debug_skips_invalid = &mut gen.debug_layers.get_mut("skips_invalid").unwrap().grid;
-    for ((start, end, _, _), valid) in skips.iter().zip(valid_skips.iter()) {
+
+    for (skip, valid) in skips.iter().zip(valid_skips.iter()) {
         if !*valid {
-            debug_skips_invalid[start.as_index()] = true;
-            debug_skips_invalid[end.as_index()] = true;
+            debug_skips_invalid[skip.start_pos.as_index()] = true;
+            debug_skips_invalid[skip.end_pos.as_index()] = true;
         }
     }
 }
