@@ -1,6 +1,9 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-use std::process::exit;
+use std::{
+    panic::{self, AssertUnwindSafe},
+    process::exit,
+};
 
 use clap::Parser;
 use gores_mapgen_rust::{
@@ -85,7 +88,7 @@ async fn main() {
             }
 
             editor.gen.step(&editor.gen_config).unwrap_or_else(|err| {
-                println!("Abort due to error: {:}", err);
+                println!("Walker Step Failed: {:}", err);
                 editor.set_setup();
             });
 
@@ -97,7 +100,15 @@ async fn main() {
 
         // this is called ONCE after map was generated
         if editor.gen.walker.finished && !editor.is_setup() {
-            editor.gen.post_processing(&editor.gen_config);
+            // kinda crappy, but ensure that even a panic doesnt crash the program
+            let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+                editor
+                    .gen
+                    .post_processing(&editor.gen_config)
+                    .unwrap_or_else(|err| {
+                        println!("Post Processing Failed: {:}", err);
+                    });
+            }));
 
             // switch into setup mode for next map
             editor.set_setup();

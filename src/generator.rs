@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, panic};
 use timing::Timer;
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
 use macroquad::{color::colors, miniquad::conf};
 
 pub fn print_time(timer: &Timer, message: &str) {
-    println!("{}: {:?}", message, timer.elapsed());
+    // println!("{}: {:?}", message, timer.elapsed());
 }
 
 pub struct Generator {
@@ -172,7 +172,7 @@ impl Generator {
         Ok(())
     }
 
-    pub fn post_processing(&mut self, config: &GenerationConfig) {
+    pub fn post_processing(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
         let timer = Timer::start();
 
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
@@ -202,6 +202,8 @@ impl Generator {
 
         post::generate_all_skips(self, config.skip_length_bounds, config.skip_min_spacing_sqr);
         print_time(&timer, "generate skips");
+
+        Ok(())
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.
@@ -222,7 +224,7 @@ impl Generator {
             gen.step(gen_config)?;
         }
 
-        gen.post_processing(gen_config);
+        gen.post_processing(gen_config)?;
 
         Ok(gen.map)
     }
