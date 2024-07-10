@@ -6,7 +6,7 @@ use crate::{
 
 use std::{f32::consts::SQRT_2, usize};
 
-use dt::dt_bool;
+use dt::{dt_bool, num::ToPrimitive};
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 pub fn is_freeze(block_type: &&BlockType) -> bool {
@@ -264,7 +264,11 @@ pub fn check_corner_skip(
     }
 }
 
-pub fn check_skip_neighbours(gen: &mut Generator, skip: &Skip) -> Result<usize, &'static str> {
+pub fn count_skip_neighbours(
+    gen: &mut Generator,
+    skip: &Skip,
+    offset: usize,
+) -> Result<usize, &'static str> {
     let top_left = Position::new(
         usize::min(skip.start_pos.x, skip.end_pos.x),
         usize::min(skip.start_pos.y, skip.end_pos.y),
@@ -274,16 +278,18 @@ pub fn check_skip_neighbours(gen: &mut Generator, skip: &Skip) -> Result<usize, 
         usize::max(skip.start_pos.y, skip.end_pos.y),
     );
 
+    let offset: i32 = offset as i32;
+
     match skip.direction {
         ShiftDirection::Left | ShiftDirection::Right => {
             let bot_count = gen.map.count_occurence_in_area(
-                &top_left.shifted_by(0, 2)?,
-                &bot_right.shifted_by(0, 2)?,
+                &top_left.shifted_by(0, offset)?,
+                &bot_right.shifted_by(0, offset)?,
                 &BlockType::Hookable,
             )?;
             let top_count = gen.map.count_occurence_in_area(
-                &top_left.shifted_by(0, -2)?,
-                &bot_right.shifted_by(0, -2)?,
+                &top_left.shifted_by(0, -offset)?,
+                &bot_right.shifted_by(0, -offset)?,
                 &BlockType::Hookable,
             )?;
 
@@ -291,13 +297,13 @@ pub fn check_skip_neighbours(gen: &mut Generator, skip: &Skip) -> Result<usize, 
         }
         ShiftDirection::Up | ShiftDirection::Down => {
             let left_count = gen.map.count_occurence_in_area(
-                &top_left.shifted_by(-2, 0)?,
-                &bot_right.shifted_by(-2, 0)?,
+                &top_left.shifted_by(-offset, 0)?,
+                &bot_right.shifted_by(-offset, 0)?,
                 &BlockType::Hookable,
             )?;
             let right_count = gen.map.count_occurence_in_area(
-                &top_left.shifted_by(2, 0)?,
-                &bot_right.shifted_by(2, 0)?,
+                &top_left.shifted_by(offset, 0)?,
+                &bot_right.shifted_by(offset, 0)?,
                 &BlockType::Hookable,
             )?;
 
@@ -383,7 +389,7 @@ pub fn generate_all_skips(
         let skip = &skips[skip_index];
 
         // skip if no neighboring blocks TODO: where to do dis?
-        if check_skip_neighbours(gen, skip).unwrap_or(0) <= 0 {
+        if count_skip_neighbours(gen, skip, 2).unwrap_or(0) <= 0 {
             valid_skips[skip_index] = false;
             continue;
         }
