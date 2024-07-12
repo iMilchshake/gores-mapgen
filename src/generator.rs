@@ -122,6 +122,7 @@ impl Generator {
 
         let debug_layers = BTreeMap::from([
             ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
+            ("freeze_skips", DebugLayer::new(true, colors::ORANGE, &map)),
             ("skips", DebugLayer::new(true, colors::GREEN, &map)),
             ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
             ("blobs", DebugLayer::new(false, colors::RED, &map)),

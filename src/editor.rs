@@ -106,7 +106,7 @@ impl Editor {
 
         let mut visualize_debug_layers: HashMap<&'static str, bool> = HashMap::new();
         for layer_name in gen.debug_layers.keys() {
-            visualize_debug_layers.insert(layer_name, false);
+            visualize_debug_layers.insert(layer_name, true);
         }
 
         Editor {
