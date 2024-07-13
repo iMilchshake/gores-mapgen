@@ -61,16 +61,17 @@ impl TwExport {
 
                 // custom rule for freeze
                 if layer_type == &BlockTypeTW::Freeze && block_type == BlockTypeTW::Hookable {
-                    let neighbor_freeze_count = map
-                        .count_occurence_in_area(
-                            &Position::new(x.saturating_sub(1), y.saturating_sub(1)),
-                            &Position::new((x + 1).min(map.width - 1), (y + 1).min(map.height - 1)),
-                            &BlockType::Freeze,
-                        )
-                        .unwrap();
+                    let shifts = &[(-1, 0), (0, -1), (1, 0), (0, 1)];
+                    for shift in shifts {
+                        let neighbor_type = Position::new(x, y)
+                            .shifted_by(shift.0, shift.1)
+                            .ok()
+                            .and_then(|pos| map.grid.get(pos.as_index()));
 
-                    if neighbor_freeze_count > 1 {
-                        set_block = true;
+                        if neighbor_type.is_some_and(|t| t.is_freeze()) {
+                            set_block = true;
+                            break;
+                        }
                     }
                 }
 
