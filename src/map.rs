@@ -5,6 +5,13 @@ use std::path::PathBuf;
 
 const CHUNK_SIZE: usize = 5;
 
+#[derive(PartialEq)]
+pub enum BlockTypeTW {
+    Hookable,
+    Freeze,
+    Empty,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockType {
     Empty,
@@ -28,6 +35,17 @@ impl BlockType {
             BlockType::Spawn => 192,
             BlockType::Start => 33,
             BlockType::Finish => 34,
+        }
+    }
+
+    pub fn to_tw_block_type(&self) -> BlockTypeTW {
+        match self {
+            BlockType::Platform | BlockType::Hookable => BlockTypeTW::Hookable,
+            BlockType::Empty | BlockType::EmptyReserved => BlockTypeTW::Empty,
+            BlockType::Freeze => BlockTypeTW::Freeze,
+
+            // every other block is just mapped to empty
+            _ => BlockTypeTW::Empty,
         }
     }
 
