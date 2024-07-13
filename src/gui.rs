@@ -13,7 +13,7 @@ use egui::{CollapsingHeader, Label, Ui};
 use macroquad::time::get_fps;
 
 /// Helper function for input sanitization
-fn normalize_probs(vec: &mut [(usize, f32)]) {
+fn normalize_probs<T>(vec: &mut [(T, f32)]) {
     let sum: f32 = vec.iter().map(|(_, val)| val).sum();
     // if all values are zero, set all to 1/n
     if sum == 0.0 {
@@ -150,11 +150,24 @@ pub fn edit_string(ui: &mut Ui, value: &mut String) {
     ui.add(text_edit);
 }
 
-pub fn edit_probability_tuple(ui: &mut Ui, value: &mut (usize, f32)) {
+pub fn edit_probability_usize(ui: &mut Ui, value: &mut (usize, f32)) {
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
             ui.label("value:");
             edit_usize(ui, &mut value.0);
+        });
+        ui.vertical(|ui| {
+            ui.label("prob:");
+            edit_f32_prob(ui, &mut value.1)
+        });
+    });
+}
+
+pub fn edit_probability_f32(ui: &mut Ui, value: &mut (f32, f32)) {
+    ui.horizontal(|ui| {
+        ui.vertical(|ui| {
+            ui.label("value:");
+            edit_f32_prob(ui, &mut value.0);
         });
         ui.vertical(|ui| {
             ui.label("prob:");
@@ -373,7 +386,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     vec_edit_widget(
                         ui,
                         &mut editor.gen_config.inner_size_probs,
-                        edit_probability_tuple,
+                        edit_probability_usize,
                         "inner size probs",
                         true,
                         false,
@@ -383,12 +396,22 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     vec_edit_widget(
                         ui,
                         &mut editor.gen_config.outer_margin_probs,
-                        edit_probability_tuple,
+                        edit_probability_usize,
                         "outer margin probs",
                         true,
                         false,
                     );
                     normalize_probs(&mut editor.gen_config.outer_margin_probs);
+
+                    vec_edit_widget(
+                        ui,
+                        &mut editor.gen_config.circ_probs,
+                        edit_probability_f32,
+                        "circularity probs",
+                        true,
+                        false,
+                    );
+                    normalize_probs(&mut editor.gen_config.circ_probs);
                 });
 
                 field_edit_widget(

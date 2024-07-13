@@ -225,14 +225,16 @@ impl CuteWalker {
         }
 
         if rnd.with_probability(config.inner_rad_mut_prob) {
-            inner_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]); // TODO: this is terrible
+            // inner_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]); // TODO: this is terrible
+            inner_circ = rnd.sample_circularity(&config.circ_probs);
             modified = true;
         } else {
             rnd.skip();
         }
 
         if rnd.with_probability(config.outer_rad_mut_prob) {
-            outer_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]);
+            // outer_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]);
+            outer_circ = rnd.sample_circularity(&config.circ_probs);
             modified = true;
         } else {
             rnd.skip();

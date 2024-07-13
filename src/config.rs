@@ -101,6 +101,9 @@ pub struct GenerationConfig {
     /// probabilities for (outer_kernel_margin, probability)
     pub outer_margin_probs: Vec<(usize, f32)>,
 
+    /// probabilities for (kernel circularity, probability)
+    pub circ_probs: Vec<(f32, f32)>,
+
     /// (min, max) distance for skips
     pub skip_length_bounds: (usize, usize),
 
@@ -201,9 +204,11 @@ impl Default for GenerationConfig {
             waypoint_reached_dist: 250,
             inner_size_probs: vec![(3, 0.25), (5, 0.75)],
             outer_margin_probs: vec![(0, 0.5), (2, 0.5)],
+            // 0.0, 0.1, 0.2, 0.6, 0.8
+            circ_probs: vec![(0.0, 0.2), (0.1, 0.2), (0.2, 0.2), (0.6, 0.2), (0.8, 0.2)],
             skip_min_spacing_sqr: 45,
             skip_length_bounds: (3, 11),
-            min_freeze_size: 0, // TODO: disable by default for now
+            min_freeze_size: 0,
             enable_pulse: false,
             pulse_corner_delay: 5,
             pulse_straight_delay: 10,

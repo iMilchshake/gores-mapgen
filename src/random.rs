@@ -11,6 +11,7 @@ pub struct Random {
     shift_dist: WeightedAliasIndex<i32>,
     inner_kernel_dist: WeightedAliasIndex<f32>,
     outer_kernel_dist: WeightedAliasIndex<f32>,
+    circ_dist: WeightedAliasIndex<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +70,10 @@ impl Random {
                     .collect(),
             )
             .unwrap(),
+            circ_dist: WeightedAliasIndex::new(
+                config.circ_probs.iter().map(|(_, prob)| *prob).collect(),
+            )
+            .unwrap(),
         }
     }
 
@@ -123,9 +128,16 @@ impl Random {
 
     pub fn sample_outer_kernel_margin(&mut self, kernel_margin_probs: &[(usize, f32)]) -> usize {
         let index = self.outer_kernel_dist.sample(&mut self.gen);
-        let inner_kernel_size = kernel_margin_probs.get(index).expect("out of bounds");
+        let outer_kernel_margin = kernel_margin_probs.get(index).expect("out of bounds");
 
-        inner_kernel_size.0
+        outer_kernel_margin.0
+    }
+
+    pub fn sample_circularity(&mut self, circ_probs: &[(f32, f32)]) -> f32 {
+        let index = self.circ_dist.sample(&mut self.gen);
+        let circ = circ_probs.get(index).expect("out of bounds");
+
+        circ.0
     }
 
     pub fn with_probability(&mut self, probability: f32) -> bool {
