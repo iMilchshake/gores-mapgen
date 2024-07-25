@@ -1,17 +1,49 @@
-use crate::config::GenerationConfig;
 use crate::position::ShiftDirection;
+use crate::{config::GenerationConfig, generator::Generator};
 use rand::prelude::*;
 use rand::rngs::SmallRng;
-use rand_distr::WeightedAliasIndex;
+use rand_distr::{weighted_alias::AliasableWeight, WeightedAliasIndex};
 use seahash::hash;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct RandomDistConfig<T> {
+    pub values: Vec<T>,
+    pub probs: Vec<f32>,
+}
+
+impl<T> RandomDistConfig<T> {
+    pub fn new(values: Vec<T>, probs: Vec<f32>) -> RandomDistConfig<T> {
+        RandomDistConfig { values, probs }
+    }
+}
+
+struct RandomDist<T: AliasableWeight> {
+    rnd_cfg: RandomDistConfig<T>,
+    rnd_dist: WeightedAliasIndex<f32>,
+}
+
+impl<T: AliasableWeight> RandomDist<T> {
+    pub fn sample(self, rnd: &mut Random) -> T {
+        let index = self.rnd_dist.sample(&mut rnd.gen);
+        *self.rnd_cfg.values.get(index).expect("out of bounds")
+    }
+
+    pub fn new(config: RandomDistConfig<T>) -> RandomDist<T> {
+        RandomDist {
+            rnd_cfg: config,
+            rnd_dist: WeightedAliasIndex::new(config.probs).unwrap(),
+        }
+    }
+}
 
 pub struct Random {
     pub seed: Seed,
     gen: SmallRng,
-    shift_dist: WeightedAliasIndex<i32>,
-    inner_kernel_dist: WeightedAliasIndex<f32>,
-    outer_kernel_dist: WeightedAliasIndex<f32>,
-    circ_dist: WeightedAliasIndex<f32>,
+    shift_dist: RandomDist<ShiftDirection>,
+    inner_kernel_size_dist: RandomDist<usize>,
+    outer_kernel_margin_dist: RandomDist<usize>,
+    circ_dist: RandomDist<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -53,27 +85,10 @@ impl Random {
         Random {
             gen: SmallRng::seed_from_u64(seed.seed_u64),
             seed,
-            shift_dist: Random::get_weighted_dist(config.shift_weights.clone()),
-            inner_kernel_dist: WeightedAliasIndex::new(
-                config
-                    .inner_size_probs
-                    .iter()
-                    .map(|(_, prob)| *prob)
-                    .collect(),
-            )
-            .unwrap(),
-            outer_kernel_dist: WeightedAliasIndex::new(
-                config
-                    .outer_margin_probs
-                    .iter()
-                    .map(|(_, prob)| *prob)
-                    .collect(),
-            )
-            .unwrap(),
-            circ_dist: WeightedAliasIndex::new(
-                config.circ_probs.iter().map(|(_, prob)| *prob).collect(),
-            )
-            .unwrap(),
+            shift_dist: RandomDist::new(config.shift_weights),
+            outer_kernel_margin_dist: RandomDist::new(config.outer_margin_probs),
+            inner_kernel_size_dist: RandomDist::new(config.inner_size_probs),
+            circ_dist: RandomDist::new(config.circ_probs),
         }
     }
 
@@ -120,24 +135,10 @@ impl Random {
     }
 
     pub fn sample_inner_kernel_size(&mut self, kernel_size_probs: &[(usize, f32)]) -> usize {
-        let index = self.inner_kernel_dist.sample(&mut self.gen);
+        let index = self.inner_kernel_size_dist.sample(&mut self.gen);
         let inner_kernel_size = kernel_size_probs.get(index).expect("out of bounds");
 
         inner_kernel_size.0
-    }
-
-    pub fn sample_outer_kernel_margin(&mut self, kernel_margin_probs: &[(usize, f32)]) -> usize {
-        let index = self.outer_kernel_dist.sample(&mut self.gen);
-        let outer_kernel_margin = kernel_margin_probs.get(index).expect("out of bounds");
-
-        outer_kernel_margin.0
-    }
-
-    pub fn sample_circularity(&mut self, circ_probs: &[(f32, f32)]) -> f32 {
-        let index = self.circ_dist.sample(&mut self.gen);
-        let circ = circ_probs.get(index).expect("out of bounds");
-
-        circ.0
     }
 
     pub fn with_probability(&mut self, probability: f32) -> bool {

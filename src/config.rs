@@ -1,4 +1,5 @@
-use crate::position::Position;
+use crate::position::{Position, ShiftDirection};
+use crate::random::RandomDistConfig;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -81,7 +82,7 @@ pub struct GenerationConfig {
     pub outer_size_mut_prob: f32,
 
     /// probability weighting for random selection from best to worst towards next goal
-    pub shift_weights: Vec<i32>,
+    pub shift_weights: RandomDistConfig<ShiftDirection>,
 
     /// (min, max) distance between platforms
     pub platform_distance_bounds: (usize, usize),
@@ -96,13 +97,13 @@ pub struct GenerationConfig {
     pub waypoint_reached_dist: usize,
 
     /// probabilities for (inner_kernel_size, probability)
-    pub inner_size_probs: Vec<(usize, f32)>,
+    pub inner_size_probs: RandomDistConfig<usize>,
 
     /// probabilities for (outer_kernel_margin, probability)
-    pub outer_margin_probs: Vec<(usize, f32)>,
+    pub outer_margin_probs: RandomDistConfig<usize>,
 
     /// probabilities for (kernel circularity, probability)
-    pub circ_probs: Vec<(f32, f32)>,
+    pub circ_probs: RandomDistConfig<f32>,
 
     /// (min, max) distance for skips
     pub skip_length_bounds: (usize, usize),
@@ -203,7 +204,7 @@ impl Default for GenerationConfig {
             max_distance: 3.0,
             waypoint_reached_dist: 250,
             inner_size_probs: vec![(3, 0.25), (5, 0.75)],
-            outer_margin_probs: vec![(0, 0.5), (2, 0.5)],
+            outer_margin_probs: RandomDistConfig::new(vec![0, 2], vec![0.5, 0.5]),
             // 0.0, 0.1, 0.2, 0.6, 0.8
             circ_probs: vec![(0.0, 0.2), (0.1, 0.2), (0.2, 0.2), (0.6, 0.2), (0.8, 0.2)],
             skip_min_spacing_sqr: 45,
