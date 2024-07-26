@@ -1,4 +1,3 @@
-use rand_distr::weighted_alias::AliasableWeight;
 use serde::{Deserialize, Serialize};
 
 use crate::map::Map;
@@ -20,16 +19,6 @@ pub enum ShiftDirection {
     Right = 1,
     Down = 2,
     Left = 3,
-}
-
-// TODO: aaahhhh - why is this so hard
-impl AliasableWeight for ShiftDirection {
-    const MAX: ShiftDirection = ShiftDirection::Up;
-    const ZERO: ShiftDirection = ShiftDirection::Down;
-
-    fn try_from_u32_lossy(n: u32) -> Option<Self> {
-        ShiftDirection::try_from(n)
-    }
 }
 
 impl Position {

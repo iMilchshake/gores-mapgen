@@ -123,7 +123,7 @@ impl CuteWalker {
         // sample next shift
         let goal = self.goal.as_ref().ok_or("Error: Goal is None")?;
         let shifts = self.pos.get_rated_shifts(goal, map);
-        let mut current_shift = &rnd.sample_move(&shifts);
+        let mut current_shift = &rnd.shift_dist.sample_from_values(&shifts, rnd);
 
         let same_dir = match self.last_shift {
             Some(ref last_shift) => {
@@ -211,30 +211,29 @@ impl CuteWalker {
         let mut modified = false;
 
         if rnd.with_probability(config.inner_size_mut_prob) {
-            inner_size = rnd.sample_inner_kernel_size(&config.inner_size_probs);
+            inner_size = rnd.inner_kernel_size_dist.sample(rnd);
             modified = true;
         } else {
             rnd.skip_n(2); // for some reason sampling requires two values?
         }
 
         if rnd.with_probability(config.outer_size_mut_prob) {
-            outer_margin = rnd.sample_outer_kernel_margin(&config.outer_margin_probs);
+            outer_margin = rnd.outer_kernel_margin_dist.sample(rnd);
             modified = true;
         } else {
             rnd.skip_n(2);
         }
 
         if rnd.with_probability(config.inner_rad_mut_prob) {
-            // inner_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]); // TODO: this is terrible
-            inner_circ = rnd.sample_circularity(&config.circ_probs);
+            inner_circ = rnd.circ_dist.sample(rnd);
             modified = true;
         } else {
-            rnd.skip();
+            rnd.skip(); // TODO: now also skip 2 here?
         }
 
         if rnd.with_probability(config.outer_rad_mut_prob) {
             // outer_circ = *rnd.pick_element(&[0.0, 0.1, 0.2, 0.6, 0.8]);
-            outer_circ = rnd.sample_circularity(&config.circ_probs);
+            outer_circ = rnd.circ_dist.sample(rnd);
             modified = true;
         } else {
             rnd.skip();

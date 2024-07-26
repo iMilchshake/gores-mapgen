@@ -18,15 +18,20 @@ impl<T> RandomDistConfig<T> {
     }
 }
 
-struct RandomDist<T: AliasableWeight> {
+struct RandomDist<T> {
     rnd_cfg: RandomDistConfig<T>,
     rnd_dist: WeightedAliasIndex<f32>,
 }
 
-impl<T: AliasableWeight> RandomDist<T> {
+impl<T> RandomDist<T> {
     pub fn sample(self, rnd: &mut Random) -> T {
         let index = self.rnd_dist.sample(&mut rnd.gen);
         *self.rnd_cfg.values.get(index).expect("out of bounds")
+    }
+
+    pub fn sample_from_values(self, values: &[T], rnd: &mut Random) -> T {
+        let index = self.rnd_dist.sample(&mut rnd.gen);
+        *values.get(index).expect("out of bounds")
     }
 
     pub fn new(config: RandomDistConfig<T>) -> RandomDist<T> {
@@ -40,10 +45,10 @@ impl<T: AliasableWeight> RandomDist<T> {
 pub struct Random {
     pub seed: Seed,
     gen: SmallRng,
-    shift_dist: RandomDist<ShiftDirection>,
-    inner_kernel_size_dist: RandomDist<usize>,
-    outer_kernel_margin_dist: RandomDist<usize>,
-    circ_dist: RandomDist<f32>,
+    pub shift_dist: RandomDist<ShiftDirection>,
+    pub inner_kernel_size_dist: RandomDist<usize>,
+    pub outer_kernel_margin_dist: RandomDist<usize>,
+    pub circ_dist: RandomDist<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -116,29 +121,6 @@ impl Random {
 
     pub fn random_u64(&mut self) -> u64 {
         self.gen.next_u64()
-    }
-
-    fn get_weighted_dist(weights: Vec<i32>) -> WeightedAliasIndex<i32> {
-        // sadly WeightedAliasIndex is initialized using a Vec. So im manually checking for the
-        // correct size. I feel like there must be a better way also the current apprach allows
-        // for invalid moves to be picked. But that should be no problem in pracise
-        assert_eq!(weights.len(), 4);
-        WeightedAliasIndex::new(weights).expect("expect valid weights")
-    }
-
-    /// sample a shift based on weight distribution
-    pub fn sample_move(&mut self, shifts: &[ShiftDirection; 4]) -> ShiftDirection {
-        let index = self.shift_dist.sample(&mut self.gen);
-        let shift = shifts.get(index).expect("out of bounds");
-
-        shift.clone()
-    }
-
-    pub fn sample_inner_kernel_size(&mut self, kernel_size_probs: &[(usize, f32)]) -> usize {
-        let index = self.inner_kernel_size_dist.sample(&mut self.gen);
-        let inner_kernel_size = kernel_size_probs.get(index).expect("out of bounds");
-
-        inner_kernel_size.0
     }
 
     pub fn with_probability(&mut self, probability: f32) -> bool {
