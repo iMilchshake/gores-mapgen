@@ -65,11 +65,13 @@ pub fn random_dist_cfg_edit<T, F>(
         .default_open(!collapsed)
         .show(ui, |ui| {
             ui.vertical(|ui| {
-                for (prob, value) in cfg.probs.iter_mut().zip(cfg.values.iter_mut()) {
+                // TODO: this is absolutely terrible - AHHHHHHHHH
+                let row_count = usize::max(cfg.probs.len(), cfg.values.len());
+                for index in 0..row_count {
                     ui.horizontal(|ui| {
-                        edit_f32_prob(ui, prob);
+                        edit_f32_prob(ui, &mut cfg.probs[index]);
                         if edit_element.is_some() {
-                            edit_element.as_ref().unwrap()(ui, value);
+                            edit_element.as_ref().unwrap()(ui, &mut cfg.values[index]);
                         }
                     });
                 }
