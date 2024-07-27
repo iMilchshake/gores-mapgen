@@ -48,8 +48,6 @@ pub fn vec_edit_widget<T, F>(
         });
 }
 
-// pub fn edit_probability_usize(ui: &mut Ui, value: &mut (usize, f32)) {
-
 pub fn random_dist_cfg_edit<T, F>(
     ui: &mut Ui,
     cfg: &mut RandomDistConfig<T>,
@@ -61,17 +59,20 @@ pub fn random_dist_cfg_edit<T, F>(
     F: Fn(&mut Ui, &mut T),
     T: Default,
 {
+    let dist_has_values = cfg.values.is_some();
+
     CollapsingHeader::new(label)
         .default_open(!collapsed)
         .show(ui, |ui| {
             ui.vertical(|ui| {
-                // TODO: this is absolutely terrible - AHHHHHHHHH
-                let row_count = usize::max(cfg.probs.len(), cfg.values.len());
-                for index in 0..row_count {
+                for index in 0..cfg.probs.len() {
                     ui.horizontal(|ui| {
                         edit_f32_prob(ui, &mut cfg.probs[index]);
-                        if edit_element.is_some() {
-                            edit_element.as_ref().unwrap()(ui, &mut cfg.values[index]);
+                        if dist_has_values && edit_element.is_some() {
+                            edit_element.as_ref().unwrap()(
+                                ui,
+                                &mut cfg.values.as_mut().unwrap()[index],
+                            );
                         }
                     });
                 }
@@ -79,12 +80,16 @@ pub fn random_dist_cfg_edit<T, F>(
                 if !fixed_size {
                     ui.horizontal(|ui| {
                         if ui.button("+").clicked() {
-                            cfg.values.push(Default::default());
+                            if dist_has_values {
+                                cfg.values.as_mut().unwrap().push(Default::default());
+                            }
                             cfg.probs.push(0.1);
                         };
 
-                        if ui.button("-").clicked() && cfg.values.len() > 1 {
-                            cfg.values.pop();
+                        if ui.button("-").clicked() && cfg.probs.len() > 1 {
+                            if dist_has_values {
+                                cfg.values.as_mut().unwrap().pop();
+                            }
                             cfg.probs.pop();
                         };
                     });

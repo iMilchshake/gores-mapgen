@@ -8,12 +8,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct RandomDistConfig<T> {
-    pub values: Vec<T>, // TODO: option here?
+    pub values: Option<Vec<T>>,
     pub probs: Vec<f32>,
 }
 
 impl<T> RandomDistConfig<T> {
-    pub fn new(values: Vec<T>, probs: Vec<f32>) -> RandomDistConfig<T> {
+    pub fn new(values: Option<Vec<T>>, probs: Vec<f32>) -> RandomDistConfig<T> {
         RandomDistConfig { values, probs }
     }
 
@@ -119,19 +119,37 @@ impl Random {
     pub fn sample_inner_kernel_size(&mut self) -> usize {
         let dist = &self.inner_kernel_size_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        dist.rnd_cfg.values.get(index).unwrap().clone()
+        dist.rnd_cfg
+            .values
+            .as_ref()
+            .unwrap()
+            .get(index)
+            .unwrap()
+            .clone()
     }
 
     pub fn sample_outer_kernel_margin(&mut self) -> usize {
         let dist = &self.outer_kernel_margin_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        dist.rnd_cfg.values.get(index).unwrap().clone()
+        dist.rnd_cfg
+            .values
+            .as_ref()
+            .unwrap()
+            .get(index)
+            .unwrap()
+            .clone()
     }
 
     pub fn sample_circularity(&mut self) -> f32 {
         let dist = &self.circ_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        dist.rnd_cfg.values.get(index).unwrap().clone()
+        dist.rnd_cfg
+            .values
+            .as_ref()
+            .unwrap()
+            .get(index)
+            .unwrap()
+            .clone()
     }
 
     pub fn sample_shift(&mut self, ordered_shifts: &[ShiftDirection; 4]) -> ShiftDirection {

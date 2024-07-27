@@ -1,6 +1,6 @@
 use crate::position::{Position, ShiftDirection};
 use crate::random::RandomDistConfig;
-use log::{warn};
+use log::warn;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -137,7 +137,7 @@ impl GenerationConfig {
     /// returns an error if the configuration would result in a crash
     pub fn validate(&self) -> Result<(), &'static str> {
         // 1. Check that there is no inner kernel size of 0
-        for inner_size in self.inner_size_probs.values.iter() {
+        for inner_size in self.inner_size_probs.values.as_ref().unwrap().iter() {
             if *inner_size == 0 {
                 return Err("Invalid Config! (inner_size = 0)");
             }
@@ -206,15 +206,15 @@ impl Default for GenerationConfig {
             inner_size_mut_prob: 0.5,
             outer_rad_mut_prob: 0.25,
             outer_size_mut_prob: 0.5,
-            shift_weights: RandomDistConfig::new(vec![], vec![0.4, 0.22, 0.2, 0.18]),
+            shift_weights: RandomDistConfig::new(None, vec![0.4, 0.22, 0.2, 0.18]),
             platform_distance_bounds: (500, 750),
             momentum_prob: 0.01,
             max_distance: 3.0,
             waypoint_reached_dist: 250,
-            inner_size_probs: RandomDistConfig::new(vec![3, 5], vec![0.25, 0.75]),
-            outer_margin_probs: RandomDistConfig::new(vec![0, 2], vec![0.5, 0.5]),
+            inner_size_probs: RandomDistConfig::new(Some(vec![3, 5]), vec![0.25, 0.75]),
+            outer_margin_probs: RandomDistConfig::new(Some(vec![0, 2]), vec![0.5, 0.5]),
             circ_probs: RandomDistConfig::new(
-                vec![0.0, 0.1, 0.2, 0.6, 0.8],
+                Some(vec![0.0, 0.1, 0.2, 0.6, 0.8]),
                 vec![0.2, 0.2, 0.2, 0.2, 0.2],
             ),
             skip_min_spacing_sqr: 45,

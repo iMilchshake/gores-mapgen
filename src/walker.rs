@@ -229,14 +229,14 @@ impl CuteWalker {
             inner_circ = rnd.sample_circularity();
             modified = true;
         } else {
-            rnd.skip(); // TODO: now also skip 2 here?
+            rnd.skip_n(2);
         }
 
         if rnd.with_probability(config.outer_rad_mut_prob) {
             outer_circ = rnd.sample_circularity();
             modified = true;
         } else {
-            rnd.skip();
+            rnd.skip_n(2);
         }
 
         outer_size = inner_size + outer_margin;
