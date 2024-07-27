@@ -6,7 +6,7 @@ use tinyfiledialogs;
 use crate::{
     editor::{window_frame, Editor},
     position::Position,
-    random::Seed,
+    random::{RandomDistConfig, Seed},
 };
 use egui::Context;
 use egui::{CollapsingHeader, Label, Ui};
@@ -58,6 +58,47 @@ pub fn vec_edit_widget<T, F>(
 
                         if ui.button("-").clicked() && vec.len() > 1 {
                             vec.pop();
+                        };
+                    });
+                };
+            });
+        });
+}
+
+// pub fn edit_probability_usize(ui: &mut Ui, value: &mut (usize, f32)) {
+
+pub fn random_dist_cfg_edit<T, F>(
+    ui: &mut Ui,
+    cfg: &mut RandomDistConfig<T>,
+    edit_element: F,
+    label: &str,
+    collapsed: bool,
+    fixed_size: bool,
+) where
+    F: Fn(&mut Ui, &mut T),
+    T: Default,
+{
+    CollapsingHeader::new(label)
+        .default_open(!collapsed)
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                for (prob, value) in cfg.probs.iter_mut().zip(cfg.values.iter_mut()) {
+                    ui.horizontal(|ui| {
+                        edit_f32_prob(ui, prob);
+                        edit_element(ui, value);
+                    });
+                }
+
+                if !fixed_size {
+                    ui.horizontal(|ui| {
+                        if ui.button("+").clicked() {
+                            cfg.values.push(Default::default());
+                            cfg.probs.push(0.1);
+                        };
+
+                        if ui.button("-").clicked() && cfg.values.len() > 1 {
+                            cfg.values.pop();
+                            cfg.probs.pop();
                         };
                     });
                 };
@@ -383,35 +424,33 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 );
 
                 ui.add_enabled_ui(editor.is_setup(), |ui| {
-                    vec_edit_widget(
+                    random_dist_cfg_edit(
                         ui,
                         &mut editor.gen_config.inner_size_probs,
-                        edit_probability_usize,
+                        edit_usize,
                         "inner size probs",
                         true,
                         false,
                     );
-                    normalize_probs(&mut editor.gen_config.inner_size_probs);
+                    // normalize_probs(&mut editor.gen_config.inner_size_probs.probs);
 
-                    vec_edit_widget(
-                        ui,
-                        &mut editor.gen_config.outer_margin_probs,
-                        edit_probability_usize,
-                        "outer margin probs",
-                        true,
-                        false,
-                    );
-                    normalize_probs(&mut editor.gen_config.outer_margin_probs);
-
-                    vec_edit_widget(
-                        ui,
-                        &mut editor.gen_config.circ_probs,
-                        edit_probability_f32,
-                        "circularity probs",
-                        true,
-                        false,
-                    );
-                    normalize_probs(&mut editor.gen_config.circ_probs);
+                    // vec_edit_widget(
+                    //     ui,
+                    //     &mut editor.gen_config.outer_margin_probs,
+                    //     edit_probability_usize,
+                    //     "outer margin probs",
+                    //     true,
+                    //     false,
+                    // );
+                    //
+                    // vec_edit_widget(
+                    //     ui,
+                    //     &mut editor.gen_config.circ_probs,
+                    //     edit_probability_f32,
+                    //     "circularity probs",
+                    //     true,
+                    //     false,
+                    // );
                 });
 
                 field_edit_widget(
@@ -447,10 +486,11 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 );
 
                 ui.add_enabled_ui(editor.is_setup(), |ui| {
+                    // TODO: HUH
                     vec_edit_widget(
                         ui,
-                        &mut editor.gen_config.shift_weights,
-                        edit_pos_i32,
+                        &mut editor.gen_config.shift_weights.probs,
+                        edit_f32_prob,
                         "step weights",
                         false,
                         true,

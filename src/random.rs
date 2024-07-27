@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct RandomDistConfig<T> {
-    pub values: Vec<T>,
+    pub values: Vec<T>, // TODO: option here?
     pub probs: Vec<f32>,
 }
 
@@ -18,37 +18,44 @@ impl<T> RandomDistConfig<T> {
     }
 }
 
-struct RandomDist<T> {
+pub struct RandomDist<T> {
     rnd_cfg: RandomDistConfig<T>,
     rnd_dist: WeightedAliasIndex<f32>,
 }
 
-impl<T> RandomDist<T> {
-    pub fn sample(self, rnd: &mut Random) -> T {
-        let index = self.rnd_dist.sample(&mut rnd.gen);
-        *self.rnd_cfg.values.get(index).expect("out of bounds")
-    }
+pub enum RandomDistType {
+    InnerSize,
+    OuterMargin,
+    Circularity,
+    ShiftDirection,
+}
 
-    pub fn sample_from_values(self, values: &[T], rnd: &mut Random) -> T {
-        let index = self.rnd_dist.sample(&mut rnd.gen);
-        *values.get(index).expect("out of bounds")
-    }
-
+impl<T: Clone> RandomDist<T> {
     pub fn new(config: RandomDistConfig<T>) -> RandomDist<T> {
         RandomDist {
+            rnd_dist: WeightedAliasIndex::new(config.probs.clone()).unwrap(),
             rnd_cfg: config,
-            rnd_dist: WeightedAliasIndex::new(config.probs).unwrap(),
         }
+    }
+
+    pub fn sample(&mut self, gen: &mut SmallRng) -> T {
+        let index = self.rnd_dist.sample(gen);
+
+        self.rnd_cfg
+            .values
+            .get(index)
+            .expect("out of bounds")
+            .clone()
     }
 }
 
 pub struct Random {
     pub seed: Seed,
-    gen: SmallRng,
-    pub shift_dist: RandomDist<ShiftDirection>,
+    pub gen: SmallRng,
+    shift_dist: RandomDist<ShiftDirection>,
     pub inner_kernel_size_dist: RandomDist<usize>,
-    pub outer_kernel_margin_dist: RandomDist<usize>,
-    pub circ_dist: RandomDist<f32>,
+    outer_kernel_margin_dist: RandomDist<usize>,
+    circ_dist: RandomDist<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -90,12 +97,22 @@ impl Random {
         Random {
             gen: SmallRng::seed_from_u64(seed.seed_u64),
             seed,
-            shift_dist: RandomDist::new(config.shift_weights),
-            outer_kernel_margin_dist: RandomDist::new(config.outer_margin_probs),
-            inner_kernel_size_dist: RandomDist::new(config.inner_size_probs),
-            circ_dist: RandomDist::new(config.circ_probs),
+            shift_dist: RandomDist::new(config.shift_weights.clone()),
+            outer_kernel_margin_dist: RandomDist::new(config.outer_margin_probs.clone()),
+            inner_kernel_size_dist: RandomDist::new(config.inner_size_probs.clone()),
+            circ_dist: RandomDist::new(config.circ_probs.clone()),
+            // TODO: clones here fine?
         }
     }
+
+    // pub fn sample_dist_values<T: Clone>(&mut self, values: &[T], dist: &RandomDist<T>) -> T {
+    //     let index = dist.rnd_dist.sample(&mut self.gen);
+    //     dist.rnd_cfg
+    //         .values
+    //         .get(index)
+    //         .expect("out of bounds")
+    //         .clone()
+    // }
 
     /// derive a u64 seed from entropy
     pub fn get_random_u64() -> u64 {
