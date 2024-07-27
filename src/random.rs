@@ -37,23 +37,13 @@ impl<T: Clone> RandomDist<T> {
             rnd_cfg: config,
         }
     }
-
-    pub fn sample(&mut self, gen: &mut SmallRng) -> T {
-        let index = self.rnd_dist.sample(gen);
-
-        self.rnd_cfg
-            .values
-            .get(index)
-            .expect("out of bounds")
-            .clone()
-    }
 }
 
 pub struct Random {
     pub seed: Seed,
-    pub gen: SmallRng,
+    gen: SmallRng,
     shift_dist: RandomDist<ShiftDirection>,
-    pub inner_kernel_size_dist: RandomDist<usize>,
+    inner_kernel_size_dist: RandomDist<usize>,
     outer_kernel_margin_dist: RandomDist<usize>,
     circ_dist: RandomDist<f32>,
 }
@@ -105,14 +95,29 @@ impl Random {
         }
     }
 
-    // pub fn sample_dist_values<T: Clone>(&mut self, values: &[T], dist: &RandomDist<T>) -> T {
-    //     let index = dist.rnd_dist.sample(&mut self.gen);
-    //     dist.rnd_cfg
-    //         .values
-    //         .get(index)
-    //         .expect("out of bounds")
-    //         .clone()
-    // }
+    pub fn sample_inner_kernel_size(&mut self) -> usize {
+        let dist = &self.inner_kernel_size_dist;
+        let index = dist.rnd_dist.sample(&mut self.gen);
+        dist.rnd_cfg.values.get(index).unwrap().clone()
+    }
+
+    pub fn sample_outer_kernel_margin(&mut self) -> usize {
+        let dist = &self.outer_kernel_margin_dist;
+        let index = dist.rnd_dist.sample(&mut self.gen);
+        dist.rnd_cfg.values.get(index).unwrap().clone()
+    }
+
+    pub fn sample_circularity(&mut self) -> f32 {
+        let dist = &self.circ_dist;
+        let index = dist.rnd_dist.sample(&mut self.gen);
+        dist.rnd_cfg.values.get(index).unwrap().clone()
+    }
+
+    pub fn sample_shift(&mut self, ordered_shifts: &[ShiftDirection; 4]) -> ShiftDirection {
+        let dist = &self.shift_dist;
+        let index = dist.rnd_dist.sample(&mut self.gen);
+        ordered_shifts.get(index).unwrap().clone()
+    }
 
     /// derive a u64 seed from entropy
     pub fn get_random_u64() -> u64 {

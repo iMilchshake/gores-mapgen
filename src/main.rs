@@ -1,10 +1,5 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-use std::{
-    panic::{self, AssertUnwindSafe},
-    process::exit,
-};
-
 use clap::Parser;
 use gores_mapgen_rust::{
     config::{GenerationConfig, MapConfig},
@@ -15,6 +10,8 @@ use gores_mapgen_rust::{
 };
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
+use simple_logger::SimpleLogger;
+use std::panic::{self, AssertUnwindSafe};
 
 const DISABLE_VSYNC: bool = true;
 
@@ -45,9 +42,10 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let args = Args::parse();
+    SimpleLogger::new().init().unwrap();
 
     let mut editor = Editor::new(
-        GenerationConfig::get_initial_config(),
+        GenerationConfig::get_initial_config(true),
         MapConfig::get_initial_config(),
     );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
@@ -64,8 +62,6 @@ async fn main() {
             editor.gen_config = editor.init_gen_configs.get(&config_name).unwrap().clone();
         }
     }
-
-    // let mut edge_bugs: Option<Array2<bool>> = None;
 
     loop {
         fps_ctrl.on_frame_start();

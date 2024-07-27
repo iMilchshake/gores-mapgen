@@ -1,5 +1,6 @@
 use crate::position::{Position, ShiftDirection};
 use crate::random::RandomDistConfig;
+use log::{debug, error, info, warn};
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -171,19 +172,26 @@ impl GenerationConfig {
         for file_name in GenerationConfigStorage::iter() {
             let file = GenerationConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
-            let config: GenerationConfig = serde_json::from_str(data).unwrap();
-            configs.insert(config.name.clone(), config);
+            if let Ok(config) = serde_json::from_str::<GenerationConfig>(data) {
+                configs.insert(config.name.clone(), config);
+            } else {
+                warn!("coulnt parse gen config {:}", file_name);
+            }
         }
 
         configs
     }
 
     /// This function defines the initial default config for actual map generator
-    pub fn get_initial_config() -> GenerationConfig {
-        let file = GenerationConfigStorage::get("hardV2.json").unwrap();
-        let data = std::str::from_utf8(&file.data).unwrap();
-        let config: GenerationConfig = serde_json::from_str(data).unwrap();
-        config
+    pub fn get_initial_config(use_default: bool) -> GenerationConfig {
+        if use_default {
+            GenerationConfig::default()
+        } else {
+            let file = GenerationConfigStorage::get("hardV2.json").unwrap();
+            let data = std::str::from_utf8(&file.data).unwrap();
+            let config: GenerationConfig = serde_json::from_str(data).unwrap();
+            config
+        }
     }
 }
 
