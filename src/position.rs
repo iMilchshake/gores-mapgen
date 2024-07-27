@@ -13,8 +13,9 @@ pub struct Position {
     pub y: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Serialize, Deserialize, Default)]
 pub enum ShiftDirection {
+    #[default]
     Up = 0,
     Right = 1,
     Down = 2,

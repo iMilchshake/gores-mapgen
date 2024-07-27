@@ -1,8 +1,8 @@
+use crate::config::GenerationConfig;
 use crate::position::ShiftDirection;
-use crate::{config::GenerationConfig, generator::Generator};
 use rand::prelude::*;
 use rand::rngs::SmallRng;
-use rand_distr::{weighted_alias::AliasableWeight, WeightedAliasIndex};
+use rand_distr::WeightedAliasIndex;
 use seahash::hash;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,27 @@ pub struct RandomDistConfig<T> {
 impl<T> RandomDistConfig<T> {
     pub fn new(values: Vec<T>, probs: Vec<f32>) -> RandomDistConfig<T> {
         RandomDistConfig { values, probs }
+    }
+
+    pub fn normalize_probs(&mut self) {
+        let probs_sum: f32 = self.probs.iter().sum();
+
+        if probs_sum == 1.0 {
+            return; // skip if already normalized
+        }
+
+        // if all values are zero, set all to 1/n
+        if probs_sum == 0.0 {
+            let len = self.probs.len();
+            for val in self.probs.iter_mut() {
+                *val = 1.0 / len as f32;
+            }
+        // otherwise normalize, if required
+        } else if probs_sum != 1.0 {
+            for val in self.probs.iter_mut() {
+                *val /= probs_sum; // Normalize the vector
+            }
+        }
     }
 }
 

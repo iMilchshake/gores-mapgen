@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, panic};
+use std::{collections::BTreeMap};
 use timing::Timer;
 
 use crate::{
@@ -12,9 +12,9 @@ use crate::{
     walker::CuteWalker,
 };
 
-use macroquad::{color::colors, miniquad::conf};
+use macroquad::{color::colors};
 
-pub fn print_time(timer: &Timer, message: &str) {
+pub fn print_time(_timer: &Timer, _message: &str) {
     // println!("{}: {:?}", message, timer.elapsed());
 }
 

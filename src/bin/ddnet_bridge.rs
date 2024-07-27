@@ -206,7 +206,7 @@ impl ServerBridge {
             self.econ.authed = true;
             self.generate_and_change_map(
                 &Seed::from_u64(1337),
-                &GenerationConfig::get_initial_config(),
+                &GenerationConfig::get_initial_config(false),
                 self.args.generation_retries,
             );
         } else if data.starts_with("Wrong password") {

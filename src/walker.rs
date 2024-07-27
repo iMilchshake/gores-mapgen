@@ -2,7 +2,7 @@ use crate::{
     config::{GenerationConfig, MapConfig},
     generator,
     kernel::Kernel,
-    map::{BlockType, KernelType, Map, Overwrite},
+    map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
     random::Random,
 };

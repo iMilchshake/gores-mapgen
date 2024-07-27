@@ -1,6 +1,6 @@
 use crate::{kernel::Kernel, position::Position, twmap_export::TwExport, walker::CuteWalker};
 use ndarray::{s, Array2};
-use rand_distr::num_traits::ToPrimitive;
+
 use std::path::PathBuf;
 
 const CHUNK_SIZE: usize = 5;

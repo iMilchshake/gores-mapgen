@@ -1,6 +1,6 @@
-use crate::map::{BlockType, BlockTypeTW, Map};
+use crate::map::{BlockTypeTW, Map};
 use crate::position::Position;
-use ndarray::{s, Array2};
+use ndarray::{Array2};
 use rust_embed::RustEmbed;
 use std::path::PathBuf;
 use twmap::{

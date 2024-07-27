@@ -5,29 +5,12 @@ use tinyfiledialogs;
 
 use crate::{
     editor::{window_frame, Editor},
-    position::Position,
+    position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
 };
 use egui::Context;
 use egui::{CollapsingHeader, Label, Ui};
 use macroquad::time::get_fps;
-
-/// Helper function for input sanitization
-fn normalize_probs<T>(vec: &mut [(T, f32)]) {
-    let sum: f32 = vec.iter().map(|(_, val)| val).sum();
-    // if all values are zero, set all to 1/n
-    if sum == 0.0 {
-        let len = vec.len();
-        for (_, val) in vec.iter_mut() {
-            *val = 1.0 / len as f32;
-        }
-    // otherwise normalize, if required
-    } else if sum != 1.0 {
-        for (_, val) in vec.iter_mut() {
-            *val /= sum; // Normalize the vector
-        }
-    }
-}
 
 pub fn vec_edit_widget<T, F>(
     ui: &mut Ui,
@@ -70,7 +53,7 @@ pub fn vec_edit_widget<T, F>(
 pub fn random_dist_cfg_edit<T, F>(
     ui: &mut Ui,
     cfg: &mut RandomDistConfig<T>,
-    edit_element: F,
+    edit_element: Option<F>,
     label: &str,
     collapsed: bool,
     fixed_size: bool,
@@ -85,7 +68,9 @@ pub fn random_dist_cfg_edit<T, F>(
                 for (prob, value) in cfg.probs.iter_mut().zip(cfg.values.iter_mut()) {
                     ui.horizontal(|ui| {
                         edit_f32_prob(ui, prob);
-                        edit_element(ui, value);
+                        if edit_element.is_some() {
+                            edit_element.as_ref().unwrap()(ui, value);
+                        }
                     });
                 }
 
@@ -104,6 +89,9 @@ pub fn random_dist_cfg_edit<T, F>(
                 };
             });
         });
+
+    // TODO: only normalize if a value changed?
+    cfg.normalize_probs();
 }
 
 pub fn hashmap_edit_widget<T, F>(
@@ -427,30 +415,29 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     random_dist_cfg_edit(
                         ui,
                         &mut editor.gen_config.inner_size_probs,
-                        edit_usize,
+                        Some(edit_usize),
                         "inner size probs",
                         true,
                         false,
                     );
-                    // normalize_probs(&mut editor.gen_config.inner_size_probs.probs);
 
-                    // vec_edit_widget(
-                    //     ui,
-                    //     &mut editor.gen_config.outer_margin_probs,
-                    //     edit_probability_usize,
-                    //     "outer margin probs",
-                    //     true,
-                    //     false,
-                    // );
-                    //
-                    // vec_edit_widget(
-                    //     ui,
-                    //     &mut editor.gen_config.circ_probs,
-                    //     edit_probability_f32,
-                    //     "circularity probs",
-                    //     true,
-                    //     false,
-                    // );
+                    random_dist_cfg_edit(
+                        ui,
+                        &mut editor.gen_config.outer_margin_probs,
+                        Some(edit_usize),
+                        "outer margin probs",
+                        true,
+                        false,
+                    );
+
+                    random_dist_cfg_edit(
+                        ui,
+                        &mut editor.gen_config.circ_probs,
+                        Some(edit_f32_prob),
+                        "circularity probs",
+                        true,
+                        false,
+                    );
                 });
 
                 field_edit_widget(
@@ -486,11 +473,10 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 );
 
                 ui.add_enabled_ui(editor.is_setup(), |ui| {
-                    // TODO: HUH
-                    vec_edit_widget(
+                    random_dist_cfg_edit(
                         ui,
-                        &mut editor.gen_config.shift_weights.probs,
-                        edit_f32_prob,
+                        &mut editor.gen_config.shift_weights,
+                        None::<fn(&mut Ui, &mut ShiftDirection)>, // TODO: this is stupid wtwf
                         "step weights",
                         false,
                         true,
