@@ -1,16 +1,20 @@
 {
   "name": "easy",
   "description": null,
+  "version": "1.0",
   "inner_rad_mut_prob": 0.8,
   "inner_size_mut_prob": 0.65,
   "outer_rad_mut_prob": 0.85,
   "outer_size_mut_prob": 0.3,
-  "shift_weights": [
-    20,
-    9,
-    8,
-    3
-  ],
+  "shift_weights": {
+    "values": null,
+    "probs": [
+      0.5,
+      0.225,
+      0.2,
+      0.075
+    ]
+  },
   "platform_distance_bounds": [
     250,
     500
@@ -18,30 +22,28 @@
   "momentum_prob": 0.625,
   "max_distance": 4.7,
   "waypoint_reached_dist": 250,
-  "inner_size_probs": [
-    [
+  "inner_size_probs": {
+    "values": [
       4,
-      0.1
+      5
     ],
-    [
-      5,
+    "probs": [
+      0.1,
       0.9
     ]
-  ],
-  "outer_margin_probs": [
-    [
+  },
+  "outer_margin_probs": {
+    "values": [
       0,
-      0.49479187
-    ],
-    [
       2,
-      0.49479148
+      4
     ],
-    [
-      4,
+    "probs": [
+      0.49479187,
+      0.49479148,
       0.010416667
     ]
-  ],
+  },
   "skip_length_bounds": [
     3,
     11

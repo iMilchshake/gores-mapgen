@@ -1,16 +1,20 @@
 {
   "name": "mainV2",
   "description": null,
+  "version": "1.0",
   "inner_rad_mut_prob": 0.67,
   "inner_size_mut_prob": 0.6,
   "outer_rad_mut_prob": 0.55,
   "outer_size_mut_prob": 0.8,
-  "shift_weights": [
-    20,
-    9,
-    8,
-    5
-  ],
+  "shift_weights": {
+    "values": null,
+    "probs": [
+      0.47619047619047616,
+      0.21428571428571427,
+      0.19047619047619047,
+      0.11904761904761904
+    ]
+  },
   "platform_distance_bounds": [
     400,
     500
@@ -18,30 +22,28 @@
   "momentum_prob": 0.5,
   "max_distance": 4.0,
   "waypoint_reached_dist": 517,
-  "inner_size_probs": [
-    [
+  "inner_size_probs": {
+    "values": [
       4,
-      0.15000002
-    ],
-    [
       3,
-      0.84391177
+      11
     ],
-    [
-      11,
+    "probs": [
+      0.15000002,
+      0.84391177,
       0.0060882242
     ]
-  ],
-  "outer_margin_probs": [
-    [
+  },
+  "outer_margin_probs": {
+    "values": [
       2,
-      0.9742896
+      4
     ],
-    [
-      4,
+    "probs": [
+      0.9742896,
       0.02571042
     ]
-  ],
+  },
   "skip_length_bounds": [
     3,
     11

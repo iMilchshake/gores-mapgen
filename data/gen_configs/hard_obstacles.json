@@ -1,16 +1,20 @@
 {
   "name": "hard_obstacles",
   "description": null,
+  "version": "1.0",
   "inner_rad_mut_prob": 1.0,
   "inner_size_mut_prob": 0.75,
   "outer_rad_mut_prob": 0.85,
   "outer_size_mut_prob": 0.65,
-  "shift_weights": [
-    20,
-    14,
-    13,
-    4
-  ],
+  "shift_weights": {
+    "values": null,
+    "probs": [
+      0.39215686274509803,
+      0.27450980392156865,
+      0.2549019607843137,
+      0.0784313725490196
+    ]
+  },
   "platform_distance_bounds": [
     250,
     350
@@ -18,42 +22,34 @@
   "momentum_prob": 0.6,
   "max_distance": 2.5,
   "waypoint_reached_dist": 300,
-  "inner_size_probs": [
-    [
+  "inner_size_probs": {
+    "values": [
       1,
-      0.06109512
-    ],
-    [
       2,
-      0.7044069
-    ],
-    [
       3,
-      0.19798937
-    ],
-    [
       4,
-      0.026456023
+      8
     ],
-    [
-      8,
+    "probs": [
+      0.06109512,
+      0.7044069,
+      0.19798937,
+      0.026456023,
       0.010052559
     ]
-  ],
-  "outer_margin_probs": [
-    [
+  },
+  "outer_margin_probs": {
+    "values": [
       2,
-      0.97118473
-    ],
-    [
       4,
-      0.025719268
+      6
     ],
-    [
-      6,
+    "probs": [
+      0.97118473,
+      0.025719268,
       0.0030960215
     ]
-  ],
+  },
   "skip_length_bounds": [
     0,
     15

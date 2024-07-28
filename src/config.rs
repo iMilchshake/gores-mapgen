@@ -70,6 +70,9 @@ pub struct GenerationConfig {
     /// this can contain any description of the generation preset
     pub description: Option<String>,
 
+    /// stores the GenerationConfig version for future migration
+    pub version: String,
+
     /// probability for mutating inner radius
     pub inner_rad_mut_prob: f32,
 
@@ -172,10 +175,13 @@ impl GenerationConfig {
         for file_name in GenerationConfigStorage::iter() {
             let file = GenerationConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
-            if let Ok(config) = serde_json::from_str::<GenerationConfig>(data) {
-                configs.insert(config.name.clone(), config);
-            } else {
-                warn!("coulnt parse gen config {:}", file_name);
+            match serde_json::from_str::<GenerationConfig>(data) {
+                Ok(config) => {
+                    configs.insert(config.name.clone(), config);
+                }
+                Err(e) => {
+                    warn!("couldn't parse gen config {}: {}", file_name, e);
+                }
             }
         }
 
@@ -202,6 +208,7 @@ impl Default for GenerationConfig {
         GenerationConfig {
             name: "default".to_string(),
             description: None,
+            version: "1.0".to_string(),
             inner_rad_mut_prob: 0.25,
             inner_size_mut_prob: 0.5,
             outer_rad_mut_prob: 0.25,
@@ -213,10 +220,7 @@ impl Default for GenerationConfig {
             waypoint_reached_dist: 250,
             inner_size_probs: RandomDistConfig::new(Some(vec![3, 5]), vec![0.25, 0.75]),
             outer_margin_probs: RandomDistConfig::new(Some(vec![0, 2]), vec![0.5, 0.5]),
-            circ_probs: RandomDistConfig::new(
-                Some(vec![0.0, 0.1, 0.2, 0.6, 0.8]),
-                vec![0.2, 0.2, 0.2, 0.2, 0.2],
-            ),
+            circ_probs: RandomDistConfig::new(Some(vec![0.0, 0.6, 0.8]), vec![0.75, 0.15, 0.05]),
             skip_min_spacing_sqr: 45,
             skip_length_bounds: (3, 11),
             min_freeze_size: 0,

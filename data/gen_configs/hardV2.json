@@ -1,16 +1,20 @@
 {
   "name": "hardV2",
   "description": null,
+  "version": "1.0",
   "inner_rad_mut_prob": 1.0,
   "inner_size_mut_prob": 0.75,
   "outer_rad_mut_prob": 0.85,
   "outer_size_mut_prob": 0.65,
-  "shift_weights": [
-    20,
-    14,
-    13,
-    4
-  ],
+  "shift_weights": {
+    "values": null,
+    "probs": [
+      0.39215686274509803,
+      0.27450980392156865,
+      0.2549019607843137,
+      0.0784313725490196
+    ]
+  },
   "platform_distance_bounds": [
     250,
     350
@@ -18,38 +22,32 @@
   "momentum_prob": 0.6,
   "max_distance": 4.0,
   "waypoint_reached_dist": 300,
-  "inner_size_probs": [
-    [
+  "inner_size_probs": {
+    "values": [
       1,
-      0.061715517
-    ],
-    [
       2,
-      0.7115598
-    ],
-    [
       3,
-      0.2
+      4
     ],
-    [
-      4,
+    "probs": [
+      0.061715517,
+      0.7115598,
+      0.2,
       0.026724687
     ]
-  ],
-  "outer_margin_probs": [
-    [
+  },
+  "outer_margin_probs": {
+    "values": [
       2,
-      0.97118473
-    ],
-    [
       4,
-      0.025719268
+      6
     ],
-    [
-      6,
+    "probs": [
+      0.97118473,
+      0.025719268,
       0.0030960215
     ]
-  ],
+  },
   "skip_length_bounds": [
     3,
     11
