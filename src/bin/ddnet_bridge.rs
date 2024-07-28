@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{crate_version, Parser};
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use gores_mapgen_rust::config::MapConfig;
 use gores_mapgen_rust::random::Seed;
@@ -15,7 +15,7 @@ use telnet::{Event, Telnet};
 
 #[derive(Parser, Debug)]
 #[command(name = "DDNet Bridge")]
-#[command(version = "0.1a")]
+#[command(version = crate_version!())]
 #[command(about = "Detect DDNet-Server votes via econ to trigger map generations", long_about = None)]
 enum Command {
     #[clap(name = "start", about = "start the ddnet bridge")]

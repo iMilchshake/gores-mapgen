@@ -1,6 +1,6 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-use clap::Parser;
+use clap::{crate_version, Parser};
 use gores_mapgen_rust::{
     config::{GenerationConfig, MapConfig},
     editor::*,
@@ -16,6 +16,9 @@ use std::panic::{self, AssertUnwindSafe};
 const DISABLE_VSYNC: bool = true;
 
 #[derive(Parser, Debug)]
+#[command(name = "Random Gores Map Generator")]
+#[command(version = crate_version!())]
+#[command(about = "Visual editor for generating maps and customizing the generators presets", long_about = None)]
 struct Args {
     /// select initial generation config
     config: Option<String>,

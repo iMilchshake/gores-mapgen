@@ -1,6 +1,6 @@
 [package]
 name = "gores-mapgen-rust"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 default-run = "gores-generator"
 
@@ -28,7 +28,6 @@ name = "check_generator"
 
 [[bin]]
 name = "automap_test"
-# required-features = ["ddnet_bridge"]
 
 [dependencies]
 # egui-macroquad = { git = "https://github.com/optozorax/egui-macroquad", default-features = false, rev="dfbdb967d6cf4e4726b84a568ec1b2bdc7e4f492" }
@@ -49,7 +48,7 @@ itertools = "0.12.1"
 twmap = "0.12.0"
 telnet = "0.2.1"
 regex = "1.10.4"
-clap = { version = "4.5.4", features = ["derive"] }
+clap = { version = "4.5.4", features = ["derive", "cargo"] }
 dirs = "5.0.1"
 serde = "1.0.197"
 serde_json = "1.0.115"
