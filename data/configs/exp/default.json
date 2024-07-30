@@ -1,0 +1,6 @@
+{
+    "automapper_rules_path": "../data/rules",
+    "design_group_name": "Tiles",
+    "freeze_layer_name": "Freeze",
+    "hookable_layer_name": "Hookable"
+}

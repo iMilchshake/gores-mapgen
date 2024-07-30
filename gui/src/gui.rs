@@ -1,16 +1,19 @@
+use std::fs::File;
+use std::io::Write;
 use std::{collections::HashMap, env, isize};
 
 use egui::RichText;
+use mapgen_core::config::{GenerationConfig, MapConfig};
 use tinyfiledialogs;
 
-use crate::{
-    editor::{window_frame, Editor},
-    position::{Position, ShiftDirection},
-    random::{RandomDistConfig, Seed},
-};
+use crate::editor::{window_frame, Editor};
 use egui::Context;
 use egui::{CollapsingHeader, Label, Ui};
 use macroquad::time::get_fps;
+use mapgen_core::{
+    position::{Position, ShiftDirection},
+    random::RandomDistConfig,
+};
 
 pub fn vec_edit_widget<T, F>(
     ui: &mut Ui,
@@ -148,7 +151,7 @@ pub fn field_edit_widget<T, F>(
 }
 
 /// edit u64 using a crappy textfield, as DragValue results in numeric instabilities
-fn edit_u64_textfield(ui: &mut egui::Ui, value: &mut u64) -> egui::Response {
+fn _edit_u64_textfield(ui: &mut egui::Ui, value: &mut u64) -> egui::Response {
     let mut int_as_str = format!("{}", value);
     let res = ui.add(egui::TextEdit::singleline(&mut int_as_str).desired_width(150.0));
     if int_as_str.is_empty() {
@@ -283,19 +286,20 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         if editor.is_setup() {
             ui.horizontal(|ui| {
                 ui.label("str");
-                let text_edit =
-                    egui::TextEdit::singleline(&mut editor.user_seed.seed_str).desired_width(150.0);
+                let mut string = String::new();
+                let text_edit = egui::TextEdit::singleline(&mut string).desired_width(150.0);
                 if ui.add(text_edit).changed() {
-                    editor.user_seed.seed_u64 = Seed::str_to_u64(&editor.user_seed.seed_str);
+                    editor.user_seed.fill_with_string(&string);
                 }
             });
 
             ui.horizontal(|ui| {
                 ui.label("u64");
 
-                if edit_u64_textfield(ui, &mut editor.user_seed.seed_u64).changed() {
-                    editor.user_seed.seed_str = String::new();
-                }
+                // TODO: whats that
+                // if edit_u64_textfield(ui, &mut editor.user_seed.0).changed() {
+                //     editor.user_seed.seed_str = String::new();
+                // }
             });
 
             ui.horizontal(|ui| {
@@ -332,14 +336,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 let cwd = env::current_dir().unwrap();
 
                 let initial_path = cwd
-                    .join(editor.gen_config.name.clone() + ".json")
+                    .join(editor.current_gen_config.clone() + ".json")
                     .to_string_lossy()
                     .to_string();
 
                 if let Some(path_out) =
                     tinyfiledialogs::save_file_dialog("save gen config", &initial_path)
                 {
-                    editor.gen_config.save(&path_out);
+                    save_gen_config(editor.cur_gen_config_mut(), &path_out);
                 }
             };
 
@@ -347,32 +351,32 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 let cwd = env::current_dir().unwrap();
 
                 let initial_path = cwd
-                    .join(editor.gen_config.name.clone() + ".json")
+                    .join(editor.current_map_config.clone() + ".json")
                     .to_string_lossy()
                     .to_string();
 
                 if let Some(path_out) =
                     tinyfiledialogs::save_file_dialog("save map config", &initial_path)
                 {
-                    editor.map_config.save(&path_out);
+                    save_map_config(editor.cur_map_config_mut(), &path_out);
                 }
             };
         });
 
         ui.label("load generation config:");
         egui::ComboBox::from_label("")
-            .selected_text(format!("{:}", editor.gen_config.name))
+            .selected_text(format!("{:}", editor.current_gen_config))
             .show_ui(ui, |ui| {
-                for (name, cfg) in editor.init_gen_configs.iter() {
-                    ui.selectable_value(&mut editor.gen_config, cfg.clone(), name);
+                for (name, cfg) in editor.gen_configs.iter() {
+                    ui.selectable_value(&mut editor.cur_gen_config(), cfg.clone(), name);
                 }
             });
         ui.label("load map config:");
         egui::ComboBox::from_label(" ")
-            .selected_text(format!("{:}", editor.map_config.name))
+            .selected_text(format!("{:}", editor.current_map_config))
             .show_ui(ui, |ui| {
-                for (name, cfg) in editor.init_map_configs.iter() {
-                    ui.selectable_value(&mut editor.map_config, cfg.clone(), name);
+                for (name, cfg) in editor.map_configs.iter() {
+                    ui.selectable_value(&mut editor.cur_map_config(), cfg.clone(), name);
                 }
             });
 
@@ -386,18 +390,24 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             if editor.edit_gen_config {
                 ui.separator();
 
-                field_edit_widget(ui, &mut editor.gen_config.name, edit_string, "name", false);
+                field_edit_widget(
+                    ui,
+                    &mut editor.current_gen_config,
+                    edit_string,
+                    "name",
+                    false,
+                );
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.inner_rad_mut_prob,
+                    &mut editor.cur_gen_config_mut().inner_rad_mut_prob,
                     edit_f32_prob,
                     "inner rad mut prob",
                     true,
                 );
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.inner_size_mut_prob,
+                    &mut editor.cur_gen_config_mut().inner_size_mut_prob,
                     edit_f32_prob,
                     "inner size mut prob",
                     true,
@@ -405,14 +415,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.outer_rad_mut_prob,
+                    &mut editor.cur_gen_config_mut().outer_rad_mut_prob,
                     edit_f32_prob,
                     "outer rad mut prob",
                     true,
                 );
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.outer_size_mut_prob,
+                    &mut editor.cur_gen_config_mut().outer_size_mut_prob,
                     edit_f32_prob,
                     "outer size mut prob",
                     true,
@@ -421,7 +431,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 ui.add_enabled_ui(editor.is_setup(), |ui| {
                     random_dist_cfg_edit(
                         ui,
-                        &mut editor.gen_config.inner_size_probs,
+                        &mut editor.cur_gen_config_mut().inner_size_probs,
                         Some(edit_usize),
                         "inner size probs",
                         true,
@@ -430,7 +440,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                     random_dist_cfg_edit(
                         ui,
-                        &mut editor.gen_config.outer_margin_probs,
+                        &mut editor.cur_gen_config_mut().outer_margin_probs,
                         Some(edit_usize),
                         "outer margin probs",
                         true,
@@ -439,7 +449,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                     random_dist_cfg_edit(
                         ui,
-                        &mut editor.gen_config.circ_probs,
+                        &mut editor.cur_gen_config_mut().circ_probs,
                         Some(edit_f32_prob),
                         "circularity probs",
                         true,
@@ -449,7 +459,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.platform_distance_bounds,
+                    &mut editor.cur_gen_config_mut().platform_distance_bounds,
                     edit_range_usize,
                     "platform distances",
                     true,
@@ -457,7 +467,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.momentum_prob,
+                    &mut editor.cur_gen_config_mut().momentum_prob,
                     edit_f32_prob,
                     "momentum prob",
                     true,
@@ -465,7 +475,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.max_distance,
+                    &mut editor.cur_gen_config_mut().max_distance,
                     edit_f32_wtf,
                     "max distance",
                     true,
@@ -473,7 +483,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.waypoint_reached_dist,
+                    &mut editor.cur_gen_config_mut().waypoint_reached_dist,
                     edit_usize,
                     "waypoint reached dist",
                     true,
@@ -482,7 +492,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 ui.add_enabled_ui(editor.is_setup(), |ui| {
                     random_dist_cfg_edit(
                         ui,
-                        &mut editor.gen_config.shift_weights,
+                        &mut editor.cur_gen_config_mut().shift_weights,
                         None::<fn(&mut Ui, &mut ShiftDirection)>, // TODO: this is stupid wtwf
                         "step weights",
                         false,
@@ -492,7 +502,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.skip_length_bounds,
+                    &mut editor.cur_gen_config_mut().skip_length_bounds,
                     edit_range_usize,
                     "skip length bounds",
                     true,
@@ -500,7 +510,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.skip_min_spacing_sqr,
+                    &mut editor.cur_gen_config_mut().skip_min_spacing_sqr,
                     edit_usize,
                     "skip min spacing sqr",
                     true,
@@ -508,7 +518,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.min_freeze_size,
+                    &mut editor.cur_gen_config_mut().min_freeze_size,
                     edit_usize,
                     "min freeze size",
                     false,
@@ -516,7 +526,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.enable_pulse,
+                    &mut editor.cur_gen_config_mut().enable_pulse,
                     edit_bool,
                     "enable pulse",
                     false,
@@ -524,7 +534,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.pulse_straight_delay,
+                    &mut editor.cur_gen_config_mut().pulse_straight_delay,
                     edit_usize,
                     "pulse straight delay",
                     true,
@@ -532,7 +542,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.pulse_corner_delay,
+                    &mut editor.cur_gen_config_mut().pulse_corner_delay,
                     edit_usize,
                     "pulse corner delay",
                     false,
@@ -540,7 +550,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.pulse_max_kernel_size,
+                    &mut editor.cur_gen_config_mut().pulse_max_kernel_size,
                     edit_usize,
                     "pulse max kernel",
                     false,
@@ -548,7 +558,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.fade_steps,
+                    &mut editor.cur_gen_config_mut().fade_steps,
                     edit_usize,
                     "fade steps",
                     false,
@@ -556,7 +566,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.fade_max_size,
+                    &mut editor.cur_gen_config_mut().fade_max_size,
                     edit_usize,
                     "fade max size",
                     false,
@@ -564,7 +574,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
-                    &mut editor.gen_config.fade_min_size,
+                    &mut editor.cur_gen_config_mut().fade_min_size,
                     edit_usize,
                     "fade min size",
                     false,
@@ -573,17 +583,23 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             // =======================================[ MAP CONFIG EDIT ]===================================
             if editor.edit_map_config {
-                field_edit_widget(ui, &mut editor.map_config.name, edit_string, "name", false);
                 field_edit_widget(
                     ui,
-                    &mut editor.map_config.width,
+                    &mut editor.current_map_config,
+                    edit_string,
+                    "name",
+                    false,
+                );
+                field_edit_widget(
+                    ui,
+                    &mut editor.cur_map_config_mut().width,
                     edit_usize,
                     "map width",
                     true,
                 );
                 field_edit_widget(
                     ui,
-                    &mut editor.map_config.height,
+                    &mut editor.cur_map_config_mut().height,
                     edit_usize,
                     "map height",
                     true,
@@ -591,7 +607,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 ui.add_enabled_ui(editor.is_setup(), |ui| {
                     vec_edit_widget(
                         ui,
-                        &mut editor.map_config.waypoints,
+                        &mut editor.cur_map_config_mut().waypoints,
                         edit_position,
                         "waypoints",
                         true,
@@ -614,7 +630,26 @@ pub fn debug_window(ctx: &Context, editor: &mut Editor) {
                 editor.average_fps.round() as usize
             )));
             ui.add(Label::new(format!("seed: {:?}", editor.user_seed)));
-            ui.add(Label::new(format!("config: {:?}", &editor.gen_config)));
-            ui.add(Label::new(format!("walker: {:?}", &editor.gen.walker)));
+            ui.add(Label::new(format!(
+                "config: {:?}",
+                &editor.current_gen_config
+            )));
+            if let Some(gen) = &editor.gen {
+                ui.add(Label::new(format!("walker: {:?}", &gen.walker)));
+            }
         });
+}
+
+fn save_map_config(config: &MapConfig, path: &str) {
+    let mut file = File::create(path).expect("failed to create config file");
+    let serialized = serde_json::to_string_pretty(config).expect("failed to serialize config");
+    file.write_all(serialized.as_bytes())
+        .expect("failed to write to config file");
+}
+
+fn save_gen_config(config: &GenerationConfig, path: &str) {
+    let mut file = File::create(path).expect("failed to create config file");
+    let serialized = serde_json::to_string_pretty(config).expect("failed to serialize config");
+    file.write_all(serialized.as_bytes())
+        .expect("failed to write to config file");
 }

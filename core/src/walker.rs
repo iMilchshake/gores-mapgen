@@ -2,7 +2,7 @@ use crate::{
     config::{GenerationConfig, MapConfig},
     generator,
     kernel::Kernel,
-    map::{BlockType, Map, Overwrite},
+    map::{TileTag, Map, Overwrite},
     position::{Position, ShiftDirection},
     random::Random,
 };
@@ -51,10 +51,10 @@ impl CuteWalker {
         }
     }
 
-    pub fn is_goal_reached(&self, waypoint_reached_dist: &usize) -> Option<bool> {
+    pub fn is_goal_reached(&self, waypoint_reached_dist: usize) -> Option<bool> {
         self.goal
             .as_ref()
-            .map(|goal| goal.distance_squared(&self.pos) <= *waypoint_reached_dist)
+            .map(|goal| goal.distance_squared(&self.pos) <= waypoint_reached_dist)
     }
 
     pub fn next_waypoint(&mut self) {
@@ -95,13 +95,13 @@ impl CuteWalker {
         let area_empty = map.check_area_all(
             &walker_pos.shifted_by(-3, -3)?,
             &walker_pos.shifted_by(3, 2)?,
-            &BlockType::Empty,
+            &TileTag::Empty,
         )?;
         if area_empty {
             map.set_area(
                 &walker_pos.shifted_by(-1, 0)?,
                 &walker_pos.shifted_by(1, 0)?,
-                &BlockType::Platform,
+                &TileTag::Platform,
                 &Overwrite::ReplaceEmptyOnly,
             );
             self.steps_since_platform = 0;
@@ -153,20 +153,20 @@ impl CuteWalker {
             map.apply_kernel(
                 self,
                 &Kernel::new(&self.inner_kernel.size + 4, 0.0),
-                BlockType::Freeze,
+                TileTag::Freeze,
             )?;
             map.apply_kernel(
                 self,
                 &Kernel::new(&self.inner_kernel.size + 2, 0.0),
-                BlockType::Empty,
+                TileTag::Empty,
             )?;
         } else {
-            map.apply_kernel(self, &self.outer_kernel, BlockType::Freeze)?;
+            map.apply_kernel(self, &self.outer_kernel, TileTag::Freeze)?;
 
             let empty = if self.steps < config.fade_steps {
-                BlockType::EmptyReserved
+                TileTag::EmptyReserved
             } else {
-                BlockType::Empty
+                TileTag::Empty
             };
             map.apply_kernel(self, &self.inner_kernel, empty)?;
         };

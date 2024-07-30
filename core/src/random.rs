@@ -69,44 +69,34 @@ pub struct Random {
     circ_dist: RandomDist<f32>,
 }
 
-#[derive(Debug, Clone)]
-pub struct Seed {
-    pub seed_u64: u64,
-    pub seed_str: String,
-}
+#[derive(Debug, Clone, Copy)]
+pub struct Seed(pub u64);
 
 impl Seed {
-    pub fn from_u64(seed_u64: u64) -> Seed {
-        Seed {
-            seed_u64,
-            seed_str: String::new(),
-        }
+    pub fn from_u64(seed: u64) -> Seed {
+        Seed(seed)
     }
-
-    pub fn from_string(seed_str: &String) -> Seed {
-        Seed {
-            seed_u64: Seed::str_to_u64(seed_str),
-            seed_str: seed_str.to_owned(),
-        }
-    }
-
-    pub fn from_random(rnd: &mut Random) -> Seed {
-        Seed::from_u64(rnd.random_u64())
+    pub fn from_str(seed: &str) -> Seed {
+        Seed(hash(seed.as_bytes()))
     }
 
     pub fn random() -> Seed {
         Seed::from_u64(Random::get_random_u64())
     }
 
-    pub fn str_to_u64(seed_str: &String) -> u64 {
-        hash(seed_str.as_bytes())
+    pub fn fill_with_u64(&mut self, seed: u64) {
+        self.0 = seed;
+    }
+
+    pub fn fill_with_string(&mut self, seed: &str) {
+        self.0 = hash(seed.as_bytes());
     }
 }
 
 impl Random {
     pub fn new(seed: Seed, config: &GenerationConfig) -> Random {
         Random {
-            gen: SmallRng::seed_from_u64(seed.seed_u64),
+            gen: SmallRng::seed_from_u64(seed.0),
             seed,
             shift_dist: RandomDist::new(config.shift_weights.clone()),
             outer_kernel_margin_dist: RandomDist::new(config.outer_margin_probs.clone()),

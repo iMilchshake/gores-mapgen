@@ -1,26 +1,12 @@
+use std::{collections::HashMap, fs, path::Path};
+
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
 use crate::position::{Position, ShiftDirection};
 use crate::random::RandomDistConfig;
-use log::warn;
-use rust_embed::RustEmbed;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fs;
-use std::fs::File;
-use std::io::Write;
-
-#[derive(RustEmbed)]
-#[folder = "data/gen_configs/"]
-pub struct GenerationConfigStorage;
-
-#[derive(RustEmbed)]
-#[folder = "data/map_configs/"]
-pub struct MapConfigStorage;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct MapConfig {
-    /// name of the map config
-    pub name: String,
-
     /// shape of a map using waypoints
     pub waypoints: Vec<Position>,
 
@@ -31,42 +17,9 @@ pub struct MapConfig {
     pub height: usize,
 }
 
-impl MapConfig {
-    pub fn get_all_configs() -> HashMap<String, MapConfig> {
-        let mut configs = HashMap::new();
-
-        for file_name in MapConfigStorage::iter() {
-            let file = MapConfigStorage::get(&file_name).unwrap();
-            let data = std::str::from_utf8(&file.data).unwrap();
-            let config: MapConfig = serde_json::from_str(data).unwrap();
-            configs.insert(config.name.clone(), config);
-        }
-
-        configs
-    }
-
-    pub fn save(&self, path: &str) {
-        let mut file = File::create(path).expect("failed to create config file");
-        let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
-        file.write_all(serialized.as_bytes())
-            .expect("failed to write to config file");
-    }
-
-    /// This function defines the initial default config for actual map generator
-    pub fn get_initial_config() -> MapConfig {
-        let file = MapConfigStorage::get("small_s.json").unwrap();
-        let data = std::str::from_utf8(&file.data).unwrap();
-        let config: MapConfig = serde_json::from_str(data).unwrap();
-        config
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(default)]
 pub struct GenerationConfig {
-    /// name of the preset
-    pub name: String,
-
     /// this can contain any description of the generation preset
     pub description: Option<String>,
 
@@ -153,52 +106,6 @@ impl GenerationConfig {
 
         Ok(())
     }
-
-    pub fn save(&self, path: &str) {
-        let mut file = File::create(path).expect("failed to create config file");
-        let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
-        file.write_all(serialized.as_bytes())
-            .expect("failed to write to config file");
-    }
-
-    pub fn load(path: &str) -> GenerationConfig {
-        let serialized_from_file = fs::read_to_string(path).expect("failed to read config file");
-        let deserialized: GenerationConfig =
-            serde_json::from_str(&serialized_from_file).expect("failed to deserialize config file");
-
-        deserialized
-    }
-
-    pub fn get_all_configs() -> HashMap<String, GenerationConfig> {
-        let mut configs = HashMap::new();
-
-        for file_name in GenerationConfigStorage::iter() {
-            let file = GenerationConfigStorage::get(&file_name).unwrap();
-            let data = std::str::from_utf8(&file.data).unwrap();
-            match serde_json::from_str::<GenerationConfig>(data) {
-                Ok(config) => {
-                    configs.insert(config.name.clone(), config);
-                }
-                Err(e) => {
-                    warn!("couldn't parse gen config {}: {}", file_name, e);
-                }
-            }
-        }
-
-        configs
-    }
-
-    /// This function defines the initial default config for actual map generator
-    pub fn get_initial_config(use_default: bool) -> GenerationConfig {
-        if use_default {
-            GenerationConfig::default()
-        } else {
-            let file = GenerationConfigStorage::get("hardV2.json").unwrap();
-            let data = std::str::from_utf8(&file.data).unwrap();
-            let config: GenerationConfig = serde_json::from_str(data).unwrap();
-            config
-        }
-    }
 }
 
 impl Default for GenerationConfig {
@@ -206,7 +113,6 @@ impl Default for GenerationConfig {
     /// instead of being used as an actual generation config. (use get_initial_config())
     fn default() -> GenerationConfig {
         GenerationConfig {
-            name: "default".to_string(),
             description: None,
             version: "1.0".to_string(),
             inner_rad_mut_prob: 0.25,
@@ -238,7 +144,6 @@ impl Default for GenerationConfig {
 impl Default for MapConfig {
     fn default() -> MapConfig {
         MapConfig {
-            name: "default".to_string(),
             waypoints: vec![
                 Position::new(50, 250),
                 Position::new(250, 250),
@@ -251,4 +156,27 @@ impl Default for MapConfig {
             height: 300,
         }
     }
+}
+
+pub fn load_configs_from_dir<C, P>(path: P) -> Result<HashMap<String, C>, serde_json::Error>
+where
+    C: DeserializeOwned,
+    P: AsRef<Path>,
+{
+    let mut configs = HashMap::new();
+
+    for file_path in fs::read_dir(path).unwrap() {
+        let file_path = file_path.unwrap().path();
+        let file_name = file_path.file_name().unwrap().to_str().unwrap().replace(".json", "");
+        let data = fs::read_to_string(&file_path).unwrap();
+
+        match serde_json::from_str::<C>(&data) {
+            Ok(config) => {
+                configs.insert(file_name.to_string(), config);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    Ok(configs)
 }

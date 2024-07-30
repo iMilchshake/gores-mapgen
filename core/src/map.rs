@@ -1,19 +1,17 @@
-use crate::{kernel::Kernel, position::Position, twmap_export::TwExport, walker::CuteWalker};
+use crate::{config::MapConfig, kernel::Kernel, position::Position, walker::CuteWalker};
 use ndarray::{s, Array2};
-
-use std::path::PathBuf;
 
 const CHUNK_SIZE: usize = 5;
 
-#[derive(PartialEq)]
-pub enum BlockTypeTW {
+#[derive(Debug, PartialEq)]
+pub enum GameTile {
     Hookable,
     Freeze,
     Empty,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum BlockType {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TileTag {
     Empty,
     /// Empty Block that should not be overwritten
     EmptyReserved,
@@ -25,35 +23,35 @@ pub enum BlockType {
     Platform,
 }
 
-impl BlockType {
+impl TileTag {
     /// maps BlockType to tw game layer id for map export
-    pub fn to_tw_game_id(&self) -> u8 {
+    pub fn to_ingame_id(&self) -> u8 {
         match self {
-            BlockType::Empty | BlockType::EmptyReserved => 0,
-            BlockType::Hookable | BlockType::Platform => 1,
-            BlockType::Freeze => 9,
-            BlockType::Spawn => 192,
-            BlockType::Start => 33,
-            BlockType::Finish => 34,
+            TileTag::Empty | TileTag::EmptyReserved => 0,
+            TileTag::Hookable | TileTag::Platform => 1,
+            TileTag::Freeze => 9,
+            TileTag::Spawn => 192,
+            TileTag::Start => 33,
+            TileTag::Finish => 34,
         }
     }
 
-    pub fn to_tw_block_type(&self) -> BlockTypeTW {
+    pub fn to_game_tile(&self) -> GameTile {
         match self {
-            BlockType::Platform | BlockType::Hookable => BlockTypeTW::Hookable,
-            BlockType::Empty | BlockType::EmptyReserved => BlockTypeTW::Empty,
-            BlockType::Freeze => BlockTypeTW::Freeze,
+            TileTag::Platform | TileTag::Hookable => GameTile::Hookable,
+            TileTag::Empty | TileTag::EmptyReserved => GameTile::Empty,
+            TileTag::Freeze => GameTile::Freeze,
 
             // every other block is just mapped to empty
-            _ => BlockTypeTW::Empty,
+            _ => GameTile::Empty,
         }
     }
 
     pub fn is_solid(&self) -> bool {
-        matches!(self, BlockType::Hookable | BlockType::Platform)
+        matches!(self, TileTag::Hookable | TileTag::Platform)
     }
     pub fn is_freeze(&self) -> bool {
-        matches!(self, BlockType::Freeze)
+        matches!(self, TileTag::Freeze)
     }
 }
 
@@ -78,18 +76,18 @@ pub enum Overwrite {
 }
 
 impl Overwrite {
-    fn will_override(&self, btype: &BlockType) -> bool {
+    fn will_override(&self, btype: &TileTag) -> bool {
         match self {
             Overwrite::Force => true,
             Overwrite::ReplaceSolidFreeze => {
-                matches!(&btype, BlockType::Hookable | BlockType::Freeze)
+                matches!(&btype, TileTag::Hookable | TileTag::Freeze)
             }
-            Overwrite::ReplaceSolidOnly => matches!(&btype, BlockType::Hookable),
-            Overwrite::ReplaceEmptyOnly => matches!(&btype, BlockType::Empty),
-            Overwrite::ReplaceNonSolid => matches!(&btype, BlockType::Freeze | BlockType::Empty),
+            Overwrite::ReplaceSolidOnly => matches!(&btype, TileTag::Hookable),
+            Overwrite::ReplaceEmptyOnly => matches!(&btype, TileTag::Empty),
+            Overwrite::ReplaceNonSolid => matches!(&btype, TileTag::Freeze | TileTag::Empty),
             Overwrite::ReplaceNonSolidForce => matches!(
                 &btype,
-                BlockType::Freeze | BlockType::Empty | BlockType::EmptyReserved
+                TileTag::Freeze | TileTag::Empty | TileTag::EmptyReserved
             ),
         }
     }
@@ -102,39 +100,29 @@ pub enum KernelType {
 
 #[derive(Debug)]
 pub struct Map {
-    pub grid: Array2<BlockType>,
+    pub grid: Array2<TileTag>,
     pub height: usize,
     pub width: usize,
-    pub chunk_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
+    pub chunks_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
     pub chunk_size: usize,
-}
-
-fn get_maps_path() -> PathBuf {
-    if cfg!(target_os = "windows") {
-        dirs::data_dir().unwrap().join("Teeworlds").join("maps")
-    } else if cfg!(target_os = "linux") {
-        dirs::home_dir()
-            .unwrap()
-            .join(".local")
-            .join("share")
-            .join("ddnet")
-            .join("maps")
-    } else {
-        panic!("Unsupported operating system");
-    }
+    pub config: MapConfig
 }
 
 impl Map {
-    pub fn new(width: usize, height: usize, default: BlockType) -> Map {
+    pub fn new(config: MapConfig, default: TileTag) -> Map {
+        let width = config.width;
+        let height = config.height;
+
         Map {
             grid: Array2::from_elem((width, height), default),
             width,
             height,
-            chunk_edited: Array2::from_elem(
+            chunks_edited: Array2::from_elem(
                 (width.div_ceil(CHUNK_SIZE), height.div_ceil(CHUNK_SIZE)),
                 false,
             ),
             chunk_size: CHUNK_SIZE,
+            config
         }
     }
 
@@ -142,7 +130,7 @@ impl Map {
         &mut self,
         walker: &CuteWalker,
         kernel: &Kernel,
-        block_type: BlockType,
+        block_type: TileTag,
     ) -> Result<(), &'static str> {
         let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
@@ -163,7 +151,7 @@ impl Map {
                 let current_type = &self.grid[absolute_pos.as_index()];
 
                 let new_type = match current_type {
-                    BlockType::Hookable | BlockType::Freeze => Some(block_type.clone()),
+                    TileTag::Hookable | TileTag::Freeze => Some(block_type.clone()),
                     _ => None,
                 };
 
@@ -172,7 +160,7 @@ impl Map {
                 }
 
                 let chunk_pos = self.pos_to_chunk_pos(absolute_pos);
-                self.chunk_edited[chunk_pos.as_index()] = true;
+                self.chunks_edited[chunk_pos.as_index()] = true;
             }
         }
 
@@ -182,11 +170,7 @@ impl Map {
     fn pos_to_chunk_pos(&self, pos: Position) -> Position {
         Position::new(pos.x / self.chunk_size, pos.y / self.chunk_size)
     }
-
-    pub fn export(&self, path: &PathBuf) {
-        TwExport::export(self, path)
-    }
-
+    
     pub fn pos_in_bounds(&self, pos: &Position) -> bool {
         // we dont have to check for lower bound, because of usize
         pos.x < self.width && pos.y < self.height
@@ -196,7 +180,7 @@ impl Map {
         &self,
         top_left: &Position,
         bot_right: &Position,
-        value: &BlockType,
+        value: &TileTag,
     ) -> Result<bool, &'static str> {
         if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
             return Err("checking area out of bounds");
@@ -213,7 +197,7 @@ impl Map {
         &self,
         top_left: &Position,
         bot_right: &Position,
-        value: &BlockType,
+        value: &TileTag,
     ) -> Result<bool, &'static str> {
         if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
             return Err("checking area out of bounds");
@@ -229,7 +213,7 @@ impl Map {
         &self,
         top_left: &Position,
         bot_right: &Position,
-        value: &BlockType,
+        value: &TileTag,
     ) -> Result<usize, &'static str> {
         if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
             return Err("checking area out of bounds");
@@ -245,7 +229,7 @@ impl Map {
         &mut self,
         top_left: &Position,
         bot_right: &Position,
-        value: &BlockType,
+        value: &TileTag,
         overide: &Overwrite,
     ) {
         if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
@@ -264,7 +248,7 @@ impl Map {
 
                 let chunk_pos =
                     Position::new((top_left.x + x) / chunk_size, (top_left.y + y) / chunk_size);
-                self.chunk_edited[chunk_pos.as_index()] = true;
+                self.chunks_edited[chunk_pos.as_index()] = true;
             }
         }
     }
@@ -274,7 +258,7 @@ impl Map {
         &mut self,
         top_left: &Position,
         bot_right: &Position,
-        value: &BlockType,
+        value: &TileTag,
         overwrite: &Overwrite,
     ) {
         let top_right = Position::new(bot_right.x, top_left.y);

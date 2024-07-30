@@ -1,27 +1,31 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{env, collections::HashMap, path::PathBuf};
 
-const STEPS_PER_FRAME: usize = 50;
-
-use crate::{
-    config::{GenerationConfig, MapConfig},
+use mapgen_core::{
+    config::{load_configs_from_dir, GenerationConfig, MapConfig},
     generator::Generator,
-    gui::{debug_window, sidebar},
-    map::Map,
-    random::Seed,
+    map::{Map, TileTag},
+    random::{Random, Seed},
+};
+use mapgen_exporter::Exporter;
+use twmap::TwMap;
+
+use macroquad::{
+    camera::{set_camera, Camera2D},
+    input::{
+        is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position,
+        mouse_wheel, KeyCode, MouseButton,
+    },
+    math::{Rect, Vec2},
+    time::get_fps,
+    window::{screen_height, screen_width},
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
-use std::env;
 
-use macroquad::camera::{set_camera, Camera2D};
-use macroquad::input::{
-    is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position, mouse_wheel,
-    KeyCode, MouseButton,
-};
-use macroquad::math::{Rect, Vec2};
-use macroquad::time::get_fps;
-use macroquad::window::{screen_height, screen_width};
 use rand_distr::num_traits::Zero;
 
+use crate::gui::{debug_window, sidebar};
+
+const STEPS_PER_FRAME: usize = 50;
 const ZOOM_FACTOR: f32 = 0.9;
 const AVG_FPS_FACTOR: f32 = 0.025; // how much current fps is weighted into the rolling average
 
@@ -59,19 +63,19 @@ enum PausedState {
 }
 pub struct Editor {
     state: EditorState,
-    pub init_gen_configs: HashMap<String, GenerationConfig>,
-    pub init_map_configs: HashMap<String, MapConfig>,
+    pub gen_configs: HashMap<String, GenerationConfig>,
+    pub map_configs: HashMap<String, MapConfig>,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
-    pub gen_config: GenerationConfig,
-    pub map_config: MapConfig,
+    pub current_gen_config: String,
+    pub current_map_config: String,
     pub steps_per_frame: usize,
     zoom: f32,
     offset: Vec2,
     cam: Option<Camera2D>,
     last_mouse: Option<Vec2>,
-    pub gen: Generator,
+    pub gen: Option<Generator>,
 
     pub user_seed: Seed,
 
@@ -94,25 +98,20 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new(gen_config: GenerationConfig, map_config: MapConfig) -> Editor {
-        let init_gen_configs: HashMap<String, GenerationConfig> =
-            GenerationConfig::get_all_configs();
-        let init_map_configs: HashMap<String, MapConfig> = MapConfig::get_all_configs();
+    pub fn new() -> Editor {
+        let gen_configs =
+            load_configs_from_dir::<GenerationConfig, _>("../data/configs/gen").unwrap();
+        let map_configs = load_configs_from_dir::<MapConfig, _>("../data/configs/map").unwrap();
 
-        // TODO: its kinda stupid to initialize this as its literally re-initialized anyways
-        // when starting the first map generation. But i dont wanna bother adding an Option here as
-        // the generator also holds the initial empty map which is used for visualization.
-        let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
+        let current_gen_config = gen_configs.iter().last().unwrap().0.to_string();
+        let current_map_config = map_configs.iter().last().unwrap().0.to_string();
 
-        let mut visualize_debug_layers: HashMap<&'static str, bool> = HashMap::new();
-        for layer_name in gen.debug_layers.keys() {
-            visualize_debug_layers.insert(layer_name, true);
-        }
+        let visualize_debug_layers: HashMap<&'static str, bool> = HashMap::new();
 
         Editor {
             state: EditorState::Paused(PausedState::Setup),
-            init_gen_configs,
-            init_map_configs,
+            gen_configs: gen_configs,
+            map_configs: map_configs,
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
@@ -120,11 +119,11 @@ impl Editor {
             offset: Vec2::ZERO,
             cam: None,
             last_mouse: None,
-            gen_config,
-            map_config,
+            current_gen_config,
+            current_map_config,
             steps_per_frame: STEPS_PER_FRAME,
-            gen,
-            user_seed: Seed::from_string(&"iMilchshake".to_string()),
+            gen: None,
+            user_seed: Seed::from_str("iMilchshake"),
             instant: false,
             auto_generate: false,
             fixed_seed: false,
@@ -212,10 +211,14 @@ impl Editor {
 
     fn on_start(&mut self) {
         if !self.fixed_seed {
-            self.user_seed = Seed::from_random(&mut self.gen.rnd);
+            self.user_seed = Seed::from_u64(Random::get_random_u64());
         }
 
-        self.gen = Generator::new(&self.gen_config, &self.map_config, self.user_seed.clone());
+        self.gen = Some(Generator::new(
+            Map::new(self.cur_map_config(), TileTag::Hookable),
+            self.user_seed,
+            self.cur_gen_config(),
+        ));
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {
@@ -237,29 +240,38 @@ impl Editor {
     }
 
     pub fn set_cam(&mut self) {
-        let map = &self.gen.map;
-        let display_factor = self.get_display_factor(map);
-        let x_view = display_factor * map.width as f32;
-        let y_view = display_factor * map.height as f32;
-        let y_shift = screen_height() - y_view;
-        let map_rect = Rect::new(0.0, 0.0, map.width as f32, map.height as f32);
-        let mut cam = Camera2D::from_display_rect(map_rect);
+        if let Some(gen) = &self.gen {
+            let map = &gen.map;
+            let display_factor = self.get_display_factor(map);
+            let x_view = display_factor * map.width as f32;
+            let y_view = display_factor * map.height as f32;
+            let y_shift = screen_height() - y_view;
+            let map_rect = Rect::new(0.0, 0.0, map.width as f32, map.height as f32);
+            let mut cam = Camera2D::from_display_rect(map_rect);
 
-        // so i guess this is (x, y, width, height) not two positions?
-        cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
+            // so i guess this is (x, y, width, height) not two positions?
+            cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
 
-        cam.target -= self.offset;
-        cam.zoom *= self.zoom;
+            cam.target -= self.offset;
+            cam.zoom *= self.zoom;
 
-        set_camera(&cam);
-        self.cam = Some(cam);
+            set_camera(&cam);
+            self.cam = Some(cam);
+        }
     }
 
     pub fn save_map_dialog(&self) {
-        let cwd = env::current_dir().unwrap();
-        let initial_path = cwd.join("name.map").to_string_lossy().to_string();
-        if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
-            self.gen.map.export(&PathBuf::from_str(&path_out).unwrap());
+        if let Some(gen) = &self.gen {
+            let cwd = env::current_dir().unwrap();
+            let initial_path = cwd.join("name.map").to_string_lossy().to_string();
+            if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
+                // TODO: sucks ass
+                let mut tw_map =
+                    TwMap::parse_file("./automap_test.map").expect("failed to parse base map");
+                tw_map.load().expect("failed to load base map");
+                let mut exporter = Exporter::new(&mut tw_map, &gen.map, Default::default());
+                exporter.finalize(&PathBuf::from(path_out));
+            }
         }
     }
 
@@ -298,7 +310,11 @@ impl Editor {
             let mouse = mouse_position();
 
             if let Some(last_mouse) = self.last_mouse {
-                let display_factor = self.get_display_factor(&self.gen.map);
+                let display_factor = if let Some(gen) = &self.gen {
+                    self.get_display_factor(&gen.map)
+                } else {
+                    1.0
+                };
                 let local_delta = Vec2::new(mouse.0, mouse.1) - last_mouse;
                 self.offset += local_delta / (self.zoom * display_factor);
             }
@@ -309,5 +325,21 @@ impl Editor {
         } else if is_mouse_button_released(MouseButton::Left) {
             self.last_mouse = None;
         }
+    }
+
+    pub fn cur_gen_config(&self) -> GenerationConfig {
+        self.gen_configs[&self.current_gen_config].clone()
+    }
+
+    pub fn cur_map_config(&self) -> MapConfig {
+        self.map_configs[&self.current_gen_config].clone()
+    }
+
+    pub fn cur_gen_config_mut(&mut self) -> &mut GenerationConfig {
+        self.gen_configs.get_mut(&self.current_gen_config).unwrap()
+    }
+
+    pub fn cur_map_config_mut(&mut self) -> &mut MapConfig {
+        self.map_configs.get_mut(&self.current_map_config).unwrap()
     }
 }
