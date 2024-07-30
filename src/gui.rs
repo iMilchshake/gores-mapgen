@@ -1,9 +1,10 @@
-use std::{collections::HashMap, env, isize};
+use std::{env, fmt::Debug, isize};
 
 use egui::RichText;
 use tinyfiledialogs;
 
 use crate::{
+    debug::{DebugLayer, DebugLayers},
     editor::{window_frame, Editor},
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
@@ -101,23 +102,21 @@ pub fn random_dist_cfg_edit<T, F>(
     cfg.normalize_probs();
 }
 
-pub fn hashmap_edit_widget<T, F>(
+/// another shitty gui component, which uses hard coded rules to toggle the debug layers lolz
+pub fn debug_layers_widget(
     ui: &mut Ui,
-    hashmap: &mut HashMap<&'static str, T>,
-    edit_element: F,
     label: &str,
+    debug_layers: &mut DebugLayers,
     collapsed: bool,
-) where
-    F: Fn(&mut Ui, &mut T),
-{
+) {
     CollapsingHeader::new(label)
         .default_open(!collapsed)
         .show(ui, |ui| {
             ui.vertical(|ui| {
-                for (val1, val2) in hashmap.iter_mut() {
+                for (name, debug_layer) in debug_layers.iter_mut() {
                     ui.horizontal(|ui| {
-                        ui.label(val1.to_string());
-                        edit_element(ui, val2);
+                        ui.label(name);
+                        edit_bool(ui, &mut debug_layer.active);
                     });
                 }
             });
@@ -308,13 +307,9 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         ui.separator();
         // =======================================[ DEBUG LAYERS ]===================================
 
-        hashmap_edit_widget(
-            ui,
-            &mut editor.visualize_debug_layers,
-            edit_bool,
-            "debug layers",
-            true,
-        );
+        if let Some(ref mut debug_layers) = editor.gen.debug_layers {
+            debug_layers_widget(ui, "debug layers", debug_layers, false);
+        }
 
         ui.separator();
         // =======================================[ CONFIG STORAGE ]===================================
@@ -483,7 +478,9 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     random_dist_cfg_edit(
                         ui,
                         &mut editor.gen_config.shift_weights,
-                        None::<fn(&mut Ui, &mut ShiftDirection)>, // TODO: this is stupid wtwf
+                        // TODO: this is stupid wtf, but dont worry, this will be reworked
+                        // with the upcoming dynamic sampling approach anyways
+                        None::<fn(&mut Ui, &mut ShiftDirection)>,
                         "step weights",
                         false,
                         true,

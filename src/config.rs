@@ -118,13 +118,18 @@ pub struct GenerationConfig {
     /// min unconnected freeze obstacle size
     pub min_freeze_size: usize,
 
-    /// enable pulse
+    /// enable pulse feature
     pub enable_pulse: bool,
 
-    /// TODO:
-    pub pulse_straight_delay: usize,
-    pub pulse_corner_delay: usize,
+    /// maximum kernel size for pulse to become active
     pub pulse_max_kernel_size: usize,
+
+    /// how many steps the walker needs to walk straight for a pulse to be generated
+    pub pulse_straight_delay: usize,
+
+    /// how many steps the walker needs to have walked before a corner/turn, for a pulse to be
+    /// generated
+    pub pulse_corner_delay: usize,
 
     /// number of initial walker steps to perform fading. Will fade from max to min kernel size.
     pub fade_steps: usize,

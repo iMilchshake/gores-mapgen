@@ -88,9 +88,6 @@ pub struct Editor {
 
     /// whether to show the GenerationConfig settings
     pub edit_map_config: bool,
-
-    /// asd
-    pub visualize_debug_layers: HashMap<&'static str, bool>,
 }
 
 impl Editor {
@@ -102,12 +99,7 @@ impl Editor {
         // TODO: its kinda stupid to initialize this as its literally re-initialized anyways
         // when starting the first map generation. But i dont wanna bother adding an Option here as
         // the generator also holds the initial empty map which is used for visualization.
-        let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
-
-        let mut visualize_debug_layers: HashMap<&'static str, bool> = HashMap::new();
-        for layer_name in gen.debug_layers.keys() {
-            visualize_debug_layers.insert(layer_name, true);
-        }
+        let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0), true);
 
         Editor {
             state: EditorState::Paused(PausedState::Setup),
@@ -130,7 +122,6 @@ impl Editor {
             fixed_seed: false,
             edit_gen_config: false,
             edit_map_config: false,
-            visualize_debug_layers,
         }
     }
 
@@ -215,7 +206,12 @@ impl Editor {
             self.user_seed = Seed::from_random(&mut self.gen.rnd);
         }
 
-        self.gen = Generator::new(&self.gen_config, &self.map_config, self.user_seed.clone());
+        self.gen = Generator::new(
+            &self.gen_config,
+            &self.map_config,
+            self.user_seed.clone(),
+            true,
+        );
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {

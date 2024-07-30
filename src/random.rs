@@ -60,6 +60,7 @@ impl<T: Clone> RandomDist<T> {
     }
 }
 
+/// PRNG wrapper.
 pub struct Random {
     pub seed: Seed,
     gen: SmallRng,

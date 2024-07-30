@@ -1,9 +1,9 @@
-use std::{collections::BTreeMap};
+use std::collections::BTreeMap;
 use timing::Timer;
 
 use crate::{
     config::{GenerationConfig, MapConfig},
-    debug::DebugLayer,
+    debug::{self, DebugLayer, DebugLayers},
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::Position,
@@ -12,21 +12,16 @@ use crate::{
     walker::CuteWalker,
 };
 
-use macroquad::{color::colors};
-
 pub fn print_time(_timer: &Timer, _message: &str) {
     // println!("{}: {:?}", message, timer.elapsed());
 }
 
+/// wrapper for all entities that are required for a map generation
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
-    pub debug_layers: BTreeMap<&'static str, DebugLayer>,
-
-    /// PRNG wrapper
+    pub debug_layers: Option<DebugLayers>, // optional for CLI use
     pub rnd: Random,
-
-    /// remember where generation began, so a start room can be placed in post processing
     spawn: Position,
 }
 
@@ -54,7 +49,7 @@ pub fn generate_room(
         &Overwrite::Force,
     );
 
-    // only reserve - 1 so that when this is used for platforms
+    // only reserve - 1 so that when this is used for platforms, it doesnt override freeze
     map.set_area(
         &pos.shifted_by(-room_size + 1, -room_size + 1)?,
         &pos.shifted_by(room_size - 1, room_size - 1)?,
@@ -107,7 +102,12 @@ pub fn generate_room(
 
 impl Generator {
     /// derive a initial generator state based on a GenerationConfig
-    pub fn new(gen_config: &GenerationConfig, map_config: &MapConfig, seed: Seed) -> Generator {
+    pub fn new(
+        gen_config: &GenerationConfig,
+        map_config: &MapConfig,
+        seed: Seed,
+        enable_debug_viz: bool,
+    ) -> Generator {
         let map = Map::new(map_config.width, map_config.height, BlockType::Hookable);
         let spawn = map_config.waypoints.get(0).unwrap().clone();
         let init_inner_kernel = Kernel::new(5, 0.0);
@@ -119,14 +119,10 @@ impl Generator {
             map_config,
         );
         let rnd = Random::new(seed, gen_config);
-
-        let debug_layers = BTreeMap::from([
-            ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
-            ("freeze_skips", DebugLayer::new(true, colors::ORANGE, &map)),
-            ("skips", DebugLayer::new(true, colors::GREEN, &map)),
-            ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
-            ("blobs", DebugLayer::new(false, colors::RED, &map)),
-        ]);
+        let debug_layers = match enable_debug_viz {
+            true => Some(DebugLayers::new(&map, true, 0.5)),
+            false => None,
+        };
 
         Generator {
             walker,
@@ -173,11 +169,14 @@ impl Generator {
         Ok(())
     }
 
+    /// apply various post processing steps, currenly still unstable can panic
     pub fn post_processing(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
         let timer = Timer::start();
 
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
-        self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
+        if let Some(ref mut debug_layers) = self.debug_layers {
+            debug_layers.edge_bugs.grid = edge_bugs;
+        }
         print_time(&timer, "fix edge bugs");
 
         generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
@@ -216,7 +215,7 @@ impl Generator {
         gen_config: &GenerationConfig,
         map_config: &MapConfig,
     ) -> Result<Map, &'static str> {
-        let mut gen = Generator::new(gen_config, map_config, seed.clone());
+        let mut gen = Generator::new(gen_config, map_config, seed.clone(), false);
 
         for _ in 0..max_steps {
             if gen.walker.finished {
