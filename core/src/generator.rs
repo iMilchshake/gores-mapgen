@@ -1,7 +1,7 @@
 use crate::{
     config::{GenerationConfig, MapConfig},
     kernel::Kernel,
-    map::{Map, Overwrite, TileTag},
+    map::{Map, Overwrite, BlockType},
     position::Position,
     post_processing as post,
     random::{Random, Seed},
@@ -26,7 +26,7 @@ pub fn generate_room(
     pos: &Position,
     room_size: usize,
     platform_margin: usize,
-    zone_type: Option<&TileTag>,
+    zone_type: Option<&BlockType>,
 ) -> Result<(), &'static str> {
     let room_size: i32 = room_size as i32;
     let platform_margin: i32 = platform_margin as i32;
@@ -41,7 +41,7 @@ pub fn generate_room(
     map.set_area_border(
         &pos.shifted_by(-room_size, -room_size)?,
         &pos.shifted_by(room_size, room_size)?,
-        &TileTag::Empty,
+        &BlockType::Empty,
         &Overwrite::Force,
     );
 
@@ -49,7 +49,7 @@ pub fn generate_room(
     map.set_area(
         &pos.shifted_by(-room_size + 1, -room_size + 1)?,
         &pos.shifted_by(room_size - 1, room_size - 1)?,
-        &TileTag::EmptyReserved,
+        &BlockType::EmptyReserved,
         &Overwrite::Force,
     );
 
@@ -64,21 +64,21 @@ pub fn generate_room(
     }
 
     // set spawns
-    if zone_type == Some(&TileTag::Start) {
+    if zone_type == Some(&BlockType::Start) {
         map.set_area(
             &pos.shifted_by(-(room_size - platform_margin), room_size - 1)?,
             &pos.shifted_by(room_size - platform_margin, room_size - 1)?,
-            &TileTag::Spawn,
+            &BlockType::Spawn,
             &Overwrite::Force,
         );
     }
 
     // set platform below spawns
-    if zone_type == Some(&TileTag::Start) {
+    if zone_type == Some(&BlockType::Start) {
         map.set_area(
             &pos.shifted_by(-(room_size - platform_margin), room_size + 1)?,
             &pos.shifted_by(room_size - platform_margin, room_size + 1)?,
-            &TileTag::Platform,
+            &BlockType::Platform,
             &Overwrite::Force,
         );
     }
@@ -88,7 +88,7 @@ pub fn generate_room(
         map.set_area(
             &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
             &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
-            &TileTag::Platform,
+            &BlockType::Platform,
             &Overwrite::Force,
         );
     }
@@ -157,14 +157,14 @@ impl Generator {
     pub fn post_processing(&mut self) -> Result<(), &'static str> {
         post::fix_edge_bugs(self);
 
-        generate_room(&mut self.map, &self.spawn, 6, 3, Some(&TileTag::Start))
+        generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
             .expect("start room generation failed");
         generate_room(
             &mut self.map,
             &self.walker.pos.clone(),
             4,
             3,
-            Some(&TileTag::Finish),
+            Some(&BlockType::Finish),
         )
         .expect("start finish room generation");
 
@@ -189,7 +189,7 @@ impl Generator {
         gen_config: GenerationConfig,
         map_config: MapConfig,
     ) -> Result<Map, &'static str> {
-        let map = Map::new(map_config, TileTag::Hookable);
+        let map = Map::new(map_config, BlockType::Hookable);
 
         let mut gen = Generator::new(map, seed, gen_config);
 

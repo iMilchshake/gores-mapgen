@@ -11,7 +11,7 @@ pub enum GameTile {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TileTag {
+pub enum BlockType {
     Empty,
     /// Empty Block that should not be overwritten
     EmptyReserved,
@@ -23,24 +23,24 @@ pub enum TileTag {
     Platform,
 }
 
-impl TileTag {
+impl BlockType {
     /// maps BlockType to tw game layer id for map export
     pub fn to_ingame_id(&self) -> u8 {
         match self {
-            TileTag::Empty | TileTag::EmptyReserved => 0,
-            TileTag::Hookable | TileTag::Platform => 1,
-            TileTag::Freeze => 9,
-            TileTag::Spawn => 192,
-            TileTag::Start => 33,
-            TileTag::Finish => 34,
+            BlockType::Empty | BlockType::EmptyReserved => 0,
+            BlockType::Hookable | BlockType::Platform => 1,
+            BlockType::Freeze => 9,
+            BlockType::Spawn => 192,
+            BlockType::Start => 33,
+            BlockType::Finish => 34,
         }
     }
 
     pub fn to_game_tile(&self) -> GameTile {
         match self {
-            TileTag::Platform | TileTag::Hookable => GameTile::Hookable,
-            TileTag::Empty | TileTag::EmptyReserved => GameTile::Empty,
-            TileTag::Freeze => GameTile::Freeze,
+            BlockType::Platform | BlockType::Hookable => GameTile::Hookable,
+            BlockType::Empty | BlockType::EmptyReserved => GameTile::Empty,
+            BlockType::Freeze => GameTile::Freeze,
 
             // every other block is just mapped to empty
             _ => GameTile::Empty,
@@ -48,10 +48,10 @@ impl TileTag {
     }
 
     pub fn is_solid(&self) -> bool {
-        matches!(self, TileTag::Hookable | TileTag::Platform)
+        matches!(self, BlockType::Hookable | BlockType::Platform)
     }
     pub fn is_freeze(&self) -> bool {
-        matches!(self, TileTag::Freeze)
+        matches!(self, BlockType::Freeze)
     }
 }
 
@@ -76,18 +76,18 @@ pub enum Overwrite {
 }
 
 impl Overwrite {
-    fn will_override(&self, btype: &TileTag) -> bool {
+    fn will_override(&self, btype: &BlockType) -> bool {
         match self {
             Overwrite::Force => true,
             Overwrite::ReplaceSolidFreeze => {
-                matches!(&btype, TileTag::Hookable | TileTag::Freeze)
+                matches!(&btype, BlockType::Hookable | BlockType::Freeze)
             }
-            Overwrite::ReplaceSolidOnly => matches!(&btype, TileTag::Hookable),
-            Overwrite::ReplaceEmptyOnly => matches!(&btype, TileTag::Empty),
-            Overwrite::ReplaceNonSolid => matches!(&btype, TileTag::Freeze | TileTag::Empty),
+            Overwrite::ReplaceSolidOnly => matches!(&btype, BlockType::Hookable),
+            Overwrite::ReplaceEmptyOnly => matches!(&btype, BlockType::Empty),
+            Overwrite::ReplaceNonSolid => matches!(&btype, BlockType::Freeze | BlockType::Empty),
             Overwrite::ReplaceNonSolidForce => matches!(
                 &btype,
-                TileTag::Freeze | TileTag::Empty | TileTag::EmptyReserved
+                BlockType::Freeze | BlockType::Empty | BlockType::EmptyReserved
             ),
         }
     }
@@ -100,7 +100,7 @@ pub enum KernelType {
 
 #[derive(Debug)]
 pub struct Map {
-    pub grid: Array2<TileTag>,
+    pub grid: Array2<BlockType>,
     pub height: usize,
     pub width: usize,
     pub chunks_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
@@ -109,7 +109,7 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn new(config: MapConfig, default: TileTag) -> Map {
+    pub fn new(config: MapConfig, default: BlockType) -> Map {
         let width = config.width;
         let height = config.height;
 
@@ -130,7 +130,7 @@ impl Map {
         &mut self,
         walker: &CuteWalker,
         kernel: &Kernel,
-        block_type: TileTag,
+        block_type: BlockType,
     ) -> Result<(), &'static str> {
         let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
@@ -151,7 +151,7 @@ impl Map {
                 let current_type = &self.grid[absolute_pos.as_index()];
 
                 let new_type = match current_type {
-                    TileTag::Hookable | TileTag::Freeze => Some(block_type.clone()),
+                    BlockType::Hookable | BlockType::Freeze => Some(block_type.clone()),
                     _ => None,
                 };
 
@@ -180,7 +180,7 @@ impl Map {
         &self,
         top_left: &Position,
         bot_right: &Position,
-        value: &TileTag,
+        value: &BlockType,
     ) -> Result<bool, &'static str> {
         if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
             return Err("checking area out of bounds");
@@ -197,7 +197,7 @@ impl Map {
         &self,
         top_left: &Position,
         bot_right: &Position,
-        value: &TileTag,
+        value: &BlockType,
     ) -> Result<bool, &'static str> {
         if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
             return Err("checking area out of bounds");
@@ -213,7 +213,7 @@ impl Map {
         &self,
         top_left: &Position,
         bot_right: &Position,
-        value: &TileTag,
+        value: &BlockType,
     ) -> Result<usize, &'static str> {
         if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
             return Err("checking area out of bounds");
@@ -229,7 +229,7 @@ impl Map {
         &mut self,
         top_left: &Position,
         bot_right: &Position,
-        value: &TileTag,
+        value: &BlockType,
         overide: &Overwrite,
     ) {
         if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
@@ -258,7 +258,7 @@ impl Map {
         &mut self,
         top_left: &Position,
         bot_right: &Position,
-        value: &TileTag,
+        value: &BlockType,
         overwrite: &Overwrite,
     ) {
         let top_right = Position::new(bot_right.x, top_left.y);

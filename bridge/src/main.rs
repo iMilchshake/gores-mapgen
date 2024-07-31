@@ -227,7 +227,11 @@ impl ServerBridge {
                             if !self.econ_unchecked().authed {
                                 self.check_auth(line);
                             } else {
-                                info!(recv!("{}"), &line[22..]);
+                                if line.len() < 22 {
+                                    warn!(recv!("Incomplete econ line: {}"), line);
+                                } else {
+                                    info!(recv!("{}"), &line[22..]);
+                                }
 
                                 self.check_vote(line);
                             }

@@ -3,7 +3,7 @@ use std::{env, collections::HashMap, path::PathBuf};
 use mapgen_core::{
     config::{load_configs_from_dir, GenerationConfig, MapConfig},
     generator::Generator,
-    map::{Map, TileTag},
+    map::{Map, BlockType},
     random::{Random, Seed},
 };
 use mapgen_exporter::Exporter;
@@ -215,7 +215,7 @@ impl Editor {
         }
 
         self.gen = Some(Generator::new(
-            Map::new(self.cur_map_config(), TileTag::Hookable),
+            Map::new(self.cur_map_config(), BlockType::Hookable),
             self.user_seed,
             self.cur_gen_config(),
         ));

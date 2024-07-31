@@ -5,7 +5,7 @@ use exporter::{Exporter, ExporterConfig};
 use mapgen_core::{
     config::{GenerationConfig, MapConfig},
     generator::Generator,
-    map::{Map, TileTag},
+    map::{Map, BlockType},
     random::Seed,
 };
 use twmap::TwMap;
@@ -71,7 +71,7 @@ fn main() {
             tw_map.load().expect("failed to load base map");
 
             let mut generator = Generator::new(
-                Map::new(map_config, TileTag::Hookable),
+                Map::new(map_config, BlockType::Hookable),
                 Seed::from_u64(args.seed),
                 gen_config,
             );

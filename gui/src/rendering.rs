@@ -1,19 +1,19 @@
-use mapgen_core::{map::TileTag, map::KernelType, position::Position, walker::CuteWalker};
+use mapgen_core::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
 use macroquad::color::colors;
 use macroquad::color::Color;
 use macroquad::shapes::*;
 use ndarray::Array2;
 
-fn tiletag_to_color(value: &TileTag) -> Color {
+fn tiletag_to_color(value: &BlockType) -> Color {
     match value {
-        TileTag::Hookable => colors::BROWN,
-        TileTag::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
-        TileTag::Empty => Color::new(0.0, 0.0, 0.0, 0.0),
-        TileTag::EmptyReserved => Color::new(0.3, 0.0, 0.0, 0.1),
-        TileTag::Finish => Color::new(1.0, 0.1, 0.1, 0.8),
-        TileTag::Start => Color::new(0.1, 1.0, 0.1, 0.8),
-        TileTag::Platform => Color::new(0.5, 0.5, 0.0, 0.8),
-        TileTag::Spawn => Color::new(0.2, 0.2, 0.7, 0.8),
+        BlockType::Hookable => colors::BROWN,
+        BlockType::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
+        BlockType::Empty => Color::new(0.0, 0.0, 0.0, 0.0),
+        BlockType::EmptyReserved => Color::new(0.3, 0.0, 0.0, 0.1),
+        BlockType::Finish => Color::new(1.0, 0.1, 0.1, 0.8),
+        BlockType::Start => Color::new(0.1, 1.0, 0.1, 0.8),
+        BlockType::Platform => Color::new(0.5, 0.5, 0.0, 0.8),
+        BlockType::Spawn => Color::new(0.2, 0.2, 0.7, 0.8),
     }
 }
 
@@ -44,7 +44,7 @@ pub fn draw_bool_grid(grid: &Array2<bool>, color: &Color, outline: &bool) {
 /// initialization, the entire chunk is drawn using a single rectangle. Otherwise, each block is
 /// drawn individually as in the unoptimized variant.
 pub fn draw_chunked_grid(
-    grid: &Array2<TileTag>,
+    grid: &Array2<BlockType>,
     chunks_edited: &Array2<bool>,
     chunk_size: usize,
 ) {
@@ -62,7 +62,7 @@ pub fn draw_chunked_grid(
                 }
             }
         } else {
-            let mut color = tiletag_to_color(&TileTag::Hookable); // assumed that initial value is hookable
+            let mut color = tiletag_to_color(&BlockType::Hookable); // assumed that initial value is hookable
             color.a = 0.95;
             draw_rectangle(
                 (x_chunk * chunk_size) as f32,

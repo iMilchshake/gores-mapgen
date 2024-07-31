@@ -2,7 +2,7 @@ use crate::{
     config::{GenerationConfig, MapConfig},
     generator,
     kernel::Kernel,
-    map::{TileTag, Map, Overwrite},
+    map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
     random::Random,
 };
@@ -95,13 +95,13 @@ impl CuteWalker {
         let area_empty = map.check_area_all(
             &walker_pos.shifted_by(-3, -3)?,
             &walker_pos.shifted_by(3, 2)?,
-            &TileTag::Empty,
+            &BlockType::Empty,
         )?;
         if area_empty {
             map.set_area(
                 &walker_pos.shifted_by(-1, 0)?,
                 &walker_pos.shifted_by(1, 0)?,
-                &TileTag::Platform,
+                &BlockType::Platform,
                 &Overwrite::ReplaceEmptyOnly,
             );
             self.steps_since_platform = 0;
@@ -153,20 +153,20 @@ impl CuteWalker {
             map.apply_kernel(
                 self,
                 &Kernel::new(&self.inner_kernel.size + 4, 0.0),
-                TileTag::Freeze,
+                BlockType::Freeze,
             )?;
             map.apply_kernel(
                 self,
                 &Kernel::new(&self.inner_kernel.size + 2, 0.0),
-                TileTag::Empty,
+                BlockType::Empty,
             )?;
         } else {
-            map.apply_kernel(self, &self.outer_kernel, TileTag::Freeze)?;
+            map.apply_kernel(self, &self.outer_kernel, BlockType::Freeze)?;
 
             let empty = if self.steps < config.fade_steps {
-                TileTag::EmptyReserved
+                BlockType::EmptyReserved
             } else {
-                TileTag::Empty
+                BlockType::Empty
             };
             map.apply_kernel(self, &self.inner_kernel, empty)?;
         };

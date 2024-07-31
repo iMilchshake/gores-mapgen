@@ -127,11 +127,6 @@ impl<'a, 'b> Exporter<'a, 'b> {
 
             // thanks Tater for the epic **random** seed
             automapper_config.run(3777777777, tiles)
-        } else {
-            panic!(
-                "coulnt get '{}' layer at group {}",
-                &self.config.design_group_name, needed_design_layer_name
-            );
         }
     }
 
