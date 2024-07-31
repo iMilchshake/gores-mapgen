@@ -1,10 +1,10 @@
-use mapgen_core::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
 use macroquad::color::colors;
 use macroquad::color::Color;
 use macroquad::shapes::*;
+use mapgen_core::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
 use ndarray::Array2;
 
-fn tiletag_to_color(value: &BlockType) -> Color {
+fn blocktype_to_color(value: &BlockType) -> Color {
     match value {
         BlockType::Hookable => colors::BROWN,
         BlockType::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
@@ -58,11 +58,11 @@ pub fn draw_chunked_grid(
             for x in x_start..x_end {
                 for y in y_start..y_end {
                     let value = &grid[[x, y]];
-                    draw_rectangle(x as f32, y as f32, 1.0, 1.0, tiletag_to_color(value));
+                    draw_rectangle(x as f32, y as f32, 1.0, 1.0, blocktype_to_color(value));
                 }
             }
         } else {
-            let mut color = tiletag_to_color(&BlockType::Hookable); // assumed that initial value is hookable
+            let mut color = blocktype_to_color(&BlockType::Hookable); // assumed that initial value is hookable
             color.a = 0.95;
             draw_rectangle(
                 (x_chunk * chunk_size) as f32,
