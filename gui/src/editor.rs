@@ -1,14 +1,15 @@
-use std::{env, collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, env, path::PathBuf};
 
 use mapgen_core::{
     config::{load_configs_from_dir, GenerationConfig, MapConfig},
     generator::Generator,
-    map::{Map, BlockType},
+    map::{BlockType, Map},
     random::{Random, Seed},
 };
 use mapgen_exporter::Exporter;
 use twmap::TwMap;
 
+use egui::{epaint::Shadow, Color32, Frame, Margin};
 use macroquad::{
     camera::{set_camera, Camera2D},
     input::{
@@ -19,7 +20,6 @@ use macroquad::{
     time::get_fps,
     window::{screen_height, screen_width},
 };
-use egui::{epaint::Shadow, Color32, Frame, Margin};
 
 use rand_distr::num_traits::Zero;
 
@@ -99,9 +99,8 @@ pub struct Editor {
 
 impl Editor {
     pub fn new() -> Editor {
-        let gen_configs =
-            load_configs_from_dir::<GenerationConfig, _>("../data/configs/gen").unwrap();
-        let map_configs = load_configs_from_dir::<MapConfig, _>("../data/configs/map").unwrap();
+        let gen_configs = load_configs_from_dir::<GenerationConfig, _>("data/configs/gen").unwrap();
+        let map_configs = load_configs_from_dir::<MapConfig, _>("data/configs/map").unwrap();
 
         let current_gen_config = gen_configs.iter().last().unwrap().0.to_string();
         let current_map_config = map_configs.iter().last().unwrap().0.to_string();
@@ -265,7 +264,7 @@ impl Editor {
             let cwd = env::current_dir().unwrap();
             let initial_path = cwd.join("name.map").to_string_lossy().to_string();
             if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
-                // TODO: sucks ass
+                // TODO: Allow to select (or sample randomly) from various base maps
                 let mut tw_map =
                     TwMap::parse_file("./automap_test.map").expect("failed to parse base map");
                 tw_map.load().expect("failed to load base map");

@@ -126,12 +126,12 @@ async fn main() {
             draw_walker_kernel(&editor.gen.as_ref().unwrap().walker, KernelType::Outer);
             draw_walker_kernel(&editor.gen.as_ref().unwrap().walker, KernelType::Inner);
             draw_walker(&editor.gen.as_ref().unwrap().walker);
-        } else {
-            continue;
         }
 
         draw_waypoints(&editor.cur_map_config_mut().waypoints);
 
+        // TODO: need this? test once gui is fixed
+        //
         // draw debug layers
         // for (layer_name, debug_layer) in gen.debug_layers.iter() {
         //     if *editor.visualize_debug_layers.get(layer_name).unwrap() {
