@@ -125,6 +125,6 @@ pub fn draw_walker_kernel(walker: &CuteWalker, kernel_type: KernelType) {
 
 pub fn draw_waypoints(waypoints: &[Position], color: Color) {
     for pos in waypoints.iter() {
-        draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, 1.0, color)
+        draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, 0.5, color)
     }
 }

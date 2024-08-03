@@ -112,11 +112,9 @@ impl Generator {
         let spawn = map_config.waypoints.get(0).unwrap().clone();
         let mut rnd = Random::new(seed, gen_config);
 
-        let subwaypoints = Generator::generate_sub_waypoints(
-            &map_config.waypoints,
-            gen_config.max_subwaypoint_dist,
-        )
-        .unwrap_or(map_config.waypoints.clone()); // on failure just use initial waypoints
+        let subwaypoints =
+            Generator::generate_sub_waypoints(&map_config.waypoints, &gen_config, &mut rnd)
+                .unwrap_or(map_config.waypoints.clone()); // on failure just use initial waypoints
 
         // initialize walker
         let inner_kernel_size = rnd.sample_inner_kernel_size();
@@ -186,9 +184,10 @@ impl Generator {
     /// TODO: currently uses non squared distances, could be optimized
     pub fn generate_sub_waypoints(
         waypoints: &Vec<Position>,
-        max_distance: f32,
+        gen_config: &GenerationConfig,
+        rnd: &mut Random,
     ) -> Option<Vec<Position>> {
-        if max_distance <= 0.0 {
+        if gen_config.max_subwaypoint_dist <= 0.0 {
             return None;
         }
 
@@ -197,15 +196,23 @@ impl Generator {
         // iterate over all neighboring pairs of global waypoints
         for (p1, p2) in waypoints.windows(2).map(|w| (&w[0], &w[1])) {
             let distance = p1.distance(p2);
-            let num_subwaypoints = (distance / max_distance).floor() as usize;
+            let num_subwaypoints = (distance / gen_config.max_subwaypoint_dist).floor() as usize;
 
             for subwaypoint_index in 0..num_subwaypoints {
                 let lerp_weight = (subwaypoint_index as f32) / (num_subwaypoints as f32);
-                let subwaypoint = p1.lerp(p2, lerp_weight);
+                let base_subwaypoint = p1.lerp(p2, lerp_weight);
 
-                subwaypoints.push(subwaypoint);
+                // try to shift waypoint in random direction
+                let mutated_subwaypoint = base_subwaypoint
+                    .random_shift(rnd, gen_config.subwaypoint_max_shift_dist)
+                    .unwrap_or(base_subwaypoint);
+
+                subwaypoints.push(mutated_subwaypoint);
             }
         }
+
+        // add last point
+        subwaypoints.push(waypoints.last().unwrap().clone());
 
         Some(subwaypoints)
     }

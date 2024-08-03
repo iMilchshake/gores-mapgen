@@ -138,6 +138,9 @@ pub struct GenerationConfig {
 
     /// maximum valid distance between subwaypoints
     pub max_subwaypoint_dist: f32,
+
+    /// maximum distance that subwaypoints are shifted from their base position
+    pub subwaypoint_max_shift_dist: f32,
 }
 
 impl GenerationConfig {
@@ -241,6 +244,7 @@ impl Default for GenerationConfig {
             fade_max_size: 6,
             fade_min_size: 3,
             max_subwaypoint_dist: 50.0,
+            subwaypoint_max_shift_dist: 5.0,
         }
     }
 }

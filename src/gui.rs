@@ -578,7 +578,15 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     ui,
                     &mut editor.gen_config.max_subwaypoint_dist,
                     edit_f32_bounded(0.1, 100.0),
-                    "max subwaypoint dist",
+                    "subpoint max dist",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.subwaypoint_max_shift_dist,
+                    edit_f32_bounded(0.0, 50.0),
+                    "subpoint max shift",
                     false,
                 );
             }

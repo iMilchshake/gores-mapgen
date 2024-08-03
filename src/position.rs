@@ -1,7 +1,8 @@
-use dt::num::{integer::Roots, ToPrimitive};
+use dt::num::{integer::Roots, Float, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
-use crate::map::Map;
+use crate::{map::Map, random::Random};
+use std::f32::consts::PI;
 use std::usize;
 
 // using my own position vector to meet ndarray's indexing standard using usize
@@ -70,6 +71,21 @@ impl Position {
         }
 
         Ok(())
+    }
+
+    /// will return a randomly shifted
+    pub fn random_shift(
+        &self,
+        rnd: &mut Random,
+        max_distance: f32,
+    ) -> Result<Position, &'static str> {
+        let direction_radians = rnd.random_fraction() * 2.0 * PI;
+        let distance = rnd.random_fraction() * max_distance;
+
+        let delta_x = distance * direction_radians.cos();
+        let delta_y = distance * direction_radians.sin();
+
+        self.shifted_by(delta_x.round() as i32, delta_y.round() as i32)
     }
 
     pub fn is_shift_valid(&self, shift: &ShiftDirection, map: &Map) -> bool {
