@@ -1,3 +1,4 @@
+use dt::num::{integer::Roots, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
 use crate::map::Map;
@@ -103,6 +104,24 @@ impl Position {
     /// squared euclidean distance between two Positions
     pub fn distance_squared(&self, rhs: &Position) -> usize {
         self.x.abs_diff(rhs.x).saturating_pow(2) + self.y.abs_diff(rhs.y).saturating_pow(2)
+    }
+
+    /// euclidean distance between two Positions
+    pub fn distance(&self, rhs: &Position) -> f32 {
+        (self.x.abs_diff(rhs.x).saturating_pow(2) + self.y.abs_diff(rhs.y).saturating_pow(2))
+            .to_f32()
+            .unwrap()
+            .sqrt()
+    }
+
+    pub fn lerp(&self, other: &Position, weight: f32) -> Position {
+        let lerp_x = (self.x as f32 * (1.0 - weight) + other.x as f32 * weight).round() as usize;
+        let lerp_y = (self.y as f32 * (1.0 - weight) + other.y as f32 * weight).round() as usize;
+
+        Position {
+            x: lerp_x,
+            y: lerp_y,
+        }
     }
 
     /// returns a Vec with all possible shifts, sorted by how close they get

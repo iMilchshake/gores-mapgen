@@ -167,9 +167,10 @@ pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
     ui.add(egui::DragValue::new(value).clamp_range(0..=isize::max_value()));
 }
 
-// TODO: IMAGINE having a dynamic range argument.. imagine, that would be nice
-pub fn edit_f32_wtf(ui: &mut Ui, value: &mut f32) {
-    ui.add(egui::Slider::new(value, 0.0..=15.0));
+pub fn edit_f32_bounded(min: f32, max: f32) -> impl Fn(&mut Ui, &mut f32) {
+    move |ui: &mut Ui, value: &mut f32| {
+        ui.add(egui::Slider::new(value, min..=max));
+    }
 }
 
 pub fn edit_f32_prob(ui: &mut Ui, value: &mut f32) {
@@ -372,6 +373,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             .selected_text(format!("{:}", editor.map_config.name))
             .show_ui(ui, |ui| {
                 for (name, cfg) in editor.init_map_configs.iter() {
+                    // TODO: reinitialize generator with new mapconfig! careful with overriding gen config!
                     ui.selectable_value(&mut editor.map_config, cfg.clone(), name);
                 }
             });
@@ -466,7 +468,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 field_edit_widget(
                     ui,
                     &mut editor.gen_config.max_distance,
-                    edit_f32_wtf,
+                    edit_f32_bounded(0.1, 15.0),
                     "max distance",
                     true,
                 );
@@ -483,7 +485,9 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     random_dist_cfg_edit(
                         ui,
                         &mut editor.gen_config.shift_weights,
-                        None::<fn(&mut Ui, &mut ShiftDirection)>, // TODO: this is stupid wtwf
+                        // TODO: this is stupid wtf, but thats fine as this functionality
+                        // will be reworked with the upcoming dynamic weighting for cells anyways
+                        None::<fn(&mut Ui, &mut ShiftDirection)>,
                         "step weights",
                         false,
                         true,
@@ -567,6 +571,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     &mut editor.gen_config.fade_min_size,
                     edit_usize,
                     "fade min size",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.max_subwaypoint_dist,
+                    edit_f32_bounded(0.1, 100.0),
+                    "max subwaypoint dist",
                     false,
                 );
             }

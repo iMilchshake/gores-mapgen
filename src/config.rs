@@ -94,7 +94,8 @@ pub struct GenerationConfig {
     /// probability for doing the last shift direction again
     pub momentum_prob: f32,
 
-    /// maximum distance from empty blocks to nearest non empty block
+    /// maximum distance from empty blocks to nearest non empty block for obstacle generation
+    /// TODO: rename in new version bump, as this is not self explanatory at all xd
     pub max_distance: f32,
 
     /// min distance to next waypoint that is considered reached
@@ -134,6 +135,9 @@ pub struct GenerationConfig {
 
     /// goal min kernel size for fading
     pub fade_min_size: usize,
+
+    /// maximum valid distance between subwaypoints
+    pub max_subwaypoint_dist: f32,
 }
 
 impl GenerationConfig {
@@ -149,6 +153,11 @@ impl GenerationConfig {
         // 2. Check fade config
         if self.fade_max_size == 0 || self.fade_min_size == 0 {
             return Err("fade kernel sizes must be larger than zero");
+        }
+
+        // 3. Check subwaypoint config
+        if self.max_subwaypoint_dist <= 0.0 {
+            return Err("max subwaypoint distance must be >0");
         }
 
         Ok(())
@@ -231,6 +240,7 @@ impl Default for GenerationConfig {
             fade_steps: 60,
             fade_max_size: 6,
             fade_min_size: 3,
+            max_subwaypoint_dist: 50.0,
         }
     }
 }

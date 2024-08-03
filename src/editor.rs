@@ -190,14 +190,14 @@ impl Editor {
 
     pub fn set_playing(&mut self) {
         if self.is_setup() {
-            self.on_start();
+            self.initialize_generator();
         }
         self.state = EditorState::Playing(PlayingState::Continuous);
     }
 
     pub fn set_single_step(&mut self) {
         if self.is_setup() {
-            self.on_start();
+            self.initialize_generator();
         }
         self.state = EditorState::Playing(PlayingState::SingleStep);
     }
@@ -210,7 +210,7 @@ impl Editor {
         self.state = EditorState::Paused(PausedState::Stopped);
     }
 
-    fn on_start(&mut self) {
+    fn initialize_generator(&mut self) {
         if !self.fixed_seed {
             self.user_seed = Seed::from_random(&mut self.gen.rnd);
         }

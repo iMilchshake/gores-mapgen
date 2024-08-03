@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap};
+use std::collections::BTreeMap;
 use timing::Timer;
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
     walker::CuteWalker,
 };
 
-use macroquad::{color::colors};
+use macroquad::color::colors;
 
 pub fn print_time(_timer: &Timer, _message: &str) {
     // println!("{}: {:?}", message, timer.elapsed());
@@ -106,20 +106,26 @@ pub fn generate_room(
 }
 
 impl Generator {
-    /// derive a initial generator state based on a GenerationConfig
+    /// derive an initial generator state based on a GenerationConfig
     pub fn new(gen_config: &GenerationConfig, map_config: &MapConfig, seed: Seed) -> Generator {
         let map = Map::new(map_config.width, map_config.height, BlockType::Hookable);
         let spawn = map_config.waypoints.get(0).unwrap().clone();
-        let init_inner_kernel = Kernel::new(5, 0.0);
-        let init_outer_kernel = Kernel::new(7, 0.0);
-        let walker = CuteWalker::new(
-            spawn.clone(),
-            init_inner_kernel,
-            init_outer_kernel,
-            map_config,
-        );
-        let rnd = Random::new(seed, gen_config);
+        let mut rnd = Random::new(seed, gen_config);
 
+        let subwaypoints = Generator::generate_sub_waypoints(
+            &map_config.waypoints,
+            gen_config.max_subwaypoint_dist,
+        )
+        .unwrap_or(map_config.waypoints.clone()); // on failure just use initial waypoints
+
+        // initialize walker
+        let inner_kernel_size = rnd.sample_inner_kernel_size();
+        let outer_kernel_size = inner_kernel_size + rnd.sample_outer_kernel_margin();
+        let inner_kernel = Kernel::new(inner_kernel_size, 0.0);
+        let outer_kernel = Kernel::new(outer_kernel_size, 0.0);
+        let walker = CuteWalker::new(spawn.clone(), inner_kernel, outer_kernel, subwaypoints);
+
+        // TODO: rework shitty debug storage
         let debug_layers = BTreeMap::from([
             ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
             ("freeze_skips", DebugLayer::new(true, colors::ORANGE, &map)),
@@ -137,6 +143,7 @@ impl Generator {
         }
     }
 
+    /// perform one step of the map generation
     pub fn step(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
         // check if walker has reached goal position
         if self.walker.is_goal_reached(&config.waypoint_reached_dist) == Some(true) {
@@ -171,6 +178,36 @@ impl Generator {
         }
 
         Ok(())
+    }
+
+    /// Generate subwaypoints for more consistent distance between walker waypoints. This
+    /// ensures more controllable and consistent behaviour of the walker with respect to the
+    /// distance to the target waypoint.
+    /// TODO: currently uses non squared distances, could be optimized
+    pub fn generate_sub_waypoints(
+        waypoints: &Vec<Position>,
+        max_distance: f32,
+    ) -> Option<Vec<Position>> {
+        if max_distance <= 0.0 {
+            return None;
+        }
+
+        let mut subwaypoints: Vec<Position> = Vec::new();
+
+        // iterate over all neighboring pairs of global waypoints
+        for (p1, p2) in waypoints.windows(2).map(|w| (&w[0], &w[1])) {
+            let distance = p1.distance(p2);
+            let num_subwaypoints = (distance / max_distance).floor() as usize;
+
+            for subwaypoint_index in 0..num_subwaypoints {
+                let lerp_weight = (subwaypoint_index as f32) / (num_subwaypoints as f32);
+                let subwaypoint = p1.lerp(p2, lerp_weight);
+
+                subwaypoints.push(subwaypoint);
+            }
+        }
+
+        Some(subwaypoints)
     }
 
     pub fn post_processing(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
