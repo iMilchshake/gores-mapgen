@@ -151,7 +151,7 @@ pub fn field_edit_widget<T, F>(
 }
 
 /// edit u64 using a crappy textfield, as DragValue results in numeric instabilities
-fn _edit_u64_textfield(ui: &mut egui::Ui, value: &mut u64) -> egui::Response {
+fn edit_u64_textfield(ui: &mut egui::Ui, value: &mut u64) -> egui::Response {
     let mut int_as_str = format!("{}", value);
     let res = ui.add(egui::TextEdit::singleline(&mut int_as_str).desired_width(150.0));
     if int_as_str.is_empty() {
@@ -285,21 +285,9 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         // =======================================[ SEED CONTROL ]===================================
         if editor.is_setup() {
             ui.horizontal(|ui| {
-                ui.label("str");
-                let mut string = String::new();
-                let text_edit = egui::TextEdit::singleline(&mut string).desired_width(150.0);
-                if ui.add(text_edit).changed() {
-                    editor.user_seed.fill_with_string(&string);
-                }
-            });
-
-            ui.horizontal(|ui| {
                 ui.label("u64");
 
-                // TODO: whats that
-                // if edit_u64_textfield(ui, &mut editor.user_seed.0).changed() {
-                //     editor.user_seed.seed_str = String::new();
-                // }
+                edit_u64_textfield(ui, &mut editor.user_seed.0);
             });
 
             ui.horizontal(|ui| {

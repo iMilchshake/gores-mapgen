@@ -117,7 +117,6 @@ async fn main() {
 
             clear_background(WHITE);
 
-            // draw_grid_blocks(&editor.gen.map.grid);
             draw_chunked_grid(
                 &editor.gen.as_ref().unwrap().map.grid,
                 &editor.gen.as_ref().unwrap().map.chunks_edited,

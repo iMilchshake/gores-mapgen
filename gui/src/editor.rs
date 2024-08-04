@@ -99,8 +99,8 @@ pub struct Editor {
 
 impl Editor {
     pub fn new() -> Editor {
-        let gen_configs = load_configs_from_dir::<GenerationConfig, _>("data/configs/gen").unwrap();
-        let map_configs = load_configs_from_dir::<MapConfig, _>("data/configs/map").unwrap();
+        let gen_configs = load_configs_from_dir::<GenerationConfig, _>("../data/configs/gen").unwrap();
+        let map_configs = load_configs_from_dir::<MapConfig, _>("../data/configs/map").unwrap();
 
         let current_gen_config = gen_configs.iter().last().unwrap().0.to_string();
         let current_map_config = map_configs.iter().last().unwrap().0.to_string();
@@ -124,7 +124,7 @@ impl Editor {
             gen: None,
             user_seed: Seed::from_str("iMilchshake"),
             instant: false,
-            auto_generate: false,
+            auto_generate: true,
             fixed_seed: false,
             edit_gen_config: false,
             edit_map_config: false,
@@ -331,7 +331,7 @@ impl Editor {
     }
 
     pub fn cur_map_config(&self) -> MapConfig {
-        self.map_configs[&self.current_gen_config].clone()
+        self.map_configs[&self.current_map_config].clone()
     }
 
     pub fn cur_gen_config_mut(&mut self) -> &mut GenerationConfig {
