@@ -324,8 +324,7 @@ impl ServerBridge {
             Ok(Ok(map)) => {
                 info!(gen!("Finished map generation"));
 
-                let idx =
-                    Seed::random().0 as usize % self.base_maps.len();
+                let idx = Seed::random().0 as usize % self.base_maps.len();
 
                 let base_map_path = &self.base_maps[idx];
 
@@ -349,12 +348,8 @@ impl ServerBridge {
             Err(panic_info) => {
                 error!(gen!("Generation panicked!"));
                 error!(gen!("{:?}"), panic_info);
-                self.econ_unchecked()
-                    .rcon_say("GENERATION PANICKED, THIS SHOULD NOT HAPPEN")
-                    .unwrap();
-                self.econ_unchecked()
-                    .rcon_say("Please report this to iMilchshake, thanks :D")
-                    .unwrap();
+                self.say("GENERATION PANICKED, THIS SHOULD NOT HAPPEN");
+                self.say("Please report this to iMilchshake, thanks :D");
             }
         }
 
@@ -374,6 +369,12 @@ impl ServerBridge {
             .send_rcon_cmd(&format!("change_map {}", map_name))
             .unwrap();
         self.econ_unchecked().send_rcon_cmd("reload").unwrap();
+    }
+
+    pub fn say(&mut self, message: &str) {
+        self.econ_unchecked()
+            .send_rcon_cmd(&format!("say {message}"))
+            .unwrap();
     }
 
     fn econ_unchecked(&mut self) -> &mut Econ {

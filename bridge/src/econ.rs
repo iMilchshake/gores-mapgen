@@ -91,8 +91,4 @@ impl Econ {
 
         Ok(())
     }
-
-    pub fn rcon_say(&mut self, message: &str) -> Result<(), std::io::Error> {
-        self.send_rcon_cmd(&format!("say {message}"))
-    }
 }
