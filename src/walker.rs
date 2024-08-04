@@ -328,23 +328,22 @@ impl CuteWalker {
         map: &Map,
         gen_config: &GenerationConfig,
     ) -> Result<(), &'static str> {
-        if self.position_history.len() <= self.locked_position_step + 1 {
-            return Ok(()); // history not long enough yet to lock another step
-        }
-
         while self.locked_position_step < self.steps {
+            if self.position_history.len() <= self.locked_position_step + 1 {
+                return Ok(()); // history not long enough yet to lock another step
+            }
+
             // get position of the next step to lock
             let next_lock_pos = &self.position_history[self.locked_position_step + 1];
 
-            let delay = self.steps - self.locked_position_step;
-            dbg!(delay);
-            if delay > 1000 {
-                return Err("lock delay too large, walker stuck?");
+            // check if locking lacks too far behind -> walker most likely stuck
+            if self.steps - self.locked_position_step > gen_config.pos_lock_max_delay {
+                return Err("pos_lock_max_delay exceeded, walker stuck");
             }
 
-            // if locked cells get too close, increase delay
-            if next_lock_pos.distance(&self.pos) < 30.0 {
-                return Ok(()); // to close to lock, abort
+            // check if walker is far enough to lock next position
+            if next_lock_pos.distance(&self.pos) < gen_config.pos_lock_max_dist {
+                return Ok(());
             }
 
             // TODO: use inner or outer? or just define by hand?

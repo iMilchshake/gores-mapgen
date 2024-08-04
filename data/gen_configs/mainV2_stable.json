@@ -1,0 +1,76 @@
+{
+  "name": "mainV2_stable",
+  "description": null,
+  "version": "1.0",
+  "inner_rad_mut_prob": 0.67,
+  "inner_size_mut_prob": 0.6,
+  "outer_rad_mut_prob": 0.55,
+  "outer_size_mut_prob": 0.8,
+  "shift_weights": {
+    "values": null,
+    "probs": [
+      0.47619048,
+      0.21428572,
+      0.1904762,
+      0.11904762
+    ]
+  },
+  "platform_distance_bounds": [
+    400,
+    500
+  ],
+  "momentum_prob": 0.5,
+  "max_distance": 4.0,
+  "waypoint_reached_dist": 16,
+  "inner_size_probs": {
+    "values": [
+      4,
+      3,
+      11
+    ],
+    "probs": [
+      0.15000002,
+      0.84391177,
+      0.0060882242
+    ]
+  },
+  "outer_margin_probs": {
+    "values": [
+      2,
+      4
+    ],
+    "probs": [
+      0.9742896,
+      0.02571042
+    ]
+  },
+  "circ_probs": {
+    "values": [
+      0.0,
+      0.6,
+      0.8
+    ],
+    "probs": [
+      0.7894737,
+      0.15789475,
+      0.05263158
+    ]
+  },
+  "skip_length_bounds": [
+    3,
+    11
+  ],
+  "skip_min_spacing_sqr": 45,
+  "min_freeze_size": 0,
+  "enable_pulse": false,
+  "pulse_straight_delay": 10,
+  "pulse_corner_delay": 5,
+  "pulse_max_kernel_size": 4,
+  "fade_steps": 90,
+  "fade_max_size": 7,
+  "fade_min_size": 4,
+  "max_subwaypoint_dist": 50.0,
+  "subwaypoint_max_shift_dist": 5.0,
+  "pos_lock_max_dist": 40.0,
+  "pos_lock_max_delay": 1500
+}

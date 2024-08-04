@@ -589,6 +589,22 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     "subpoint max shift",
                     false,
                 );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.pos_lock_max_dist,
+                    edit_f32_bounded(0.0, 150.0),
+                    "pos lock max dist",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.pos_lock_max_delay,
+                    edit_usize,
+                    "pos lock max delay",
+                    false,
+                );
             }
 
             // =======================================[ MAP CONFIG EDIT ]===================================
