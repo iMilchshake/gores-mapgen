@@ -140,30 +140,30 @@ impl Map {
 
     pub fn apply_kernel(
         &mut self,
-        walker: &CuteWalker,
+        pos: &Position,
         kernel: &Kernel,
-        block_type: BlockType,
+        new_block_type: BlockType,
     ) -> Result<(), &'static str> {
         let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
 
-        let exceeds_left_bound = walker.pos.x < offset;
-        let exceeds_upper_bound = walker.pos.y < offset;
-        let exceeds_right_bound = (walker.pos.x + extend) > self.width;
-        let exceeds_lower_bound = (walker.pos.y + extend) > self.height;
+        let exceeds_left_bound = pos.x < offset;
+        let exceeds_upper_bound = pos.y < offset;
+        let exceeds_right_bound = (pos.x + extend) > self.width;
+        let exceeds_lower_bound = (pos.y + extend) > self.height;
 
         if exceeds_left_bound || exceeds_upper_bound || exceeds_right_bound || exceeds_lower_bound {
             return Err("Kernel out of bounds");
         }
 
-        let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
+        let root_pos = Position::new(pos.x - offset, pos.y - offset);
         for ((kernel_x, kernel_y), kernel_active) in kernel.vector.indexed_iter() {
             let absolute_pos = Position::new(root_pos.x + kernel_x, root_pos.y + kernel_y);
             if *kernel_active {
                 let current_type = &self.grid[absolute_pos.as_index()];
 
                 let new_type = match current_type {
-                    BlockType::Hookable | BlockType::Freeze => Some(block_type.clone()),
+                    BlockType::Hookable | BlockType::Freeze => Some(new_block_type.clone()),
                     _ => None,
                 };
 

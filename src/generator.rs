@@ -12,7 +12,7 @@ use crate::{
     walker::CuteWalker,
 };
 
-use macroquad::color::colors;
+use macroquad::color::{colors, Color};
 
 pub fn print_time(_timer: &Timer, _message: &str) {
     // println!("{}: {:?}", message, timer.elapsed());
@@ -136,6 +136,10 @@ impl Generator {
             ("skips", DebugLayer::new(true, colors::GREEN, &map)),
             ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
             ("blobs", DebugLayer::new(false, colors::RED, &map)),
+            (
+                "lock",
+                DebugLayer::new(false, Color::new(1.0, 0.2, 0.2, 0.3), &map),
+            ),
         ]);
 
         Generator {
@@ -172,6 +176,9 @@ impl Generator {
             // perform one step
             self.walker
                 .probabilistic_step(&mut self.map, config, &mut self.rnd)?;
+
+            // TODO: very imperformant clone here, REVERT REVERT
+            self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
 
             // handle platforms
             self.walker.check_platform(

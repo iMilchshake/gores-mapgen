@@ -1,4 +1,6 @@
-use ndarray::Array2;
+use dt::num::ToPrimitive;
+use ndarray::{s, Array2};
+use serde::de::Error;
 
 use crate::{
     config::{GenerationConfig, MapConfig},
@@ -126,12 +128,15 @@ impl CuteWalker {
     pub fn probabilistic_step(
         &mut self,
         map: &mut Map,
-        config: &GenerationConfig,
+        gen_config: &GenerationConfig,
         rnd: &mut Random,
     ) -> Result<(), &'static str> {
         if self.finished {
             return Err("Walker is finished");
         }
+
+        // save position to history before its updated
+        self.position_history.push(self.pos.clone());
 
         // sample next shift
         let goal = self.goal.as_ref().ok_or("Error: Goal is None")?;
@@ -139,57 +144,75 @@ impl CuteWalker {
 
         let mut current_shift = rnd.sample_shift(&shifts);
 
-        let same_dir = match self.last_shift {
-            Some(last_shift) => {
-                // Momentum: re-use last shift direction
-                if rnd.with_probability(config.momentum_prob) {
-                    current_shift = last_shift;
-                }
-
-                // check whether walker hasnt changed direction
-                current_shift == last_shift
+        // Momentum: re-use last shift direction with certain probability
+        if let Some(last_shift) = self.last_shift {
+            if rnd.with_probability(gen_config.momentum_prob) {
+                current_shift = last_shift;
             }
+        }
+
+        let mut current_target_pos = self.pos.clone();
+        current_target_pos.shift_in_direction(&current_shift, map)?;
+
+        // if target pos is locked, re-sample until a valid one is found
+        let mut invalid = false;
+        for _ in 0..100 {
+            invalid = self.locked_positions[current_target_pos.as_index()];
+
+            if invalid {
+                current_shift = rnd.sample_shift(&shifts);
+                current_target_pos = self.pos.clone();
+                current_target_pos.shift_in_direction(&current_shift, map)?;
+            }
+        }
+
+        if invalid {
+            return Err("Walker got stuck :(");
+        }
+
+        // determine if direction changed from last shift
+        let same_dir = match self.last_shift {
+            Some(last_shift) => current_shift == last_shift,
             None => false,
         };
-
-        // save position to history before its updated
-        self.position_history.push(self.pos.clone());
 
         // apply selected shift
         self.pos.shift_in_direction(&current_shift, map)?;
         self.steps += 1;
 
-        // perform pulse if config constraints allows it
-        let perform_pulse = config.enable_pulse
-            && ((same_dir && self.pulse_counter > config.pulse_straight_delay)
-                || (!same_dir && self.pulse_counter > config.pulse_corner_delay));
+        // lock old position
+        self.lock_previous_location(100, map, gen_config);
 
+        // perform pulse if config constraints allows it
+        let perform_pulse = gen_config.enable_pulse
+            && ((same_dir && self.pulse_counter > gen_config.pulse_straight_delay)
+                || (!same_dir && self.pulse_counter > gen_config.pulse_corner_delay));
+
+        // apply kernels
         if perform_pulse {
             self.pulse_counter = 0; // reset pulse counter
             map.apply_kernel(
-                self,
+                &self.pos,
                 &Kernel::new(&self.inner_kernel.size + 4, 0.0),
                 BlockType::Freeze,
             )?;
             map.apply_kernel(
-                self,
+                &self.pos,
                 &Kernel::new(&self.inner_kernel.size + 2, 0.0),
                 BlockType::Empty,
             )?;
         } else {
-            map.apply_kernel(self, &self.outer_kernel, BlockType::Freeze)?;
+            map.apply_kernel(&self.pos, &self.outer_kernel, BlockType::Freeze)?;
 
-            let empty = if self.steps < config.fade_steps {
+            let empty = if self.steps < gen_config.fade_steps {
                 BlockType::EmptyReserved
             } else {
                 BlockType::Empty
             };
-            map.apply_kernel(self, &self.inner_kernel, empty)?;
+            map.apply_kernel(&self.pos, &self.inner_kernel, empty)?;
         };
 
-        // apply kernels
-
-        if same_dir && self.inner_kernel.size <= config.pulse_max_kernel_size {
+        if same_dir && self.inner_kernel.size <= gen_config.pulse_max_kernel_size {
             self.pulse_counter += 1;
         } else {
             self.pulse_counter = 0;
@@ -271,6 +294,48 @@ impl CuteWalker {
         if modified {
             self.inner_kernel = Kernel::new(inner_size, inner_circ);
             self.outer_kernel = Kernel::new(outer_size, outer_circ);
+        }
+    }
+
+    fn lock_previous_location(&mut self, delay: usize, map: &Map, gen_config: &GenerationConfig) {
+        if self.position_history.len() <= delay {
+            return; // history not long enough yet
+        }
+
+        // get position of 'delay' steps ago
+        let previous_pos = &self.position_history[self.steps - delay];
+
+        // TODO: use inner or outer? or just define by hand?
+        let max_kernel_size = gen_config
+            .inner_size_probs
+            .values
+            .as_ref()
+            .unwrap()
+            .iter()
+            .max()
+            .unwrap();
+
+        // TODO: rework this by reusing functionality -> lock possible cells
+        let offset: usize = *max_kernel_size; // offset of kernel wrt. position (top/left)
+        let extend: usize = (max_kernel_size * 2) - offset; // how much kernel extends position (bot/right)
+        let top_left = previous_pos
+            .shifted_by(-offset.to_i32().unwrap(), -offset.to_i32().unwrap())
+            .unwrap();
+        let bot_right = previous_pos
+            .shifted_by(extend.to_i32().unwrap(), extend.to_i32().unwrap())
+            .unwrap();
+
+        // check if operation valid
+        if !map.pos_in_bounds(&top_left) || !map.pos_in_bounds(&bot_right) {
+            return;
+        }
+
+        // lock all
+        let mut view = self
+            .locked_positions
+            .slice_mut(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
+        for lock_status in view.iter_mut() {
+            *lock_status = true;
         }
     }
 }
