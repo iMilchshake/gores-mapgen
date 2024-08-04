@@ -355,16 +355,16 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         egui::ComboBox::from_label("")
             .selected_text(format!("{:}", editor.current_gen_config))
             .show_ui(ui, |ui| {
-                for (name, cfg) in editor.gen_configs.iter() {
-                    ui.selectable_value(&mut editor.cur_gen_config(), cfg.clone(), name);
+                for (name, _cfg) in editor.gen_configs.iter() {
+                    ui.selectable_value(&mut editor.current_gen_config, name.clone(), name);
                 }
             });
         ui.label("load map config:");
         egui::ComboBox::from_label(" ")
             .selected_text(format!("{:}", editor.current_map_config))
             .show_ui(ui, |ui| {
-                for (name, cfg) in editor.map_configs.iter() {
-                    ui.selectable_value(&mut editor.cur_map_config(), cfg.clone(), name);
+                for (name, _cfg) in editor.map_configs.iter() {
+                    ui.selectable_value(&mut editor.current_map_config, name.clone(), name);
                 }
             });
 
