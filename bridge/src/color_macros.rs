@@ -1,5 +1,3 @@
-#![macro_use]
-
 macro_rules! light_blue_color {
     () => {
         "\x1b[38;5;12m"
@@ -9,12 +7,6 @@ macro_rules! light_blue_color {
 macro_rules! lavanda_color {
     () => {
         "\x1b[38;5;146m"
-    };
-}
-
-macro_rules! weed_color {
-    () => {
-        "\x1b[38;5;114m"
     };
 }
 
@@ -58,11 +50,5 @@ macro_rules! recv {
 macro_rules! gen {
     ($e:expr) => {
         concat!(lavanda_color!(), "GEN ", default_color!(), " ", $e)
-    };
-}
-
-macro_rules! vote {
-    ($e:expr) => {
-        concat!(weed_color!(), "VOTE", default_color!(), " ", $e)
     };
 }
