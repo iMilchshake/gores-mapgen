@@ -67,9 +67,9 @@ struct BridgeArgs {
 }
 
 /// keeps track of the server bridge state
-pub struct ServerBridge<const BUFFER_SIZE: usize> {
+pub struct ServerBridge {
     /// econ connection to game server
-    econ: Option<Econ<BUFFER_SIZE>>,
+    econ: Option<Econ>,
 
     /// stores all available base maps paths
     base_maps: Vec<PathBuf>,
@@ -90,8 +90,8 @@ pub struct ServerBridge<const BUFFER_SIZE: usize> {
     args: BridgeArgs,
 }
 
-impl<const BUFFER_SIZE: usize> ServerBridge<BUFFER_SIZE> {
-    fn new(args: BridgeArgs) -> ServerBridge<BUFFER_SIZE> {
+impl ServerBridge {
+    fn new(args: BridgeArgs) -> ServerBridge {
         let base_maps = load_base_maps_paths(args.base_maps.as_path());
         let gen_configs =
             load_configs_from_dir::<GenerationConfig, _>(args.gen_configs.as_path()).unwrap();
@@ -114,7 +114,7 @@ impl<const BUFFER_SIZE: usize> ServerBridge<BUFFER_SIZE> {
 
     fn start(&mut self) {
         self.econ = Some(
-            Econ::connect(&format!("127.0.0.1:{}", self.args.port)).unwrap_or_else(|error| {
+            Econ::connect(&format!("127.0.0.1:{}", self.args.port), 1024).unwrap_or_else(|error| {
                 panic!("Failed to establish stream connection: {}", error);
             }),
         );
@@ -376,13 +376,13 @@ impl<const BUFFER_SIZE: usize> ServerBridge<BUFFER_SIZE> {
         self.econ_unchecked().send_rcon_cmd("reload").unwrap();
     }
 
-    fn econ_unchecked(&mut self) -> &mut Econ<BUFFER_SIZE> {
+    fn econ_unchecked(&mut self) -> &mut Econ {
         self.econ.as_mut().unwrap()
     }
 
     pub fn run() {
         match Command::parse() {
-            Command::StartBridge(args) => ServerBridge::<512>::new(args).start(),
+            Command::StartBridge(args) => ServerBridge::new(args).start(),
             Command::ListConfigs(args) => print_configs(args),
         }
     }

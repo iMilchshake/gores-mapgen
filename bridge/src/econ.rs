@@ -6,23 +6,23 @@ use std::{
 
 use itertools::Itertools;
 
-pub struct Econ<const SIZE: usize> {
+pub struct Econ {
     connection: TcpStream,
-    buffer: [u8; SIZE],
+    buffer: Vec<u8>,
     lines: Vec<String>,
     unfinished_line: String,
     authed: bool,
 }
 
-impl<const SIZE: usize> Econ<SIZE> {
-    pub fn connect<A: ToSocketAddrs>(address: A) -> Result<Self, Error> {
+impl Econ {
+    pub fn connect<A: ToSocketAddrs>(address: A, buffer_size: usize) -> Result<Self, Error> {
         let address = address.to_socket_addrs().unwrap().next().unwrap();
 
         let connection = TcpStream::connect_timeout(&address, Duration::from_secs(10))?;
 
         Ok(Self {
             connection,
-            buffer: [0; SIZE],
+            buffer: Vec::with_capacity(buffer_size),
             lines: Vec::new(),
             unfinished_line: String::new(),
             authed: false,

@@ -9,5 +9,5 @@ mod econ;
 fn main() {
     SimpleLogger::new().init().unwrap();
     
-    app::ServerBridge::<512>::run();
+    app::ServerBridge::run();
 }
