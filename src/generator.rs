@@ -121,7 +121,13 @@ impl Generator {
         let outer_kernel_size = inner_kernel_size + rnd.sample_outer_kernel_margin();
         let inner_kernel = Kernel::new(inner_kernel_size, 0.0);
         let outer_kernel = Kernel::new(outer_kernel_size, 0.0);
-        let walker = CuteWalker::new(spawn.clone(), inner_kernel, outer_kernel, subwaypoints);
+        let walker = CuteWalker::new(
+            spawn.clone(),
+            inner_kernel,
+            outer_kernel,
+            subwaypoints,
+            &map,
+        );
 
         // TODO: rework shitty debug storage
         let debug_layers = BTreeMap::from([

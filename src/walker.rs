@@ -1,3 +1,5 @@
+use ndarray::Array2;
+
 use crate::{
     config::{GenerationConfig, MapConfig},
     generator,
@@ -21,12 +23,20 @@ pub struct CuteWalker {
     /// indicates whether walker has reached the last waypoint
     pub finished: bool,
 
+    /// keeps track of how many steps ago the last platorm has been placed
     pub steps_since_platform: usize,
 
+    /// keeps track of the last shift direction
     pub last_shift: Option<ShiftDirection>,
 
     /// counts how many steps the pulse constraints have been fulfilled
     pub pulse_counter: usize,
+
+    /// keeps track on which positions can no longer be visited
+    pub locked_positions: Array2<bool>,
+
+    /// keeps track of all positions the walker has visited so far
+    pub position_history: Vec<Position>,
 }
 
 impl CuteWalker {
@@ -35,6 +45,7 @@ impl CuteWalker {
         inner_kernel: Kernel,
         outer_kernel: Kernel,
         waypoints: Vec<Position>,
+        map: &Map,
     ) -> CuteWalker {
         CuteWalker {
             pos: initial_pos,
@@ -48,6 +59,8 @@ impl CuteWalker {
             steps_since_platform: 0,
             last_shift: None,
             pulse_counter: 0,
+            locked_positions: Array2::from_elem((map.width, map.height), false),
+            position_history: Vec::new(),
         }
     }
 
@@ -139,11 +152,14 @@ impl CuteWalker {
             None => false,
         };
 
+        // save position to history before its updated
+        self.position_history.push(self.pos.clone());
+
         // apply selected shift
         self.pos.shift_in_direction(&current_shift, map)?;
         self.steps += 1;
 
-        // perform pulse if direction changed and config constraints allows it
+        // perform pulse if config constraints allows it
         let perform_pulse = config.enable_pulse
             && ((same_dir && self.pulse_counter > config.pulse_straight_delay)
                 || (!same_dir && self.pulse_counter > config.pulse_corner_delay));
