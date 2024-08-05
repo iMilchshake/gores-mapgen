@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::{collections::HashMap, fs, path::Path};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -158,24 +159,23 @@ impl Default for MapConfig {
     }
 }
 
-pub fn load_configs_from_dir<C, P>(path: P) -> Result<HashMap<String, C>, serde_json::Error>
+pub fn load_configs_from_dir<C, P>(path: P) -> Result<HashMap<String, C>, Box<dyn Error>>
 where
     C: DeserializeOwned,
     P: AsRef<Path>,
 {
     let mut configs = HashMap::new();
 
-    for file_path in fs::read_dir(path).unwrap() {
-        let file_path = file_path.unwrap().path();
-        let file_name = file_path.file_name().unwrap().to_str().unwrap().replace(".json", "");
+    for file_path in fs::read_dir(path)? {
+        let file_path = file_path?.path();
+        let osstr_file_name = file_path.file_name().unwrap(); // it will never be None since "Returns None if the path terminates in .."
+        let file_name = osstr_file_name
+            .to_str().unwrap() // believe to user that it will be valid utf8, what an asshole will use utf16 for fucking generator config name?
+            .replace(".json", "");
+
         let data = fs::read_to_string(&file_path).unwrap();
 
-        match serde_json::from_str::<C>(&data) {
-            Ok(config) => {
-                configs.insert(file_name.to_string(), config);
-            }
-            Err(error) => return Err(error),
-        }
+        configs.insert(file_name.to_string(), serde_json::from_str::<C>(&data)?);
     }
 
     Ok(configs)

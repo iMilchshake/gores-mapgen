@@ -24,13 +24,10 @@ pub struct Generator {
 pub fn generate_room(
     map: &mut Map,
     pos: &Position,
-    room_size: usize,
-    platform_margin: usize,
+    room_size: i32,
+    platform_margin: i32,
     zone_type: Option<&BlockType>,
 ) -> Result<(), &'static str> {
-    let room_size: i32 = room_size as i32;
-    let platform_margin: i32 = platform_margin as i32;
-
     if !map.pos_in_bounds(&pos.shifted_by(room_size + 2, room_size + 1).unwrap())
         || !map.pos_in_bounds(&pos.shifted_by(room_size + 1, room_size + 1).unwrap())
     {
