@@ -391,10 +391,10 @@ pub fn generate_all_skips(
 
     // pick final selection of skips
     skips.sort_unstable_by(|s1, s2| usize::cmp(&s1.length, &s2.length)); // sort by length
-    let mut valid_skips = vec![SkipStatus::Valid; skips.len()];
+    let mut skip_status = vec![SkipStatus::Valid; skips.len()];
     for skip_index in 0..skips.len() {
         // skip if already invalidated
-        if valid_skips[skip_index] == SkipStatus::Invalid {
+        if skip_status[skip_index] == SkipStatus::Invalid {
             continue;
         }
 
@@ -404,9 +404,9 @@ pub fn generate_all_skips(
         if count_skip_neighbours(gen, skip, 2).unwrap_or(0) <= 0 {
             // but if at least 1 direct, then to a freeze skip
             if count_skip_neighbours(gen, skip, 1).unwrap_or(0) >= 1 {
-                valid_skips[skip_index] = SkipStatus::ValidFreezeSkipOnly;
+                skip_status[skip_index] = SkipStatus::ValidFreezeSkipOnly;
             } else {
-                valid_skips[skip_index] = SkipStatus::Invalid;
+                skip_status[skip_index] = SkipStatus::Invalid;
                 continue;
             }
         }
@@ -425,14 +425,14 @@ pub fn generate_all_skips(
                 || skip.end_pos.distance_squared(&skip_other.start_pos) < min_spacing_sqr
                 || skip.end_pos.distance_squared(&skip_other.end_pos) < min_spacing_sqr
             {
-                valid_skips[other_index] = SkipStatus::Invalid;
+                skip_status[other_index] = SkipStatus::Invalid;
             }
         }
     }
 
     // generate all remaining valid skips
     for skip_index in 0..skips.len() {
-        match valid_skips[skip_index] {
+        match skip_status[skip_index] {
             SkipStatus::Valid => generate_skip(gen, &skips[skip_index], &BlockType::Empty),
             SkipStatus::ValidFreezeSkipOnly => {
                 generate_skip(gen, &skips[skip_index], &BlockType::Freeze)
@@ -441,31 +441,16 @@ pub fn generate_all_skips(
         }
     }
 
-    // TODO: these debug layer mut locks are fucking stupid
-    // set debug layer for valid skips
-    let debug_skips = &mut gen.debug_layers.get_mut("skips").unwrap().grid;
-    for (skip, valid) in skips.iter().zip(valid_skips.iter()) {
-        if *valid == SkipStatus::Valid {
-            debug_skips[skip.start_pos.as_index()] = true;
-            debug_skips[skip.end_pos.as_index()] = true;
-        }
-    }
+    // add debug visualizations
+    for (skip, status) in skips.iter().zip(skip_status.iter()) {
+        let debug_layer = match *status {
+            SkipStatus::Valid => gen.debug_layers.get_mut("skips").unwrap(),
+            SkipStatus::Invalid => gen.debug_layers.get_mut("skips_invalid").unwrap(),
+            SkipStatus::ValidFreezeSkipOnly => gen.debug_layers.get_mut("freeze_skips").unwrap(),
+        };
 
-    // set debug layer for invalid skips
-    let debug_skips_invalid = &mut gen.debug_layers.get_mut("skips_invalid").unwrap().grid;
-    for (skip, valid) in skips.iter().zip(valid_skips.iter()) {
-        if *valid == SkipStatus::Invalid {
-            debug_skips_invalid[skip.start_pos.as_index()] = true;
-            debug_skips_invalid[skip.end_pos.as_index()] = true;
-        }
-    }
-
-    let debug_freeze_skips = &mut gen.debug_layers.get_mut("freeze_skips").unwrap().grid;
-    for (skip, valid) in skips.iter().zip(valid_skips.iter()) {
-        if *valid == SkipStatus::ValidFreezeSkipOnly {
-            debug_freeze_skips[skip.start_pos.as_index()] = true;
-            debug_freeze_skips[skip.end_pos.as_index()] = true;
-        }
+        debug_layer.grid[skip.start_pos.as_index()] = true;
+        debug_layer.grid[skip.end_pos.as_index()] = true;
     }
 }
 

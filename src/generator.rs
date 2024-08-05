@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use timing::Timer;
 
 use crate::{
@@ -21,7 +21,7 @@ pub fn print_time(_timer: &Timer, _message: &str) {
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
-    pub debug_layers: BTreeMap<&'static str, DebugLayer>,
+    pub debug_layers: HashMap<&'static str, DebugLayer>,
 
     /// PRNG wrapper
     pub rnd: Random,
@@ -130,7 +130,7 @@ impl Generator {
         );
 
         // TODO: rework shitty debug storage
-        let debug_layers = BTreeMap::from([
+        let debug_layers = HashMap::from([
             ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
             ("freeze_skips", DebugLayer::new(true, colors::ORANGE, &map)),
             ("skips", DebugLayer::new(true, colors::GREEN, &map)),
