@@ -24,6 +24,14 @@ struct Args {
     /// enable instant, auto generate and fixed seed
     #[arg(short, long)]
     testing: bool,
+
+    /// name of initial generation config
+    #[arg(short, default_value = "hardV2")]
+    gen_config: String,
+
+    /// name of initial map config
+    #[arg(short, default_value = "small_s")]
+    map_config: String,
 }
 
 fn window_conf() -> Conf {
@@ -45,7 +53,7 @@ async fn main() {
     let args = Args::parse();
     SimpleLogger::new().init().unwrap();
 
-    let mut editor = Editor::new();
+    let mut editor = Editor::new(args.gen_config, args.map_config);
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     if args.testing {
@@ -64,13 +72,14 @@ async fn main() {
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
+        editor.define_egui();
 
         // optionally, start generating next map right away
         if editor.is_paused() && editor.auto_generate {
             editor.set_playing();
         }
 
-        // perform walker step
+        // perform walker steps
         let steps = match editor.instant {
             true => usize::max_value(),
             false => editor.steps_per_frame,
@@ -111,7 +120,6 @@ async fn main() {
                 editor.set_setup();
             }
 
-            editor.define_egui();
             editor.set_cam();
             editor.handle_user_inputs();
 
@@ -125,21 +133,10 @@ async fn main() {
             draw_walker_kernel(&editor.gen.as_ref().unwrap().walker, KernelType::Outer);
             draw_walker_kernel(&editor.gen.as_ref().unwrap().walker, KernelType::Inner);
             draw_walker(&editor.gen.as_ref().unwrap().walker);
+            draw_waypoints(&editor.cur_map_config_mut().waypoints);
         }
 
-        draw_waypoints(&editor.cur_map_config_mut().waypoints);
-
-        // TODO: need this? test once gui is fixed
-        //
-        // draw debug layers
-        // for (layer_name, debug_layer) in gen.debug_layers.iter() {
-        //     if *editor.visualize_debug_layers.get(layer_name).unwrap() {
-        //         draw_bool_grid(&debug_layer.grid, &debug_layer.color, &debug_layer.outline)
-        //     }
-        // }
-
         egui_macroquad::draw();
-
         fps_ctrl.wait_for_next_frame().await;
     }
 }

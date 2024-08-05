@@ -98,19 +98,21 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new() -> Editor {
-        let gen_configs = load_configs_from_dir::<GenerationConfig, _>("../data/configs/gen").unwrap();
+    pub fn new(init_gen_config: String, init_map_config: String) -> Editor {
+        let gen_configs =
+            load_configs_from_dir::<GenerationConfig, _>("../data/configs/gen").unwrap();
         let map_configs = load_configs_from_dir::<MapConfig, _>("../data/configs/map").unwrap();
 
-        let current_gen_config = gen_configs.iter().last().unwrap().0.to_string();
-        let current_map_config = map_configs.iter().last().unwrap().0.to_string();
+        // TODO: add fallback
+        assert!(gen_configs.contains_key(&init_gen_config));
+        assert!(map_configs.contains_key(&init_map_config));
 
         let visualize_debug_layers: HashMap<&'static str, bool> = HashMap::new();
 
         Editor {
             state: EditorState::Paused(PausedState::Setup),
-            gen_configs: gen_configs,
-            map_configs: map_configs,
+            gen_configs,
+            map_configs,
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
@@ -118,13 +120,13 @@ impl Editor {
             offset: Vec2::ZERO,
             cam: None,
             last_mouse: None,
-            current_gen_config,
-            current_map_config,
+            current_gen_config: init_gen_config,
+            current_map_config: init_map_config,
             steps_per_frame: STEPS_PER_FRAME,
             gen: None,
             user_seed: Seed::from_str("iMilchshake"),
             instant: false,
-            auto_generate: true,
+            auto_generate: false,
             fixed_seed: false,
             edit_gen_config: false,
             edit_map_config: false,
