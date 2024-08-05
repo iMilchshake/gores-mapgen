@@ -4,7 +4,7 @@ use crate::{
     position::{Position, ShiftDirection},
 };
 
-use std::{f32::consts::SQRT_2, usize};
+use std::{collections::VecDeque, f32::consts::SQRT_2, usize};
 
 use dt::dt_bool;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
@@ -329,7 +329,6 @@ pub fn generate_skip(gen: &mut Generator, skip: &Skip, block_type: &BlockType) {
         &Overwrite::ReplaceSolidFreeze,
     );
 
-    // TODO: shitty prototype
     if block_type.is_freeze() {
         return;
     }
@@ -579,4 +578,45 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
             }
         }
     }
+}
+
+pub fn get_flood_fill(gen: &Generator, start_pos: &Position) -> Array2<Option<usize>> {
+    let width = gen.map.width;
+    let height = gen.map.height;
+    let mut distance = Array2::from_elem((width, height), None);
+    let mut queue = VecDeque::new();
+
+    let solid = gen.map.grid.map(|val| val.is_solid());
+
+    // TODO: error
+    if solid[start_pos.as_index()] {
+        return distance;
+    }
+
+    queue.push_back((start_pos.clone(), 0));
+    distance[start_pos.as_index()] = Some(0);
+
+    while let Some((pos, dist)) = queue.pop_front() {
+        let neighbors = [
+            pos.shifted_by(-1, 0),
+            pos.shifted_by(1, 0),
+            pos.shifted_by(0, -1),
+            pos.shifted_by(0, 1),
+        ];
+
+        for neighbor in neighbors.iter() {
+            if let Ok(neighbor_pos) = neighbor {
+                if gen.map.pos_in_bounds(&neighbor_pos) {
+                    if !solid[neighbor_pos.as_index()]
+                        && distance[neighbor_pos.as_index()].is_none()
+                    {
+                        distance[neighbor_pos.as_index()] = Some(dist + 1);
+                        queue.push_back((neighbor_pos.clone(), dist + 1));
+                    }
+                }
+            }
+        }
+    }
+
+    distance
 }

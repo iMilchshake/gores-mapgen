@@ -7,15 +7,15 @@ use crate::{
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::Position,
-    post_processing as post,
+    post_processing::{self as post, get_flood_fill},
     random::{Random, Seed},
     walker::CuteWalker,
 };
 
 use macroquad::color::{colors, Color};
 
-pub fn print_time(_timer: &Timer, _message: &str) {
-    // println!("{}: {:?}", message, timer.elapsed());
+pub fn print_time(timer: &Timer, message: &str) {
+    println!("{}: {:?}", message, timer.elapsed());
 }
 
 pub struct Generator {
@@ -230,8 +230,13 @@ impl Generator {
         Some(subwaypoints)
     }
 
+    // TODO: move this "do all" function into post processing script?
     pub fn post_processing(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
         let timer = Timer::start();
+
+        let flood_fill = get_flood_fill(self, &self.spawn);
+        dbg!(flood_fill);
+        print_time(&timer, "flood fill");
 
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
         self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
