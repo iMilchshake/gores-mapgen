@@ -44,14 +44,69 @@ fn load_automapper(name: String, rules_path: &Path) -> Automapper {
 }
 
 pub struct Exporter<'a, 'b> {
-    tw_map: &'a mut TwMap,
+    base_map: &'a TwMap,
+    out_map: TwMap,
     map: &'b Map,
     config: ExporterConfig,
 }
 
+// TODO: make fields optionable?
+// TODO: remove exporter ties with twmap
 impl<'a, 'b> Exporter<'a, 'b> {
-    pub fn new(tw_map: &'a mut TwMap, map: &'b Map, config: ExporterConfig) -> Exporter<'a, 'b> {
-        Exporter { tw_map, map, config }
+    pub fn new(base_map: &'a mut TwMap, map: &'b Map, config: ExporterConfig) -> Exporter<'a, 'b> {
+        Exporter { base_map, map, config, out_map: TwMap::empty(twmap::Version::DDNet06) }
+    }
+
+    pub fn set_base_map(&mut self, base_map: &'a mut TwMap) -> &mut Self {
+        self.base_map = base_map;
+
+        self
+    }
+
+    pub fn set_generated_map(&mut self, map: &'b Map) -> &mut Self {
+        self.map = map;
+        
+        self
+    }
+
+    pub fn set_config(&mut self, config: ExporterConfig) -> &mut Self {
+        self.config = config;
+        
+        self
+    }
+
+    pub fn finalize(&mut self) -> &mut Self {
+        self.out_map = self.base_map.clone();
+
+        self.process_layer(GameTile::Freeze);
+        self.process_layer(GameTile::Hookable);
+
+        // get game layer
+        let game_layer = self
+            .out_map
+            .find_physics_layer_mut::<GameLayer>()
+            .unwrap()
+            .tiles_mut()
+            .unwrap_mut();
+
+        *game_layer = Array2::<twmap::GameTile>::from_elem(
+            (self.map.height, self.map.width),
+            twmap::GameTile::new(0, TileFlags::empty()),
+        );
+
+        // modify game layer
+        for ((x, y), value) in self.map.grid.indexed_iter() {
+            game_layer[[y, x]] = twmap::GameTile::new(value.to_ingame_id(), TileFlags::empty())
+        }
+
+        self
+    }
+
+    pub fn save_map<P: AsRef<Path>>(&mut self, out_path: P) {
+        // TODO: better error handling
+        self.out_map
+            .save_file(out_path)
+            .expect("failed to write map file");
     }
 
     fn process_layer(&mut self, layer_type: GameTile) {
@@ -65,7 +120,7 @@ impl<'a, 'b> Exporter<'a, 'b> {
         let mut design_group = None;
         let mut design_layer = None;
 
-        for group in &mut self.tw_map.groups {
+        for group in &mut self.out_map.groups {
             if group.name == self.config.design_group_name {
                 design_group = Some(group);
             }
@@ -88,7 +143,7 @@ impl<'a, 'b> Exporter<'a, 'b> {
         };
 
         if let Layer::Tiles(layer) = design_layer {
-            let image_name = self.tw_map.images[layer.image.unwrap() as usize]
+            let image_name = self.out_map.images[layer.image.unwrap() as usize]
                 .name()
                 .clone();
 
@@ -128,33 +183,5 @@ impl<'a, 'b> Exporter<'a, 'b> {
             // thanks Tater for the epic **random** seed
             automapper_config.run(3777777777, tiles)
         }
-    }
-
-    pub fn finalize<P: AsRef<Path>>(&mut self, out_path: P) {
-        self.process_layer(GameTile::Freeze);
-        self.process_layer(GameTile::Hookable);
-
-        // get game layer
-        let game_layer = self
-            .tw_map
-            .find_physics_layer_mut::<GameLayer>()
-            .unwrap()
-            .tiles_mut()
-            .unwrap_mut();
-
-        *game_layer = Array2::<twmap::GameTile>::from_elem(
-            (self.map.height, self.map.width),
-            twmap::GameTile::new(0, TileFlags::empty()),
-        );
-
-        // modify game layer
-        for ((x, y), value) in self.map.grid.indexed_iter() {
-            game_layer[[y, x]] = twmap::GameTile::new(value.to_ingame_id(), TileFlags::empty())
-        }
-
-        // save map
-        self.tw_map
-            .save_file(out_path)
-            .expect("failed to write map file");
     }
 }

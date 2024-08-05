@@ -334,7 +334,7 @@ impl ServerBridge {
 
                 let mut exporter = Exporter::new(&mut tw_map, &map, ExporterConfig::default());
 
-                exporter.finalize(&map_path);
+                exporter.finalize().save_map(&map_path);
 
                 info!(gen!("Generated map was exported: {}"), &map_name);
 

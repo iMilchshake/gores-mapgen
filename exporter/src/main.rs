@@ -80,7 +80,7 @@ fn main() {
 
             let mut exporter = Exporter::new(&mut tw_map, &generator.map, exp_config);
 
-            exporter.finalize(&args.out);
+            exporter.finalize().save_map(&args.out);
         }
     }
 }
