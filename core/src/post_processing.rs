@@ -446,9 +446,18 @@ pub fn get_window<T>(
     y: usize,
     window_size: usize,
 ) -> ArrayBase<ViewRepr<&T>, Dim<[usize; 2]>> {
+    let w = grid.dim().0;
+    let h = grid.dim().1;
+
+    let capped_left = (x - window_size).clamp(0, w - 1);
+    let capped_right = (x + window_size).clamp(0, w - 1);
+
+    let capped_up = (y - window_size).clamp(0, h - 1);
+    let capped_down = (y + window_size).clamp(0, h - 1);
+
     grid.slice(s![
-        x - window_size..=x + window_size,
-        y - window_size..=y + window_size
+        capped_left..=capped_right,
+        capped_up..=capped_down
     ])
 }
 

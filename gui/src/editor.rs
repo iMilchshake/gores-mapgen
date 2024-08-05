@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, path::PathBuf};
+use std::{collections::HashMap, env};
 
 use mapgen_core::{
     config::{load_configs_from_dir, GenerationConfig, MapConfig},
@@ -271,7 +271,7 @@ impl Editor {
                     TwMap::parse_file("./automap_test.map").expect("failed to parse base map");
                 tw_map.load().expect("failed to load base map");
                 let mut exporter = Exporter::new(&mut tw_map, &gen.map, Default::default());
-                exporter.finalize().save_map(&PathBuf::from(path_out));
+                exporter.finalize().save_map(path_out); 
             }
         }
     }
