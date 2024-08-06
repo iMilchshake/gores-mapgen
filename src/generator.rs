@@ -3,7 +3,7 @@ use timing::Timer;
 
 use crate::{
     config::{GenerationConfig, MapConfig},
-    debug::DebugLayer,
+    debug::{DebugLayer, DebugLayers},
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::Position,
@@ -11,8 +11,6 @@ use crate::{
     random::{Random, Seed},
     walker::CuteWalker,
 };
-
-use macroquad::color::{colors, Color};
 
 pub fn print_time(timer: &Timer, message: &str) {
     println!("{}: {:?}", message, timer.elapsed());
@@ -129,24 +127,10 @@ impl Generator {
             &map,
         );
 
-        // TODO: rework shitty debug storage
-        let debug_layers = HashMap::from([
-            ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
-            ("freeze_skips", DebugLayer::new(true, colors::ORANGE, &map)),
-            ("skips", DebugLayer::new(true, colors::GREEN, &map)),
-            ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
-            ("blobs", DebugLayer::new(false, colors::RED, &map)),
-            (
-                "lock",
-                DebugLayer::new(false, Color::new(1.0, 0.2, 0.2, 0.3), &map),
-            ),
-        ]);
-
         Generator {
             walker,
             map,
             rnd,
-            debug_layers,
             spawn,
         }
     }

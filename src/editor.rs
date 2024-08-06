@@ -4,6 +4,7 @@ const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
     config::{GenerationConfig, MapConfig},
+    debug::DebugLayers,
     generator::Generator,
     gui::{debug_window, sidebar},
     map::Map,
@@ -131,6 +132,7 @@ impl Editor {
             edit_gen_config: false,
             edit_map_config: false,
             visualize_debug_layers,
+            debug_layers: DebugLayers,
         }
     }
 
