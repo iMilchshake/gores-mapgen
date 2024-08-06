@@ -54,7 +54,7 @@ impl Position {
 
     pub fn shift_in_direction(
         &mut self,
-        shift: &ShiftDirection,
+        shift: ShiftDirection,
         map: &Map,
     ) -> Result<(), &'static str> {
         if !self.is_shift_valid(shift, map) {
@@ -71,7 +71,7 @@ impl Position {
         Ok(())
     }
 
-    pub fn is_shift_valid(&self, shift: &ShiftDirection, map: &Map) -> bool {
+    pub fn is_shift_valid(&self, shift: ShiftDirection, map: &Map) -> bool {
         match shift {
             ShiftDirection::Up => self.y > 0,
             ShiftDirection::Right => self.x < map.width - 1,
@@ -115,7 +115,7 @@ impl Position {
             ShiftDirection::Down,
         ];
 
-        shifts.sort_by_cached_key(|shift| {
+        shifts.sort_by_cached_key(|&shift| {
             let mut shifted_pos = self.clone();
             if let Ok(()) = shifted_pos.shift_in_direction(shift, map) {
                 shifted_pos.distance_squared(goal)

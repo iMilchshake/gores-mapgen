@@ -140,7 +140,7 @@ impl CuteWalker {
         };
 
         // apply selected shift
-        self.pos.shift_in_direction(&current_shift, map)?;
+        self.pos.shift_in_direction(current_shift, map)?;
         self.steps += 1;
 
         // perform pulse if direction changed and config constraints allows it

@@ -1,7 +1,7 @@
 use crate::{
     config::{GenerationConfig, MapConfig},
     kernel::Kernel,
-    map::{Map, Overwrite, BlockType},
+    map::{BlockType, Map, Overwrite},
     position::Position,
     post_processing as post,
     random::{Random, Seed},
@@ -18,7 +18,7 @@ pub struct Generator {
     /// remember where generation began, so a start room can be placed in post processing
     spawn: Position,
 
-    config: GenerationConfig
+    config: GenerationConfig,
 }
 
 pub fn generate_room(
@@ -28,8 +28,8 @@ pub fn generate_room(
     platform_margin: i32,
     zone_type: Option<BlockType>,
 ) -> Result<(), &'static str> {
-    if !map.pos_in_bounds(&pos.shifted_by(room_size + 2, room_size + 1).unwrap())
-        || !map.pos_in_bounds(&pos.shifted_by(room_size + 1, room_size + 1).unwrap())
+    if !map.pos_in_bounds(&pos.shifted_by(room_size + 2, room_size + 1)?)
+        || !map.pos_in_bounds(&pos.shifted_by(room_size + 1, room_size + 1)?)
     {
         return Err("generate room out of bounds");
     }
@@ -68,7 +68,7 @@ pub fn generate_room(
                     BlockType::Spawn,
                     Overwrite::Force,
                 );
-        
+
                 map.set_area(
                     pos.shifted_by(-(room_size - platform_margin), room_size + 1)?,
                     pos.shifted_by(room_size - platform_margin, room_size + 1)?,
@@ -95,12 +95,7 @@ impl Generator {
     /// derive a initial generator state based on a GenerationConfig
     pub fn new(map: Map, seed: Seed, config: GenerationConfig) -> Generator {
         let spawn = map.config.waypoints[0];
-        let walker = CuteWalker::new(
-            spawn,
-            Kernel::new(5, 0.0),
-            Kernel::new(7, 0.0),
-            &map.config,
-        );
+        let walker = CuteWalker::new(spawn, Kernel::new(5, 0.0), Kernel::new(7, 0.0), &map.config);
 
         let rnd = Random::new(seed, &config);
 
@@ -109,13 +104,17 @@ impl Generator {
             map,
             rnd,
             spawn,
-            config
+            config,
         }
     }
 
     pub fn step(&mut self) -> Result<(), &'static str> {
         // check if walker has reached goal position
-        if self.walker.is_goal_reached(self.config.waypoint_reached_dist) == Some(true) {
+        if self
+            .walker
+            .is_goal_reached(self.config.waypoint_reached_dist)
+            == Some(true)
+        {
             self.walker.next_waypoint();
         }
 
@@ -148,27 +147,36 @@ impl Generator {
     }
 
     pub fn post_processing(&mut self) -> Result<(), &'static str> {
-        post::fix_edge_bugs(self);
+        post::fix_edge_bugs(self)?;
 
-        generate_room(&mut self.map, self.spawn, 6, 3, Some(BlockType::Start))
-            .expect("start room generation failed");
+        generate_room(
+            &mut self.map,
+            self.spawn,
+            6,
+            3,
+            Some(BlockType::Start)
+        )?;
+        
         generate_room(
             &mut self.map,
             self.walker.pos,
             4,
             3,
             Some(BlockType::Finish),
-        )
-        .expect("start finish room generation");
+        )?;
 
         if self.config.min_freeze_size > 0 {
             // TODO: Maybe add some alternative function for the case of min_freeze_size=1
-            post::remove_freeze_blobs(self, self.config.min_freeze_size);
+            post::remove_freeze_blobs(&mut self.map, self.config.min_freeze_size);
         }
 
-        post::fill_open_areas(self, self.config.max_distance);
+        post::fill_open_areas(&mut self.map, self.config.max_distance);
 
-        post::generate_all_skips(self, self.config.skip_length_bounds, self.config.skip_min_spacing_sqr)?;
+        post::generate_all_skips(
+            &mut self.map,
+            self.config.skip_length_bounds,
+            self.config.skip_min_spacing_sqr,
+        )?;
 
         Ok(())
     }

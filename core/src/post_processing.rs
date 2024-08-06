@@ -1,6 +1,6 @@
 use crate::{
     generator::Generator,
-    map::{BlockType, Overwrite},
+    map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
 };
 
@@ -15,7 +15,7 @@ pub fn is_freeze(block_type: BlockType) -> bool {
 
 /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
 /// configurations do not ensure a min. 1-block freeze padding consistently.
-pub fn fix_edge_bugs(gen: &mut Generator) {
+pub fn fix_edge_bugs(gen: &mut Generator) -> Result<(), &'static str> {
     let mut edge_bug = Array2::from_elem((gen.map.width, gen.map.height), false);
     let width = gen.map.width;
     let height = gen.map.height;
@@ -32,12 +32,10 @@ pub fn fix_edge_bugs(gen: &mut Generator) {
 
                         let neighbor_x = (x + dx)
                             .checked_sub(1)
-                            .ok_or("fix edge bug out of bounds")
-                            .unwrap();
+                            .ok_or("fix edge bug out of bounds")?;
                         let neighbor_y = (y + dy)
                             .checked_sub(1)
-                            .ok_or("fix edge bug out of bounds")
-                            .unwrap();
+                            .ok_or("fix edge bug out of bounds")?;
                         if neighbor_x < width && neighbor_y < height {
                             let neighbor_value = &gen.map.grid[[neighbor_x, neighbor_y]];
                             if *neighbor_value == BlockType::Hookable {
@@ -55,48 +53,48 @@ pub fn fix_edge_bugs(gen: &mut Generator) {
             }
         }
     }
+
+    Ok(())
 }
 
 /// Using a distance transform this function will fill up all empty blocks that are too far
 /// from the next solid/non-empty block
-pub fn fill_open_areas(gen: &mut Generator, max_distance: f32) -> Array2<f32> {
-    let grid = gen.map.grid.map(|val| *val != BlockType::Empty);
+pub fn fill_open_areas(map: &mut Map, max_distance: f32) -> Array2<f32> {
+    let grid = map.grid.map(|val| *val != BlockType::Empty);
 
     // euclidean distance transform
     let distance = dt_bool::<f32>(&grid.into_dyn())
         .into_dimensionality::<Ix2>()
         .unwrap();
 
-    gen.map
-        .grid
-        .zip_mut_with(&distance, |block_type, distance| {
-            // only modify empty blocks
-            if *block_type != BlockType::Empty {
-                return;
-            }
+    map.grid.zip_mut_with(&distance, |block_type, distance| {
+        // only modify empty blocks
+        if *block_type != BlockType::Empty {
+            return;
+        }
 
-            if *distance > max_distance + SQRT_2 {
-                *block_type = BlockType::Hookable;
-            } else if *distance > max_distance {
-                *block_type = BlockType::Freeze;
-            }
-        });
+        if *distance > max_distance + SQRT_2 {
+            *block_type = BlockType::Hookable;
+        } else if *distance > max_distance {
+            *block_type = BlockType::Freeze;
+        }
+    });
 
     distance
 }
 
 // returns a vec of corner candidates and their respective direction to the wall
-pub fn find_corners(gen: &Generator) -> Result<Vec<(Position, ShiftDirection)>, &'static str> {
+pub fn find_corners(map: &Map) -> Result<Vec<(Position, ShiftDirection)>, &'static str> {
     let mut candidates: Vec<(Position, ShiftDirection)> = Vec::new();
 
-    let width = gen.map.width;
-    let height = gen.map.height;
+    let width = map.width;
+    let height = map.height;
 
     let window_size = 2; // 2 -> 5x5 windows
 
     for window_x in window_size..(width - window_size) {
         for window_y in window_size..(height - window_size) {
-            let window = &gen.map.grid.slice(s![
+            let window = &map.grid.slice(s![
                 window_x - window_size..=window_x + window_size,
                 window_y - window_size..=window_y + window_size
             ]);
@@ -219,9 +217,9 @@ pub struct Skip {
 
 /// if a skip has been found, this returns the end position and length
 pub fn check_corner_skip(
-    gen: &Generator,
-    init_pos: &Position,
-    shift: &ShiftDirection,
+    map: &Map,
+    init_pos: Position,
+    shift: ShiftDirection,
     tunnel_bounds: (usize, usize),
 ) -> Option<Skip> {
     let mut pos = init_pos.clone();
@@ -230,10 +228,10 @@ pub fn check_corner_skip(
     let mut stage = 0;
     while stage != 4 && length < tunnel_bounds.1 {
         // shift into given direction, abort if invalid shift
-        if pos.shift_in_direction(shift, &gen.map).is_err() {
+        if pos.shift_in_direction(shift, &map).is_err() {
             return None;
         };
-        let curr_block_type = gen.map.grid.get(pos.as_index()).unwrap();
+        let curr_block_type = map.grid.get(pos.as_index()).unwrap();
 
         stage = match (stage, curr_block_type) {
             // proceed to / or stay in stage 1 if freeze is found
@@ -268,7 +266,7 @@ pub fn check_corner_skip(
 }
 
 pub fn count_skip_neighbours(
-    gen: &mut Generator,
+    map: &mut Map,
     skip: &Skip,
     offset: usize,
 ) -> Result<usize, &'static str> {
@@ -285,12 +283,12 @@ pub fn count_skip_neighbours(
 
     match skip.direction {
         ShiftDirection::Left | ShiftDirection::Right => {
-            let bot_count = gen.map.count_occurence_in_area(
+            let bot_count = map.count_occurence_in_area(
                 top_left.shifted_by(0, offset)?,
                 bot_right.shifted_by(0, offset)?,
                 BlockType::Hookable,
             )?;
-            let top_count = gen.map.count_occurence_in_area(
+            let top_count = map.count_occurence_in_area(
                 top_left.shifted_by(0, -offset)?,
                 bot_right.shifted_by(0, -offset)?,
                 BlockType::Hookable,
@@ -299,12 +297,12 @@ pub fn count_skip_neighbours(
             Ok(usize::min(bot_count, top_count))
         }
         ShiftDirection::Up | ShiftDirection::Down => {
-            let left_count = gen.map.count_occurence_in_area(
+            let left_count = map.count_occurence_in_area(
                 top_left.shifted_by(-offset, 0)?,
                 bot_right.shifted_by(-offset, 0)?,
                 BlockType::Hookable,
             )?;
-            let right_count = gen.map.count_occurence_in_area(
+            let right_count = map.count_occurence_in_area(
                 top_left.shifted_by(offset, 0)?,
                 bot_right.shifted_by(offset, 0)?,
                 BlockType::Hookable,
@@ -316,7 +314,7 @@ pub fn count_skip_neighbours(
 }
 
 pub fn generate_skip(
-    gen: &mut Generator,
+    map: &mut Map,
     skip: &Skip,
     block_type: BlockType,
 ) -> Result<(), &'static str> {
@@ -329,7 +327,7 @@ pub fn generate_skip(
         usize::max(skip.start_pos.y, skip.end_pos.y),
     );
 
-    gen.map.set_area(
+    map.set_area(
         top_left,
         bot_right,
         block_type,
@@ -343,13 +341,13 @@ pub fn generate_skip(
 
     match skip.direction {
         ShiftDirection::Left | ShiftDirection::Right => {
-            gen.map.set_area(
+            map.set_area(
                 top_left.shifted_by(0, -1)?,
                 bot_right.shifted_by(0, -1)?,
                 BlockType::Freeze,
                 Overwrite::ReplaceSolidOnly,
             );
-            gen.map.set_area(
+            map.set_area(
                 top_left.shifted_by(0, 1)?,
                 bot_right.shifted_by(0, 1)?,
                 BlockType::Freeze,
@@ -357,13 +355,13 @@ pub fn generate_skip(
             );
         }
         ShiftDirection::Up | ShiftDirection::Down => {
-            gen.map.set_area(
+            map.set_area(
                 top_left.shifted_by(-1, 0)?,
                 bot_right.shifted_by(-1, 0)?,
                 BlockType::Freeze,
                 Overwrite::ReplaceSolidOnly,
             );
-            gen.map.set_area(
+            map.set_area(
                 top_left.shifted_by(1, 0)?,
                 bot_right.shifted_by(1, 0)?,
                 BlockType::Freeze,
@@ -383,17 +381,17 @@ enum SkipStatus {
 }
 
 pub fn generate_all_skips(
-    gen: &mut Generator,
+    map: &mut Map,
     length_bounds: (usize, usize),
     min_spacing_sqr: usize,
 ) -> Result<(), &'static str> {
     // get corner candidates
-    let corner_candidates = find_corners(gen)?;
+    let corner_candidates = find_corners(map)?;
 
     // get possible skips
     let mut skips: Vec<Skip> = Vec::new();
     for (start_pos, shift) in corner_candidates {
-        if let Some(skip) = check_corner_skip(gen, &start_pos, &shift, length_bounds) {
+        if let Some(skip) = check_corner_skip(map, start_pos, shift, length_bounds) {
             skips.push(skip);
         }
     }
@@ -410,9 +408,9 @@ pub fn generate_all_skips(
         let skip = &skips[skip_index];
 
         // skip if no neighboring blocks TODO: where to do dis?
-        if count_skip_neighbours(gen, skip, 2).unwrap_or(0) <= 0 {
+        if count_skip_neighbours(map, skip, 2).unwrap_or(0) <= 0 {
             // but if at least 1 direct, then to a freeze skip
-            if count_skip_neighbours(gen, skip, 1).unwrap_or(0) >= 1 {
+            if count_skip_neighbours(map, skip, 1).unwrap_or(0) >= 1 {
                 valid_skips[skip_index] = SkipStatus::ValidFreezeSkipOnly;
             } else {
                 valid_skips[skip_index] = SkipStatus::Invalid;
@@ -442,10 +440,11 @@ pub fn generate_all_skips(
     // generate all remaining valid skips
     for skip_index in 0..skips.len() {
         match valid_skips[skip_index] {
-            SkipStatus::Valid => generate_skip(gen, &skips[skip_index], BlockType::Empty)?,
-            SkipStatus::ValidFreezeSkipOnly => 
-                generate_skip(gen, &skips[skip_index], BlockType::Freeze)?,
-            _ => {},
+            SkipStatus::Valid => generate_skip(map, &skips[skip_index], BlockType::Empty)?,
+            SkipStatus::ValidFreezeSkipOnly => {
+                generate_skip(map, &skips[skip_index], BlockType::Freeze)?
+            }
+            _ => {}
         }
     }
 
@@ -471,14 +470,14 @@ pub fn get_window<T>(
 }
 
 /// removes unconnected/isolated that are smaller in size than given minimal threshold
-pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
-    let width = gen.map.width;
-    let height = gen.map.height;
+pub fn remove_freeze_blobs(map: &mut Map, min_freeze_size: usize) {
+    let width = map.width;
+    let height = map.height;
 
     // keeps track of which blocks are (in)valid. Valid blocks are isolated freeze block that are
     // not directly connected to any solid blocks. Invalid blocks are (in)directly connected to
     // solid blocks. None just means, that we dont know yet.
-    let mut invalid = Array2::<Option<bool>>::from_elem(gen.map.grid.dim(), None);
+    let mut invalid = Array2::<Option<bool>>::from_elem(map.grid.dim(), None);
 
     let window_size = 1; // 1 -> 3x3 windows
     for x in window_size..(width - window_size) {
@@ -489,7 +488,7 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
             }
 
             // invalidate neighboring blocks to hookables
-            let block_type = &gen.map.grid[[x, y]];
+            let block_type = &map.grid[[x, y]];
 
             // invalidate freeze blocks next to hookable so they arent checked
             // TODO: In theory this should be a nice speedup, but in pracise i should replace this with a
@@ -517,7 +516,7 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
                 invalid[pos.as_index()] = Some(false); // for now we assume that current block is valid
 
                 // check neighborhood
-                let window = get_window(&gen.map.grid, pos.x, pos.y, window_size);
+                let window = get_window(&map.grid, pos.x, pos.y, window_size);
                 for ((win_x, win_y), other_block_type) in window.indexed_iter() {
                     // skip current block
                     if win_x == 1 && win_y == 1 {
@@ -575,7 +574,7 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
                 for visited_pos in blob_visited {
                     // remove small blobs
                     if blob_size < min_freeze_size {
-                        gen.map.grid[visited_pos.as_index()] = BlockType::Empty;
+                        map.grid[visited_pos.as_index()] = BlockType::Empty;
                     }
                 }
             }
