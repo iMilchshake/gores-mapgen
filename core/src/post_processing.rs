@@ -450,22 +450,17 @@ pub fn generate_all_skips(
     Ok(())
 }
 
+/// assumes that xy +- window_size will not go out of grid bounds
 pub fn get_window<T>(
     grid: &Array2<T>,
     x: usize,
     y: usize,
     window_size: usize,
 ) -> ArrayBase<ViewRepr<&T>, Dim<[usize; 2]>> {
-    let w = grid.dim().0;
-    let h = grid.dim().1;
-
-    let capped_left = (x - window_size).clamp(0, w - 1);
-    let capped_right = (x + window_size).clamp(0, w - 1);
-
-    let capped_up = (y - window_size).clamp(0, h - 1);
-    let capped_down = (y + window_size).clamp(0, h - 1);
-
-    grid.slice(s![capped_left..=capped_right, capped_up..=capped_down])
+    grid.slice(s![
+        x - window_size..=x + window_size,
+        y - window_size..=y + window_size
+    ])
 }
 
 /// removes unconnected/isolated that are smaller in size than given minimal threshold
@@ -512,6 +507,18 @@ pub fn remove_freeze_blobs(map: &mut Map, min_freeze_size: usize) {
             let mut blob_size = 0;
             while blob_unconnected && !blob_visit_next.is_empty() {
                 let pos = blob_visit_next.pop().unwrap();
+
+                // border block, why? skip
+                if pos.x < window_size
+                    || pos.x > width - window_size
+                    || pos.y < window_size
+                    || pos.x > height - window_size
+                {
+                    invalid[pos.as_index()] = Some(true);
+
+                    continue;
+                }
+
                 invalid[pos.as_index()] = Some(false); // for now we assume that current block is valid
 
                 // check neighborhood
