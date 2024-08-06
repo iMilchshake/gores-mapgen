@@ -55,6 +55,7 @@ impl BlockType {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum Overwrite {
     /// Replace EVERYTHING
     Force,
@@ -178,11 +179,11 @@ impl Map {
 
     pub fn check_area_exists(
         &self,
-        top_left: &Position,
-        bot_right: &Position,
-        value: &BlockType,
+        top_left: Position,
+        bot_right: Position,
+        value: BlockType,
     ) -> Result<bool, &'static str> {
-        if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
+        if !self.pos_in_bounds(&top_left) || !self.pos_in_bounds(&bot_right) {
             return Err("checking area out of bounds");
         }
 
@@ -190,49 +191,49 @@ impl Map {
             .grid
             .slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
-        Ok(area.iter().any(|block| block == value))
+        Ok(area.iter().any(|&block| block == value))
     }
 
     pub fn check_area_all(
         &self,
-        top_left: &Position,
-        bot_right: &Position,
-        value: &BlockType,
+        top_left: Position,
+        bot_right: Position,
+        value: BlockType,
     ) -> Result<bool, &'static str> {
-        if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
+        if !self.pos_in_bounds(&top_left) || !self.pos_in_bounds(&bot_right) {
             return Err("checking area out of bounds");
         }
         let area = self
             .grid
             .slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
-        Ok(area.iter().all(|block| block == value))
+        Ok(area.iter().all(|&block| block == value))
     }
 
     pub fn count_occurence_in_area(
         &self,
-        top_left: &Position,
-        bot_right: &Position,
-        value: &BlockType,
+        top_left: Position,
+        bot_right: Position,
+        value: BlockType,
     ) -> Result<usize, &'static str> {
-        if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
+        if !self.pos_in_bounds(&top_left) || !self.pos_in_bounds(&bot_right) {
             return Err("checking area out of bounds");
         }
         let area = self
             .grid
             .slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
-        Ok(area.iter().filter(|&block| block == value).count())
+        Ok(area.iter().filter(|&&block| block == value).count())
     }
 
     pub fn set_area(
         &mut self,
-        top_left: &Position,
-        bot_right: &Position,
-        value: &BlockType,
-        overide: &Overwrite,
+        top_left: Position,
+        bot_right: Position,
+        value: BlockType,
+        overide: Overwrite,
     ) {
-        if !self.pos_in_bounds(top_left) || !self.pos_in_bounds(bot_right) {
+        if !self.pos_in_bounds(&top_left) || !self.pos_in_bounds(&bot_right) {
             return;
         }
 
@@ -256,17 +257,17 @@ impl Map {
     /// sets the outline of an area define by two positions
     pub fn set_area_border(
         &mut self,
-        top_left: &Position,
-        bot_right: &Position,
-        value: &BlockType,
-        overwrite: &Overwrite,
+        top_left: Position,
+        bot_right: Position,
+        value: BlockType,
+        overwrite: Overwrite,
     ) {
         let top_right = Position::new(bot_right.x, top_left.y);
         let bot_left = Position::new(top_left.x, bot_right.y);
 
-        self.set_area(top_left, &top_right, value, overwrite);
-        self.set_area(&top_right, bot_right, value, overwrite);
-        self.set_area(top_left, &bot_left, value, overwrite);
-        self.set_area(&bot_left, bot_right, value, overwrite);
+        self.set_area(top_left, top_right, value, overwrite);
+        self.set_area(top_right, bot_right, value, overwrite);
+        self.set_area(top_left, bot_left, value, overwrite);
+        self.set_area(bot_left, bot_right, value, overwrite);
     }
 }

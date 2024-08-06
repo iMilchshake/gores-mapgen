@@ -32,10 +32,12 @@ pub fn fix_edge_bugs(gen: &mut Generator) {
 
                         let neighbor_x = (x + dx)
                             .checked_sub(1)
-                            .ok_or("fix edge bug out of bounds").unwrap();
+                            .ok_or("fix edge bug out of bounds")
+                            .unwrap();
                         let neighbor_y = (y + dy)
                             .checked_sub(1)
-                            .ok_or("fix edge bug out of bounds").unwrap();
+                            .ok_or("fix edge bug out of bounds")
+                            .unwrap();
                         if neighbor_x < width && neighbor_y < height {
                             let neighbor_value = &gen.map.grid[[neighbor_x, neighbor_y]];
                             if *neighbor_value == BlockType::Hookable {
@@ -195,7 +197,10 @@ pub fn find_corners(gen: &Generator) -> Result<Vec<(Position, ShiftDirection)>, 
             ];
 
             for (shape, dir) in shapes {
-                if shape.iter().all(|block_type: &&BlockType| is_freeze(**block_type)) {
+                if shape
+                    .iter()
+                    .all(|block_type: &&BlockType| is_freeze(**block_type))
+                {
                     candidates.push((Position::new(window_x, window_y), dir));
                 }
             }
@@ -281,28 +286,28 @@ pub fn count_skip_neighbours(
     match skip.direction {
         ShiftDirection::Left | ShiftDirection::Right => {
             let bot_count = gen.map.count_occurence_in_area(
-                &top_left.shifted_by(0, offset)?,
-                &bot_right.shifted_by(0, offset)?,
-                &BlockType::Hookable,
+                top_left.shifted_by(0, offset)?,
+                bot_right.shifted_by(0, offset)?,
+                BlockType::Hookable,
             )?;
             let top_count = gen.map.count_occurence_in_area(
-                &top_left.shifted_by(0, -offset)?,
-                &bot_right.shifted_by(0, -offset)?,
-                &BlockType::Hookable,
+                top_left.shifted_by(0, -offset)?,
+                bot_right.shifted_by(0, -offset)?,
+                BlockType::Hookable,
             )?;
 
             Ok(usize::min(bot_count, top_count))
         }
         ShiftDirection::Up | ShiftDirection::Down => {
             let left_count = gen.map.count_occurence_in_area(
-                &top_left.shifted_by(-offset, 0)?,
-                &bot_right.shifted_by(-offset, 0)?,
-                &BlockType::Hookable,
+                top_left.shifted_by(-offset, 0)?,
+                bot_right.shifted_by(-offset, 0)?,
+                BlockType::Hookable,
             )?;
             let right_count = gen.map.count_occurence_in_area(
-                &top_left.shifted_by(offset, 0)?,
-                &bot_right.shifted_by(offset, 0)?,
-                &BlockType::Hookable,
+                top_left.shifted_by(offset, 0)?,
+                bot_right.shifted_by(offset, 0)?,
+                BlockType::Hookable,
             )?;
 
             Ok(usize::min(left_count, right_count))
@@ -310,7 +315,11 @@ pub fn count_skip_neighbours(
     }
 }
 
-pub fn generate_skip(gen: &mut Generator, skip: &Skip, block_type: &BlockType) {
+pub fn generate_skip(
+    gen: &mut Generator,
+    skip: &Skip,
+    block_type: BlockType,
+) -> Result<(), &'static str> {
     let top_left = Position::new(
         usize::min(skip.start_pos.x, skip.end_pos.x),
         usize::min(skip.start_pos.y, skip.end_pos.y),
@@ -321,47 +330,49 @@ pub fn generate_skip(gen: &mut Generator, skip: &Skip, block_type: &BlockType) {
     );
 
     gen.map.set_area(
-        &top_left,
-        &bot_right,
+        top_left,
+        bot_right,
         block_type,
-        &Overwrite::ReplaceSolidFreeze,
+        Overwrite::ReplaceSolidFreeze,
     );
 
     // TODO: shitty prototype
     if block_type.is_freeze() {
-        return;
+        return Ok(());
     }
 
     match skip.direction {
         ShiftDirection::Left | ShiftDirection::Right => {
             gen.map.set_area(
-                &top_left.shifted_by(0, -1).unwrap(),
-                &bot_right.shifted_by(0, -1).unwrap(),
-                &BlockType::Freeze,
-                &Overwrite::ReplaceSolidOnly,
+                top_left.shifted_by(0, -1)?,
+                bot_right.shifted_by(0, -1)?,
+                BlockType::Freeze,
+                Overwrite::ReplaceSolidOnly,
             );
             gen.map.set_area(
-                &top_left.shifted_by(0, 1).unwrap(),
-                &bot_right.shifted_by(0, 1).unwrap(),
-                &BlockType::Freeze,
-                &Overwrite::ReplaceSolidOnly,
+                top_left.shifted_by(0, 1)?,
+                bot_right.shifted_by(0, 1)?,
+                BlockType::Freeze,
+                Overwrite::ReplaceSolidOnly,
             );
         }
         ShiftDirection::Up | ShiftDirection::Down => {
             gen.map.set_area(
-                &top_left.shifted_by(-1, 0).unwrap(),
-                &bot_right.shifted_by(-1, 0).unwrap(),
-                &BlockType::Freeze,
-                &Overwrite::ReplaceSolidOnly,
+                top_left.shifted_by(-1, 0)?,
+                bot_right.shifted_by(-1, 0)?,
+                BlockType::Freeze,
+                Overwrite::ReplaceSolidOnly,
             );
             gen.map.set_area(
-                &top_left.shifted_by(1, 0).unwrap(),
-                &bot_right.shifted_by(1, 0).unwrap(),
-                &BlockType::Freeze,
-                &Overwrite::ReplaceSolidOnly,
+                top_left.shifted_by(1, 0)?,
+                bot_right.shifted_by(1, 0)?,
+                BlockType::Freeze,
+                Overwrite::ReplaceSolidOnly,
             );
         }
     }
+
+    Ok(())
 }
 
 #[derive(Clone, PartialEq)]
@@ -375,9 +386,9 @@ pub fn generate_all_skips(
     gen: &mut Generator,
     length_bounds: (usize, usize),
     min_spacing_sqr: usize,
-) {
+) -> Result<(), &'static str> {
     // get corner candidates
-    let corner_candidates = find_corners(gen).expect("corner detection failed");
+    let corner_candidates = find_corners(gen)?;
 
     // get possible skips
     let mut skips: Vec<Skip> = Vec::new();
@@ -431,13 +442,14 @@ pub fn generate_all_skips(
     // generate all remaining valid skips
     for skip_index in 0..skips.len() {
         match valid_skips[skip_index] {
-            SkipStatus::Valid => generate_skip(gen, &skips[skip_index], &BlockType::Empty),
-            SkipStatus::ValidFreezeSkipOnly => {
-                generate_skip(gen, &skips[skip_index], &BlockType::Freeze)
-            }
-            _ => (),
+            SkipStatus::Valid => generate_skip(gen, &skips[skip_index], BlockType::Empty)?,
+            SkipStatus::ValidFreezeSkipOnly => 
+                generate_skip(gen, &skips[skip_index], BlockType::Freeze)?,
+            _ => {},
         }
     }
+
+    Ok(())
 }
 
 pub fn get_window<T>(
@@ -455,10 +467,7 @@ pub fn get_window<T>(
     let capped_up = (y - window_size).clamp(0, h - 1);
     let capped_down = (y + window_size).clamp(0, h - 1);
 
-    grid.slice(s![
-        capped_left..=capped_right,
-        capped_up..=capped_down
-    ])
+    grid.slice(s![capped_left..=capped_right, capped_up..=capped_down])
 }
 
 /// removes unconnected/isolated that are smaller in size than given minimal threshold

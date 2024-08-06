@@ -86,23 +86,23 @@ impl CuteWalker {
 
         // Case 2: max distance has been exceeded -> force platform using a room
         if self.steps_since_platform > max_distance {
-            generator::generate_room(map, &walker_pos.shifted_by(0, 6)?, 5, 3, None)?;
+            generator::generate_room(map, walker_pos.shifted_by(0, 6)?, 5, 3, None)?;
             self.steps_since_platform = 0;
             return Ok(());
         }
 
         // Case 3: min distance has been exceeded -> Try to place platform, but only if possible
         let area_empty = map.check_area_all(
-            &walker_pos.shifted_by(-3, -3)?,
-            &walker_pos.shifted_by(3, 2)?,
-            &BlockType::Empty,
+            walker_pos.shifted_by(-3, -3)?,
+            walker_pos.shifted_by(3, 2)?,
+            BlockType::Empty,
         )?;
         if area_empty {
             map.set_area(
-                &walker_pos.shifted_by(-1, 0)?,
-                &walker_pos.shifted_by(1, 0)?,
-                &BlockType::Platform,
-                &Overwrite::ReplaceEmptyOnly,
+                walker_pos.shifted_by(-1, 0)?,
+                walker_pos.shifted_by(1, 0)?,
+                BlockType::Platform,
+                Overwrite::ReplaceEmptyOnly,
             );
             self.steps_since_platform = 0;
         }

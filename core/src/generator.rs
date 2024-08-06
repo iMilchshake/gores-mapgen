@@ -23,10 +23,10 @@ pub struct Generator {
 
 pub fn generate_room(
     map: &mut Map,
-    pos: &Position,
+    pos: Position,
     room_size: i32,
     platform_margin: i32,
-    zone_type: Option<&BlockType>,
+    zone_type: Option<BlockType>,
 ) -> Result<(), &'static str> {
     if !map.pos_in_bounds(&pos.shifted_by(room_size + 2, room_size + 1).unwrap())
         || !map.pos_in_bounds(&pos.shifted_by(room_size + 1, room_size + 1).unwrap())
@@ -36,58 +36,56 @@ pub fn generate_room(
 
     // carve room
     map.set_area_border(
-        &pos.shifted_by(-room_size, -room_size)?,
-        &pos.shifted_by(room_size, room_size)?,
-        &BlockType::Empty,
-        &Overwrite::Force,
+        pos.shifted_by(-room_size, -room_size)?,
+        pos.shifted_by(room_size, room_size)?,
+        BlockType::Empty,
+        Overwrite::Force,
     );
 
     // only reserve - 1 so that when this is used for platforms
     map.set_area(
-        &pos.shifted_by(-room_size + 1, -room_size + 1)?,
-        &pos.shifted_by(room_size - 1, room_size - 1)?,
-        &BlockType::EmptyReserved,
-        &Overwrite::Force,
+        pos.shifted_by(-room_size + 1, -room_size + 1)?,
+        pos.shifted_by(room_size - 1, room_size - 1)?,
+        BlockType::EmptyReserved,
+        Overwrite::Force,
     );
 
-    // set start/finish line
-    if let Some(zone_type) = zone_type {
-        map.set_area_border(
-            &pos.shifted_by(-room_size - 1, -room_size - 1)?,
-            &pos.shifted_by(room_size + 1, room_size + 1)?,
-            zone_type,
-            &Overwrite::ReplaceNonSolidForce,
-        );
-    }
+    match zone_type {
+        Some(zone_type) => {
+            // set start/finish line
+            map.set_area_border(
+                pos.shifted_by(-room_size - 1, -room_size - 1)?,
+                pos.shifted_by(room_size + 1, room_size + 1)?,
+                zone_type,
+                Overwrite::ReplaceNonSolidForce,
+            );
 
-    // set spawns
-    if zone_type == Some(&BlockType::Start) {
-        map.set_area(
-            &pos.shifted_by(-(room_size - platform_margin), room_size - 1)?,
-            &pos.shifted_by(room_size - platform_margin, room_size - 1)?,
-            &BlockType::Spawn,
-            &Overwrite::Force,
-        );
-    }
-
-    // set platform below spawns
-    if zone_type == Some(&BlockType::Start) {
-        map.set_area(
-            &pos.shifted_by(-(room_size - platform_margin), room_size + 1)?,
-            &pos.shifted_by(room_size - platform_margin, room_size + 1)?,
-            &BlockType::Platform,
-            &Overwrite::Force,
-        );
-    }
-
-    // for non start/finish rooms -> place center platform
-    if zone_type.is_none() {
-        map.set_area(
-            &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
-            &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
-            &BlockType::Platform,
-            &Overwrite::Force,
-        );
+            // set spawns
+            if zone_type == BlockType::Start {
+                map.set_area(
+                    pos.shifted_by(-(room_size - platform_margin), room_size - 1)?,
+                    pos.shifted_by(room_size - platform_margin, room_size - 1)?,
+                    BlockType::Spawn,
+                    Overwrite::Force,
+                );
+        
+                map.set_area(
+                    pos.shifted_by(-(room_size - platform_margin), room_size + 1)?,
+                    pos.shifted_by(room_size - platform_margin, room_size + 1)?,
+                    BlockType::Platform,
+                    Overwrite::Force,
+                );
+            }
+        }
+        None => {
+            // for non start/finish rooms -> place center platform
+            map.set_area(
+                pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
+                pos.shifted_by(room_size - platform_margin, room_size - 3)?,
+                BlockType::Platform,
+                Overwrite::Force,
+            );
+        }
     }
 
     Ok(())
@@ -122,8 +120,6 @@ impl Generator {
         }
 
         if !self.walker.finished {
-            self.config.validate()?; // TODO: how much does this slow down generation?
-
             // randomly mutate kernel
             if self.walker.steps > self.config.fade_steps {
                 self.walker.mutate_kernel(&self.config, &mut self.rnd);
@@ -154,14 +150,14 @@ impl Generator {
     pub fn post_processing(&mut self) -> Result<(), &'static str> {
         post::fix_edge_bugs(self);
 
-        generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
+        generate_room(&mut self.map, self.spawn, 6, 3, Some(BlockType::Start))
             .expect("start room generation failed");
         generate_room(
             &mut self.map,
-            &self.walker.pos.clone(),
+            self.walker.pos,
             4,
             3,
-            Some(&BlockType::Finish),
+            Some(BlockType::Finish),
         )
         .expect("start finish room generation");
 
@@ -172,7 +168,7 @@ impl Generator {
 
         post::fill_open_areas(self, self.config.max_distance);
 
-        post::generate_all_skips(self, self.config.skip_length_bounds, self.config.skip_min_spacing_sqr);
+        post::generate_all_skips(self, self.config.skip_length_bounds, self.config.skip_min_spacing_sqr)?;
 
         Ok(())
     }
@@ -203,6 +199,8 @@ impl Generator {
     }
 
     pub fn finalize(&mut self, max_steps: usize) -> Result<(), &'static str> {
+        self.config.validate()?;
+
         for _ in 0..max_steps {
             if self.walker.finished {
                 break;
