@@ -1,5 +1,4 @@
 use crate::{
-    generator::Generator,
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
 };
@@ -15,14 +14,14 @@ pub fn is_freeze(block_type: BlockType) -> bool {
 
 /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
 /// configurations do not ensure a min. 1-block freeze padding consistently.
-pub fn fix_edge_bugs(gen: &mut Generator) -> Result<(), &'static str> {
-    let mut edge_bug = Array2::from_elem((gen.map.width, gen.map.height), false);
-    let width = gen.map.width;
-    let height = gen.map.height;
+pub fn fix_edge_bugs(map: &mut Map) -> Result<(), &'static str> {
+    let mut edge_bug = Array2::from_elem((map.width, map.height), false);
+    let width = map.width;
+    let height = map.height;
 
     for x in 0..width {
         for y in 0..height {
-            let value = &gen.map.grid[[x, y]];
+            let value = &map.grid[[x, y]];
             if *value == BlockType::Empty {
                 for dx in 0..=2 {
                     for dy in 0..=2 {
@@ -37,7 +36,7 @@ pub fn fix_edge_bugs(gen: &mut Generator) -> Result<(), &'static str> {
                             .checked_sub(1)
                             .ok_or("fix edge bug out of bounds")?;
                         if neighbor_x < width && neighbor_y < height {
-                            let neighbor_value = &gen.map.grid[[neighbor_x, neighbor_y]];
+                            let neighbor_value = &map.grid[[neighbor_x, neighbor_y]];
                             if *neighbor_value == BlockType::Hookable {
                                 edge_bug[[x, y]] = true;
                                 // break;
@@ -48,7 +47,7 @@ pub fn fix_edge_bugs(gen: &mut Generator) -> Result<(), &'static str> {
                 }
 
                 if edge_bug[[x, y]] {
-                    gen.map.grid[[x, y]] = BlockType::Freeze;
+                    map.grid[[x, y]] = BlockType::Freeze;
                 }
             }
         }

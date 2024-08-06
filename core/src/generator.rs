@@ -147,7 +147,7 @@ impl Generator {
     }
 
     pub fn post_processing(&mut self) -> Result<(), &'static str> {
-        post::fix_edge_bugs(self)?;
+        post::fix_edge_bugs(&mut self.map)?;
 
         generate_room(
             &mut self.map,
