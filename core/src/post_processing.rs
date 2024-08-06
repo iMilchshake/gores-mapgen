@@ -482,22 +482,19 @@ pub fn remove_freeze_blobs(map: &mut Map, min_freeze_size: usize) {
             }
 
             // invalidate neighboring blocks to hookables
-            let block_type = &map.grid[[x, y]];
-
-            // invalidate freeze blocks next to hookable so they arent checked
-            // TODO: In theory this should be a nice speedup, but in pracise i should replace this with a
-            // much better two sweep approach. Idea: Do a post processing step which detects
-            // 'wall'-freezes. this information can then be used in various other steps.
-            if *block_type == BlockType::Hookable {
-                invalid
-                    .slice_mut(s![x - 1..=x + 1, y - 1..=y + 1])
-                    .fill(Some(true));
-                continue;
-            }
-
-            // skip if not a freeze block
-            if *block_type != BlockType::Freeze {
-                continue;
+            match map.grid[[x, y]] {
+                // invalidate freeze blocks next to hookable so they arent checked
+                // TODO: In theory this should be a nice speedup, but in pracise i should replace this with a
+                // much better two sweep approach. Idea: Do a post processing step which detects
+                // 'wall'-freezes. this information can then be used in various other steps.
+                BlockType::Hookable => {
+                    invalid
+                        .slice_mut(s![x - 1..=x + 1, y - 1..=y + 1])
+                        .fill(Some(true));
+                }
+                BlockType::Freeze => {},
+                // skip if not a freeze block
+                _ => continue,
             }
 
             // check all freeze blocks that are connected to the current block
