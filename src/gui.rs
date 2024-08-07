@@ -512,6 +512,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
+                    &mut editor.gen_config.max_level_skip,
+                    edit_usize,
+                    "max level skip",
+                    true,
+                );
+
+                field_edit_widget(
+                    ui,
                     &mut editor.gen_config.min_freeze_size,
                     edit_usize,
                     "min freeze size",

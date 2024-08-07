@@ -1,12 +1,13 @@
 use crate::{
     generator::Generator,
-    map::{BlockType, Overwrite},
+    map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
 };
 
 use std::{collections::VecDeque, f32::consts::SQRT_2, usize};
 
 use dt::dt_bool;
+use log::max_level;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 pub fn is_freeze(block_type: &&BlockType) -> bool {
@@ -207,6 +208,15 @@ pub fn find_corners(gen: &Generator) -> Result<Vec<(Position, ShiftDirection)>, 
     Ok(candidates)
 }
 
+/// Replace all map blocks with empty, that were not locked in the generation
+pub fn remove_unused_blocks(map: &mut Map, position_lock: &Array2<bool>) {
+    for (map_block, lock_status) in map.grid.iter_mut().zip(position_lock.iter()) {
+        if !lock_status {
+            *map_block = BlockType::Empty;
+        }
+    }
+}
+
 pub struct Skip {
     start_pos: Position,
     end_pos: Position,
@@ -376,6 +386,8 @@ pub fn generate_all_skips(
     gen: &mut Generator,
     length_bounds: (usize, usize),
     min_spacing_sqr: usize,
+    max_level_skip: usize,
+    flood_fill: &Array2<Option<usize>>,
 ) {
     // get corner candidates
     let corner_candidates = find_corners(gen).expect("corner detection failed");
@@ -399,12 +411,22 @@ pub fn generate_all_skips(
 
         let skip = &skips[skip_index];
 
-        // skip if no neighboring blocks TODO: where to do dis?
+        // check if too much of the level would be skipped
+        let level_distance_start = flood_fill[skip.start_pos.as_index()].unwrap();
+        let level_distance_end = flood_fill[skip.end_pos.as_index()].unwrap();
+        let level_skip_distance = usize::abs_diff(level_distance_start, level_distance_end);
+        if level_skip_distance > max_level_skip {
+            skip_status[skip_index] = SkipStatus::Invalid;
+            continue;
+        }
+
+        // invalidate if skip would have no neighboring blocks
         if count_skip_neighbours(gen, skip, 2).unwrap_or(0) <= 0 {
-            // but if at least 1 direct, then to a freeze skip
+            // if yes, test if freeze skip would have neighboring blocks
             if count_skip_neighbours(gen, skip, 1).unwrap_or(0) >= 1 {
                 skip_status[skip_index] = SkipStatus::ValidFreezeSkipOnly;
             } else {
+                // if both are not the case -> invalidate
                 skip_status[skip_index] = SkipStatus::Invalid;
                 continue;
             }

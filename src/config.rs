@@ -116,6 +116,9 @@ pub struct GenerationConfig {
     /// min distance between skips
     pub skip_min_spacing_sqr: usize,
 
+    /// TODO
+    pub max_level_skip: usize,
+
     /// min unconnected freeze obstacle size
     pub min_freeze_size: usize,
 
@@ -241,6 +244,7 @@ impl Default for GenerationConfig {
             circ_probs: RandomDistConfig::new(Some(vec![0.0, 0.6, 0.8]), vec![0.75, 0.15, 0.05]),
             skip_min_spacing_sqr: 45,
             skip_length_bounds: (3, 11),
+            max_level_skip: 90,
             min_freeze_size: 0,
             enable_pulse: false,
             pulse_corner_delay: 5,

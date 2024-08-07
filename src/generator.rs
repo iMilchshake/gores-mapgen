@@ -235,7 +235,6 @@ impl Generator {
         let timer = Timer::start();
 
         let flood_fill = get_flood_fill(self, &self.spawn);
-        dbg!(flood_fill);
         print_time(&timer, "flood fill");
 
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
@@ -263,7 +262,13 @@ impl Generator {
         post::fill_open_areas(self, &config.max_distance);
         print_time(&timer, "place obstacles");
 
-        post::generate_all_skips(self, config.skip_length_bounds, config.skip_min_spacing_sqr);
+        post::generate_all_skips(
+            self,
+            config.skip_length_bounds,
+            config.skip_min_spacing_sqr,
+            config.max_level_skip,
+            &flood_fill,
+        );
         print_time(&timer, "generate skips");
 
         Ok(())
