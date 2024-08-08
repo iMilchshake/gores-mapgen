@@ -123,25 +123,61 @@ impl CuteWalker {
             return Ok(());
         }
 
-        let walker_pos = self.pos.clone();
-
         // Case 2: max distance has been exceeded -> force platform using a room
         if self.steps_since_platform > max_distance {
-            generator::generate_room(map, &walker_pos.shifted_by(0, 6)?, 5, 3, None)?;
-            self.steps_since_platform = 0;
+            // generator::generate_room(map, &walker_pos.shifted_by(0, 6)?, 5, 3, None)?;
+            // self.steps_since_platform = 0;
+            // return Ok(());
+
+            // try to place floor platform
+            let mut pos = self.position_history[self.steps.saturating_sub(50)].clone();
+            let mut reached_floor = false;
+            while !reached_floor {
+                if pos.shift_in_direction(&ShiftDirection::Down, map).is_err() {
+                    break; // fail while shifting down -> abort!
+                }
+
+                if map.grid[pos.as_index()] == BlockType::Hookable {
+                    reached_floor = true;
+                    break;
+                }
+            }
+
+            let platform_height = 2;
+            let platform_free_height = 3;
+            let platform_width = 2; //
+
+            // check if area above platform is valid
+            if reached_floor
+                && map.check_area_all(
+                    &pos.shifted_by(-platform_width, -(platform_height + platform_free_height))?,
+                    &pos.shifted_by(platform_width, -2)?,
+                    &BlockType::Empty,
+                )?
+            {
+                map.set_area(
+                    &pos.shifted_by(-platform_width, -2)?,
+                    &pos.shifted_by(platform_width, -1)?,
+                    &BlockType::Platform,
+                    &Overwrite::ReplaceNonSolid,
+                );
+
+                self.steps_since_platform = 0;
+            }
+
             return Ok(());
         }
 
         // Case 3: min distance has been exceeded -> Try to place platform, but only if possible
         let area_empty = map.check_area_all(
-            &walker_pos.shifted_by(-3, -3)?,
-            &walker_pos.shifted_by(3, 2)?,
+            &self.pos.shifted_by(-3, -3)?,
+            &self.pos.shifted_by(3, 2)?,
             &BlockType::Empty,
         )?;
         if area_empty {
             map.set_area(
-                &walker_pos.shifted_by(-1, 0)?,
-                &walker_pos.shifted_by(1, 0)?,
+                &self.pos.shifted_by(-1, 0)?,
+                &self.pos.shifted_by(1, 0)?,
                 &BlockType::Platform,
                 &Overwrite::ReplaceEmptyOnly,
             );
