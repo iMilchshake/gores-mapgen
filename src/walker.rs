@@ -346,19 +346,9 @@ impl CuteWalker {
                 return Ok(());
             }
 
-            // TODO: use inner or outer? or just define by hand?
-            let max_kernel_size = gen_config
-                .inner_size_probs
-                .values
-                .as_ref()
-                .unwrap()
-                .iter()
-                .max()
-                .unwrap();
-
             // TODO: rework this by reusing functionality -> lock possible cells
-            let offset: usize = *max_kernel_size; // offset of kernel wrt. position (top/left)
-            let extend: usize = (max_kernel_size * 2) - offset; // how much kernel extends position (bot/right)
+            let offset: usize = gen_config.lock_kernel_size; // offset of kernel wrt. position (top/left)
+            let extend: usize = (gen_config.lock_kernel_size * 2) - offset; // how much kernel extends position (bot/right)
             let top_left = next_lock_pos.shifted_by(-(offset as i32), -(offset as i32))?;
             let bot_right = next_lock_pos.shifted_by(extend as i32, extend as i32)?;
 

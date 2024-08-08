@@ -113,10 +113,12 @@ pub struct GenerationConfig {
     /// (min, max) distance for skips
     pub skip_length_bounds: (usize, usize),
 
-    /// min distance between skips
+    /// min distance between skips. If a skip is validated, all neighbouring skips closer than this
+    /// range are invalidated.
     pub skip_min_spacing_sqr: usize,
 
-    /// TODO
+    /// maximum amount of the level is allowed to skip. This ensures that different parts of a map
+    /// are not connected.
     pub max_level_skip: usize,
 
     /// min unconnected freeze obstacle size
@@ -150,6 +152,9 @@ pub struct GenerationConfig {
 
     /// how many steps the locking may lack behind until the generation is considered "stuck"
     pub pos_lock_max_delay: usize,
+
+    /// size of area that is locked
+    pub lock_kernel_size: usize,
 }
 
 impl GenerationConfig {
@@ -257,6 +262,7 @@ impl Default for GenerationConfig {
             subwaypoint_max_shift_dist: 5.0,
             pos_lock_max_delay: 1000,
             pos_lock_max_dist: 20.0,
+            lock_kernel_size: 9,
         }
     }
 }

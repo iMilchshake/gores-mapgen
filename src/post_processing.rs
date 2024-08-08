@@ -608,7 +608,7 @@ pub fn get_flood_fill(gen: &Generator, start_pos: &Position) -> Array2<Option<us
     let mut distance = Array2::from_elem((width, height), None);
     let mut queue = VecDeque::new();
 
-    let solid = gen.map.grid.map(|val| val.is_solid());
+    let solid = gen.map.grid.map(|val| val.is_solid() || val.is_freeze());
 
     // TODO: error
     if solid[start_pos.as_index()] {

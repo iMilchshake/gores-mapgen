@@ -209,7 +209,8 @@ impl Generator {
         // iterate over all neighboring pairs of global waypoints
         for (p1, p2) in waypoints.windows(2).map(|w| (&w[0], &w[1])) {
             let distance = p1.distance(p2);
-            let num_subwaypoints = (distance / gen_config.max_subwaypoint_dist).floor() as usize;
+            let num_subwaypoints =
+                ((distance / gen_config.max_subwaypoint_dist).floor() as usize).max(1);
 
             for subwaypoint_index in 0..num_subwaypoints {
                 let lerp_weight = (subwaypoint_index as f32) / (num_subwaypoints as f32);

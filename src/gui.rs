@@ -613,6 +613,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     "pos lock max delay",
                     false,
                 );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.lock_kernel_size,
+                    edit_usize,
+                    "lock kernel size",
+                    false,
+                );
             }
 
             // =======================================[ MAP CONFIG EDIT ]===================================
