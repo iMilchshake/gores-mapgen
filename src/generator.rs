@@ -178,6 +178,7 @@ impl Generator {
                 .probabilistic_step(&mut self.map, config, &mut self.rnd)?;
 
             // TODO: very imperformant clone here, REVERT REVERT
+            // fuck i want to call this in post procesing aswell -> move to map/generator
             self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
 
             // handle platforms
@@ -232,8 +233,15 @@ impl Generator {
     }
 
     // TODO: move this "do all" function into post processing script?
-    pub fn post_processing(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
+    pub fn post_processing(&mut self, gen_config: &GenerationConfig) -> Result<(), &'static str> {
         let timer = Timer::start();
+
+        // lock all remaining blocks
+        self.walker
+            .lock_previous_location(&self.map, &gen_config, true)?;
+
+        // TODO: REVERT
+        self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
 
         let flood_fill = get_flood_fill(self, &self.spawn);
         print_time(&timer, "flood fill");
@@ -254,23 +262,25 @@ impl Generator {
         .expect("start finish room generation");
         print_time(&timer, "place rooms");
 
-        if config.min_freeze_size > 0 {
+        if gen_config.min_freeze_size > 0 {
             // TODO: Maybe add some alternative function for the case of min_freeze_size=1
-            post::remove_freeze_blobs(self, config.min_freeze_size);
+            post::remove_freeze_blobs(self, gen_config.min_freeze_size);
             print_time(&timer, "detect blobs");
         }
 
-        post::fill_open_areas(self, &config.max_distance);
+        post::fill_open_areas(self, &gen_config.max_distance);
         print_time(&timer, "place obstacles");
 
         post::generate_all_skips(
             self,
-            config.skip_length_bounds,
-            config.skip_min_spacing_sqr,
-            config.max_level_skip,
+            gen_config.skip_length_bounds,
+            gen_config.skip_min_spacing_sqr,
+            gen_config.max_level_skip,
             &flood_fill,
         );
         print_time(&timer, "generate skips");
+
+        post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
         Ok(())
     }

@@ -4,7 +4,6 @@ use ndarray::{s, Array2};
 
 use crate::{
     config::GenerationConfig,
-    generator,
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
@@ -243,7 +242,7 @@ impl CuteWalker {
         self.steps += 1;
 
         // lock old position
-        self.lock_previous_location(map, gen_config)?;
+        self.lock_previous_location(map, gen_config, false)?;
 
         // perform pulse if config constraints allows it
         let perform_pulse = gen_config.enable_pulse
@@ -359,10 +358,11 @@ impl CuteWalker {
         }
     }
 
-    fn lock_previous_location(
+    pub fn lock_previous_location(
         &mut self,
         map: &Map,
         gen_config: &GenerationConfig,
+        ignore_distance: bool,
     ) -> Result<(), &'static str> {
         while self.locked_position_step < self.steps {
             if self.position_history.len() <= self.locked_position_step + 1 {
@@ -378,7 +378,8 @@ impl CuteWalker {
             }
 
             // check if walker is far enough to lock next position
-            if next_lock_pos.distance(&self.pos) < gen_config.pos_lock_max_dist {
+            if !ignore_distance && next_lock_pos.distance(&self.pos) < gen_config.pos_lock_max_dist
+            {
                 return Ok(());
             }
 
