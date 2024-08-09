@@ -232,8 +232,6 @@ impl Map {
             .grid
             .slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
-        dbg!(&area);
-
         Ok(area.iter().all(|block| block == value))
     }
 
@@ -251,6 +249,13 @@ impl Map {
             .slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
         Ok(area.iter().filter(|&block| block == value).count())
+    }
+
+    pub fn check_position(&self, pos: &Position, block_type: BlockType) -> bool {
+        match self.grid.get(pos.as_index()) {
+            Some(value) => *value == block_type,
+            None => false,
+        }
     }
 
     pub fn set_area(

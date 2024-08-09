@@ -103,7 +103,7 @@ async fn main() {
             let _ = panic::catch_unwind(AssertUnwindSafe(|| {
                 editor
                     .gen
-                    .post_processing(&editor.gen_config)
+                    .perform_all_post_processing(&editor.gen_config)
                     .unwrap_or_else(|err| {
                         println!("Post Processing Failed: {:}", err);
                     });

@@ -254,13 +254,15 @@ impl Generator {
     }
 
     // TODO: move this "do all" function into post processing script?
-    pub fn post_processing(&mut self, gen_config: &GenerationConfig) -> Result<(), &'static str> {
+    pub fn perform_all_post_processing(
+        &mut self,
+        gen_config: &GenerationConfig,
+    ) -> Result<(), &'static str> {
         let timer = Timer::start();
 
         // lock all remaining blocks
         self.walker
             .lock_previous_location(&self.map, &gen_config, true)?;
-
         // TODO: REVERT
         self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
 
@@ -289,18 +291,6 @@ impl Generator {
         let flood_fill = get_flood_fill(self, &self.spawn);
         print_time(&timer, "flood fill");
 
-        post::get_all_platform_candidates(
-            &self.walker.position_history,
-            &flood_fill,
-            &self.map,
-            &mut self.debug_layers,
-        );
-        print_time(&timer, "platforms");
-
-        // TODO: re-add
-        // post::fill_open_areas(self, &gen_config.max_distance);
-        // print_time(&timer, "place obstacles");
-
         post::generate_all_skips(
             self,
             gen_config.skip_length_bounds,
@@ -309,6 +299,19 @@ impl Generator {
             &flood_fill,
         );
         print_time(&timer, "generate skips");
+
+        post::get_all_platform_candidates(
+            &self.walker.position_history,
+            &flood_fill,
+            &self.map,
+            50,
+            &mut self.debug_layers,
+        );
+        print_time(&timer, "platforms");
+
+        // TODO: re-add
+        // post::fill_open_areas(self, &gen_config.max_distance);
+        // print_time(&timer, "place obstacles");
 
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
@@ -333,7 +336,7 @@ impl Generator {
             gen.step(gen_config)?;
         }
 
-        gen.post_processing(gen_config)?;
+        gen.perform_all_post_processing(gen_config)?;
 
         Ok(gen.map)
     }
