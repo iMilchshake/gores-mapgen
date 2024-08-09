@@ -129,6 +129,11 @@ impl Generator {
             &map,
         );
 
+        // let platforms_walker_pos = debug_layers.get_mut("platforms_walker_pos").unwrap();
+        // let platforms_floor_pos = debug_layers.get_mut("platforms_floor_pos").unwrap();
+        // let platforms_pos = debug_layers.get_mut("platforms_pos").unwrap();
+        // let platform_debug_layer = debug_layers.get_mut("platforms").unwrap();
+
         // TODO: rework shitty debug storage
         let debug_layers = HashMap::from([
             ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
@@ -139,6 +144,22 @@ impl Generator {
             (
                 "lock",
                 DebugLayer::new(false, Color::new(1.0, 0.2, 0.2, 0.3), &map),
+            ),
+            (
+                "platforms",
+                DebugLayer::new(false, Color::new(1.0, 0.0, 0.0, 0.1), &map),
+            ),
+            (
+                "platforms_pos",
+                DebugLayer::new(false, Color::new(0.0, 1.0, 0.0, 0.8), &map),
+            ),
+            (
+                "platforms_floor_pos",
+                DebugLayer::new(false, Color::new(0.0, 0.7, 0.7, 0.8), &map),
+            ),
+            (
+                "platforms_walker_pos",
+                DebugLayer::new(false, Color::new(0.7, 0.7, 0.0, 0.8), &map),
             ),
         ]);
 
@@ -181,12 +202,12 @@ impl Generator {
             // fuck i want to call this in post procesing aswell -> move to map/generator
             self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
 
-            // handle platforms
-            self.walker.check_platform(
-                &mut self.map,
-                config.platform_distance_bounds.0,
-                config.platform_distance_bounds.1,
-            )?;
+            // handle platforms TODO: remove once post processing is implemented
+            // self.walker.check_platform(
+            //     &mut self.map,
+            //     config.platform_distance_bounds.0,
+            //     config.platform_distance_bounds.1,
+            // )?;
         }
 
         Ok(())
@@ -243,9 +264,6 @@ impl Generator {
         // TODO: REVERT
         self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
 
-        let flood_fill = get_flood_fill(self, &self.spawn);
-        print_time(&timer, "flood fill");
-
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
         self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
         print_time(&timer, "fix edge bugs");
@@ -268,8 +286,20 @@ impl Generator {
             print_time(&timer, "detect blobs");
         }
 
-        post::fill_open_areas(self, &gen_config.max_distance);
-        print_time(&timer, "place obstacles");
+        let flood_fill = get_flood_fill(self, &self.spawn);
+        print_time(&timer, "flood fill");
+
+        post::get_all_platform_candidates(
+            &self.walker.position_history,
+            &flood_fill,
+            &self.map,
+            &mut self.debug_layers,
+        );
+        print_time(&timer, "platforms");
+
+        // TODO: re-add
+        // post::fill_open_areas(self, &gen_config.max_distance);
+        // print_time(&timer, "place obstacles");
 
         post::generate_all_skips(
             self,
@@ -280,7 +310,7 @@ impl Generator {
         );
         print_time(&timer, "generate skips");
 
-        post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
+        // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
         Ok(())
     }

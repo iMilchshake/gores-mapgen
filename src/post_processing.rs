@@ -1,13 +1,17 @@
 use crate::{
+    debug::DebugLayer,
     generator::Generator,
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
 };
 
-use std::{collections::VecDeque, f32::consts::SQRT_2, usize};
+use std::{
+    collections::{HashMap, VecDeque},
+    f32::consts::SQRT_2,
+    usize,
+};
 
 use dt::dt_bool;
-use log::max_level;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 pub fn is_freeze(block_type: &&BlockType) -> bool {
@@ -641,4 +645,152 @@ pub fn get_flood_fill(gen: &Generator, start_pos: &Position) -> Array2<Option<us
     }
 
     distance
+}
+
+/// stores all relevant information about platform candidates
+#[derive(Debug)]
+pub struct Platform {
+    /// how total height is available for platform generation
+    pub available_height: usize,
+
+    /// how much platform extends to the left
+    pub width_left: usize,
+
+    /// how much platform extends to the right
+    pub width_right: usize,
+
+    /// lowest center position of platform
+    pub pos: Position,
+}
+
+pub fn get_optimal_greedy_platform_candidate(
+    pos: &Position,
+    map: &Map,
+) -> Result<Platform, &'static str> {
+    // how far empty box has been extended
+    let mut left_limit = 0;
+    let mut right_limit = 0;
+    let mut up_limit = 0;
+
+    // which directions are already locked due to hitting a limit
+    let mut left_locked = false;
+    let mut right_locked = false;
+    let mut up_locked = false;
+
+    while !left_locked || !right_locked || !up_locked {
+        // try to expand upwards
+        if !up_locked {
+            let next_limit_valid = map.check_area_all(
+                &pos.shifted_by(-left_limit, -(up_limit + 1))?,
+                &pos.shifted_by(right_limit, -(up_limit + 1))?,
+                &BlockType::Empty,
+            )?;
+
+            if next_limit_valid {
+                up_limit += 1;
+            } else {
+                up_locked = true;
+            }
+        }
+
+        // try to expand left
+        if !left_locked {
+            let next_limit_valid = map.check_area_all(
+                &pos.shifted_by(-(left_limit + 1), -up_limit)?,
+                &pos.shifted_by(-(left_limit + 1), -1)?, // dont check y=0 as freeze expected
+                &BlockType::Empty,
+            )?;
+
+            if next_limit_valid {
+                left_limit += 1;
+            } else {
+                left_locked = true;
+            }
+        }
+
+        // try to expand right
+        if !right_locked {
+            let next_limit_valid = map.check_area_all(
+                &pos.shifted_by(right_limit + 1, -up_limit)?,
+                &pos.shifted_by(right_limit + 1, -1)?, // dont check y=0 as freeze expected
+                &BlockType::Empty,
+            )?;
+
+            if next_limit_valid {
+                right_limit += 1;
+            } else {
+                right_locked = true;
+            }
+        }
+
+        dbg!((
+            left_limit,
+            up_limit,
+            right_limit,
+            left_locked,
+            up_locked,
+            right_locked
+        ));
+    }
+
+    Ok(Platform {
+        pos: pos.clone(),
+        width_left: left_limit as usize,
+        width_right: right_limit as usize,
+        available_height: up_limit as usize,
+    })
+}
+
+pub fn get_all_platform_candidates(
+    walker_pos_history: &Vec<Position>,
+    flood_fill: &Array2<Option<usize>>,
+    map: &Map,
+    debug_layers: &mut HashMap<&'static str, DebugLayer>,
+) {
+    let _platform_candidates: Vec<Platform> = Vec::new();
+
+    for pos_index in (0..walker_pos_history.len()).step_by(50) {
+        let pos = &walker_pos_history[pos_index];
+
+        // skip if initial walker pos is non empty
+        if map.grid[pos.as_index()] != BlockType::Empty {
+            dbg!("skip 1");
+            continue;
+        }
+
+        let floor_pos = map.shift_pos_until(pos, ShiftDirection::Down, |b| b.is_solid());
+
+        // skip if floor pos coulnt be determined
+        if floor_pos.is_none() {
+            dbg!("skip 2");
+            continue;
+        }
+
+        let floor_pos = floor_pos.unwrap();
+        let platform_pos = floor_pos.shifted_by(0, -1).unwrap();
+        dbg!((&pos, &floor_pos, &platform_pos));
+
+        if let Ok(platform_candidate) = get_optimal_greedy_platform_candidate(&platform_pos, map) {
+            dbg!(("found valid platform", &platform_candidate));
+
+            let platforms_walker_pos = debug_layers.get_mut("platforms_walker_pos").unwrap();
+            platforms_walker_pos.grid[pos.as_index()] = true;
+
+            let platforms_floor_pos = debug_layers.get_mut("platforms_floor_pos").unwrap();
+            platforms_floor_pos.grid[floor_pos.as_index()] = true;
+
+            let platforms_pos = debug_layers.get_mut("platforms_pos").unwrap();
+            platforms_pos.grid[platform_pos.as_index()] = true;
+
+            let platform_debug_layer = debug_layers.get_mut("platforms").unwrap();
+            let mut area = platform_debug_layer.grid.slice_mut(s![
+                platform_pos.x - platform_candidate.width_left
+                    ..=platform_pos.x + platform_candidate.width_right,
+                platform_pos.y - platform_candidate.available_height..=platform_pos.y
+            ]);
+            area.fill(true);
+        } else {
+            dbg!("skip 3");
+        }
+    }
 }

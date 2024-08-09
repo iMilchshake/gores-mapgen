@@ -107,9 +107,7 @@ impl CuteWalker {
         }
     }
 
-    /// will try to place a platform at the walkers position.
-    /// If force is true it will enforce a platform.
-    pub fn check_platform(
+    pub fn check_platform_at_walker(
         &mut self,
         map: &mut Map,
         min_distance: usize,

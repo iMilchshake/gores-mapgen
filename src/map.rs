@@ -1,9 +1,14 @@
-use crate::{kernel::Kernel, position::Position, twmap_export::TwExport, walker::CuteWalker};
+use crate::{
+    kernel::Kernel,
+    position::{Position, ShiftDirection},
+    twmap_export::TwExport,
+};
 use ndarray::{s, Array2};
 
 use std::path::PathBuf;
 
 const CHUNK_SIZE: usize = 5;
+const MAX_SHIFT_UNTIL_STEPS: usize = 25;
 
 #[derive(PartialEq)]
 pub enum BlockTypeTW {
@@ -18,11 +23,11 @@ pub enum BlockType {
     /// Empty Block that should not be overwritten
     EmptyReserved,
     Hookable,
+    Platform,
     Freeze,
     Spawn,
     Start,
     Finish,
-    Platform,
 }
 
 impl BlockType {
@@ -52,8 +57,13 @@ impl BlockType {
     pub fn is_solid(&self) -> bool {
         matches!(self, BlockType::Hookable | BlockType::Platform)
     }
+
     pub fn is_freeze(&self) -> bool {
         matches!(self, BlockType::Freeze)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        matches!(self, BlockType::Empty)
     }
 }
 
@@ -222,6 +232,8 @@ impl Map {
             .grid
             .slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
+        dbg!(&area);
+
         Ok(area.iter().all(|block| block == value))
     }
 
@@ -284,5 +296,28 @@ impl Map {
         self.set_area(&top_right, bot_right, value, overwrite);
         self.set_area(top_left, &bot_left, value, overwrite);
         self.set_area(&bot_left, bot_right, value, overwrite);
+    }
+
+    /// shifts position in given direction until block fulfills criterion
+    pub fn shift_pos_until<F>(
+        &self,
+        pos: &Position,
+        dir: ShiftDirection,
+        criterion: F,
+    ) -> Option<Position>
+    where
+        F: Fn(&BlockType) -> bool,
+    {
+        let mut shift_pos = pos.clone();
+        for _ in 0..MAX_SHIFT_UNTIL_STEPS {
+            // shift in given direction
+            if shift_pos.shift_in_direction(&dir, self).is_err() {
+                return None; // fail while shifting -> abort
+            } else if criterion(&self.grid[shift_pos.as_index()]) {
+                return Some(shift_pos); // criterion fulfilled -> return current position
+            }
+        }
+
+        None // criterion was never fulfilled
     }
 }
