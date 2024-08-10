@@ -251,9 +251,19 @@ impl Map {
         Ok(area.iter().filter(|&block| block == value).count())
     }
 
-    pub fn check_position(&self, pos: &Position, block_type: BlockType) -> bool {
+    pub fn check_position_type(&self, pos: &Position, block_type: BlockType) -> bool {
         match self.grid.get(pos.as_index()) {
             Some(value) => *value == block_type,
+            None => false,
+        }
+    }
+
+    pub fn check_position_crit<F>(&self, pos: &Position, criterion: F) -> bool
+    where
+        F: Fn(&BlockType) -> bool,
+    {
+        match self.grid.get(pos.as_index()) {
+            Some(value) => criterion(&value),
             None => false,
         }
     }

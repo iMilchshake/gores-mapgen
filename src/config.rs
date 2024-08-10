@@ -88,8 +88,14 @@ pub struct GenerationConfig {
     /// probability weighting for random selection from best to worst towards next goal
     pub shift_weights: RandomDistConfig<ShiftDirection>,
 
-    /// (min, max) distance between platforms
-    pub platform_distance_bounds: (usize, usize),
+    // ===================================[ PLATFORMS ]==========================================
+    /// min distance between platforms
+    pub plat_min_distance: usize,
+    pub plat_width_bounds: (usize, usize),
+    pub plat_height_bounds: (usize, usize),
+
+    /// allow "soft" overlaps -> non-empty blocks below platform (e.g. freeze)
+    pub plat_soft_overhang: bool,
 
     /// probability for doing the last shift direction again
     pub momentum_prob: f32,
@@ -215,15 +221,16 @@ impl GenerationConfig {
     }
 
     /// This function defines the initial default config for actual map generator
-    pub fn get_initial_config(use_default: bool) -> GenerationConfig {
-        if use_default {
-            GenerationConfig::default()
-        } else {
-            let file = GenerationConfigStorage::get("hardV2.json").unwrap();
-            let data = std::str::from_utf8(&file.data).unwrap();
-            let config: GenerationConfig = serde_json::from_str(data).unwrap();
-            config
+    pub fn get_initial_gen_config() -> GenerationConfig {
+        if let Some(file) = GenerationConfigStorage::get("hardV2.json") {
+            if let Ok(data) = std::str::from_utf8(&file.data) {
+                if let Ok(config) = serde_json::from_str(data) {
+                    return config;
+                }
+            }
         }
+
+        return GenerationConfig::default();
     }
 }
 
@@ -240,7 +247,10 @@ impl Default for GenerationConfig {
             outer_rad_mut_prob: 0.25,
             outer_size_mut_prob: 0.5,
             shift_weights: RandomDistConfig::new(None, vec![0.4, 0.22, 0.2, 0.18]),
-            platform_distance_bounds: (500, 750),
+            plat_min_distance: 100,
+            plat_width_bounds: (4, 5),
+            plat_height_bounds: (3, 5),
+            plat_soft_overhang: false,
             momentum_prob: 0.01,
             max_distance: 3.0,
             waypoint_reached_dist: 250,

@@ -300,11 +300,11 @@ impl Generator {
         );
         print_time(&timer, "generate skips");
 
-        post::get_all_platform_candidates(
+        post::gen_all_platform_candidates(
             &self.walker.position_history,
             &flood_fill,
-            &self.map,
-            50,
+            &mut self.map,
+            gen_config,
             &mut self.debug_layers,
         );
         print_time(&timer, "platforms");

@@ -48,7 +48,7 @@ async fn main() {
     SimpleLogger::new().init().unwrap();
 
     let mut editor = Editor::new(
-        GenerationConfig::get_initial_config(true),
+        GenerationConfig::get_initial_gen_config(),
         MapConfig::get_initial_config(),
     );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);

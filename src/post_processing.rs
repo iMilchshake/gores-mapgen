@@ -1,4 +1,5 @@
 use crate::{
+    config::GenerationConfig,
     debug::DebugLayer,
     generator::Generator,
     map::{BlockType, Map, Overwrite},
@@ -12,7 +13,6 @@ use std::{
 };
 
 use dt::dt_bool;
-use egui::containers;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 pub fn is_freeze(block_type: &&BlockType) -> bool {
@@ -667,8 +667,7 @@ pub struct Platform {
 pub fn get_optimal_greedy_platform_candidate(
     pos: &Position,
     map: &Map,
-    platform_width_bounds: (usize, usize),
-    platform_height_bounds: (usize, usize),
+    gen_config: &GenerationConfig,
 ) -> Result<Platform, &'static str> {
     // how far empty box has been extended
     let mut left_limit = 0;
@@ -698,8 +697,14 @@ pub fn get_optimal_greedy_platform_candidate(
 
         // try to expand left
         if !left_locked {
-            let overhang =
-                map.check_position(&pos.shifted_by(-(left_limit + 1), 1)?, BlockType::Empty);
+            // check if platform has no overhang
+            let no_overhang =
+                map.check_position_crit(&pos.shifted_by(-(left_limit + 1), 1)?, |b| {
+                    match (gen_config.plat_soft_overhang, b) {
+                        (true, block) => !block.is_empty(),
+                        (false, block) => block.is_solid(),
+                    }
+                });
 
             let next_limit_valid = map.check_area_all(
                 &pos.shifted_by(-(left_limit + 1), -up_limit)?,
@@ -707,7 +712,7 @@ pub fn get_optimal_greedy_platform_candidate(
                 &BlockType::Empty,
             )?;
 
-            if !overhang && next_limit_valid {
+            if no_overhang && next_limit_valid {
                 left_limit += 1;
             } else {
                 left_locked = true;
@@ -716,15 +721,19 @@ pub fn get_optimal_greedy_platform_candidate(
 
         // try to expand right
         if !right_locked {
-            let overhang =
-                map.check_position(&pos.shifted_by(right_limit + 1, 1)?, BlockType::Empty);
+            let no_overhang = map.check_position_crit(&pos.shifted_by(right_limit + 1, 1)?, |b| {
+                match (gen_config.plat_soft_overhang, b) {
+                    (true, block) => !block.is_empty(),
+                    (false, block) => block.is_solid(),
+                }
+            });
             let next_limit_valid = map.check_area_all(
                 &pos.shifted_by(right_limit + 1, -up_limit)?,
                 &pos.shifted_by(right_limit + 1, -1)?, // dont check y=0 as freeze expected
                 &BlockType::Empty,
             )?;
 
-            if !overhang && next_limit_valid {
+            if no_overhang && next_limit_valid {
                 right_limit += 1;
             } else {
                 right_locked = true;
@@ -732,18 +741,18 @@ pub fn get_optimal_greedy_platform_candidate(
         }
 
         // early abort if x or y dimension is already locked, but lower bound isnt reached
-        if up_locked && (up_limit as usize) < platform_height_bounds.0 {
+        if up_locked && (up_limit as usize) < gen_config.plat_height_bounds.0 {
             return Err("not enough y space");
         } else if left_locked
             && right_locked
-            && ((left_limit + right_limit + 1) as usize) < platform_width_bounds.0
+            && ((left_limit + right_limit + 1) as usize) < gen_config.plat_width_bounds.0
         {
             return Err("not enough x space");
-        } else if (up_limit as usize) == platform_height_bounds.1 {
+        } else if (up_limit as usize) == gen_config.plat_height_bounds.1 {
             break; // upper bound reached -> return
 
         // can overshoot
-        } else if ((left_limit + right_limit + 1) as usize) >= platform_width_bounds.1 {
+        } else if ((left_limit + right_limit + 1) as usize) >= gen_config.plat_width_bounds.1 {
             break; // upper bound reached -> return
         }
     }
@@ -756,13 +765,11 @@ pub fn get_optimal_greedy_platform_candidate(
     })
 }
 
-pub fn get_all_platform_candidates(
+pub fn gen_all_platform_candidates(
     walker_pos_history: &Vec<Position>,
     flood_fill: &Array2<Option<usize>>,
-    map: &Map,
-    // platform_width_bounds: (usize, usize),
-    // platform_height_bounds: (usize, usize),
-    platform_min_distance: usize,
+    map: &mut Map,
+    gen_config: &GenerationConfig,
     debug_layers: &mut HashMap<&'static str, DebugLayer>,
 ) {
     let mut platform_candidates: Vec<Platform> = Vec::new();
@@ -778,7 +785,9 @@ pub fn get_all_platform_candidates(
 
         // skip if previous platform is still to close
         let level_distance = flood_fill[pos.as_index()].unwrap();
-        if level_distance.saturating_sub(last_platform_level_distance) < platform_min_distance {
+        if level_distance.saturating_sub(last_platform_level_distance)
+            < gen_config.plat_min_distance
+        {
             continue;
         }
 
@@ -791,7 +800,7 @@ pub fn get_all_platform_candidates(
 
         // try to get optimal platform candidate
         let platform_pos = floor_pos.shifted_by(0, -1).unwrap();
-        let result = get_optimal_greedy_platform_candidate(&platform_pos, map, (3, 5), (2, 5));
+        let result = get_optimal_greedy_platform_candidate(&platform_pos, map, gen_config);
         if let Ok(platform_candidate) = result {
             // draw debug
             let platforms_walker_pos = debug_layers.get_mut("platforms_walker_pos").unwrap();
@@ -816,6 +825,34 @@ pub fn get_all_platform_candidates(
         }
     }
 
-    // for platform_candidate in platform_candidates {
-    // }
+    // generate platforms
+    for platform_candidate in platform_candidates {
+        map.set_area(
+            &platform_candidate
+                .pos
+                .shifted_by(-(platform_candidate.width_left as i32), -1)
+                .unwrap(),
+            &platform_candidate
+                .pos
+                .shifted_by(platform_candidate.width_right as i32, 0)
+                .unwrap(),
+            &BlockType::Platform,
+            &Overwrite::Force,
+        );
+        map.set_area(
+            &platform_candidate
+                .pos
+                .shifted_by(
+                    -(platform_candidate.width_left as i32),
+                    -(platform_candidate.available_height as i32),
+                )
+                .unwrap(),
+            &platform_candidate
+                .pos
+                .shifted_by(platform_candidate.width_right as i32, -2)
+                .unwrap(),
+            &BlockType::EmptyReserved,
+            &Overwrite::Force,
+        );
+    }
 }

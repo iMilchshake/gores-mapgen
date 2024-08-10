@@ -449,14 +449,38 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     );
                 });
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.platform_distance_bounds,
-                    edit_range_usize,
-                    "platform distances",
-                    true,
-                );
-
+                CollapsingHeader::new("PLATFORMS")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_min_distance,
+                            edit_usize,
+                            "min distance",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_width_bounds,
+                            edit_range_usize,
+                            "width bounds",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_height_bounds,
+                            edit_range_usize,
+                            "height bounds",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_soft_overhang,
+                            edit_bool,
+                            "soft overhang",
+                            true,
+                        );
+                    });
                 field_edit_widget(
                     ui,
                     &mut editor.gen_config.momentum_prob,
@@ -618,7 +642,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     ui,
                     &mut editor.gen_config.lock_kernel_size,
                     edit_usize,
-                    "lock kernel size",
+                    "",
                     false,
                 );
             }
