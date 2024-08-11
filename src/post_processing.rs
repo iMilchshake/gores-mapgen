@@ -15,10 +15,6 @@ use std::{
 use dt::dt_bool;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
-pub fn is_freeze(block_type: &&BlockType) -> bool {
-    **block_type == BlockType::Freeze
-}
-
 /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
 /// configurations do not ensure a min. 1-block freeze padding consistently.
 pub fn fix_edge_bugs(gen: &mut Generator) -> Result<Array2<bool>, &'static str> {
@@ -203,7 +199,7 @@ pub fn find_corners(gen: &Generator) -> Result<Vec<(Position, ShiftDirection)>, 
             ];
 
             for (shape, dir) in shapes {
-                if shape.iter().all(is_freeze) {
+                if shape.iter().all(|b| b.is_freeze()) {
                     candidates.push((Position::new(window_x, window_y), dir));
                 }
             }
@@ -844,34 +840,37 @@ pub fn gen_all_platform_candidates(
         assert!(gen_config.plat_height_bounds.0 <= platform_height);
         assert!(platform_height <= gen_config.plat_height_bounds.1);
 
+        if platform_height > 0 {
+            map.set_area(
+                &platform_candidate
+                    .pos
+                    .shifted_by(
+                        -(platform_candidate.width_left as i32),
+                        -(platform_height as i32),
+                    )
+                    .unwrap(),
+                &platform_candidate
+                    .pos
+                    .shifted_by(platform_candidate.width_right as i32, 0)
+                    .unwrap(),
+                &BlockType::Platform,
+                &Overwrite::Force,
+            );
+        }
+
         map.set_area(
             &platform_candidate
                 .pos
                 .shifted_by(
                     -(platform_candidate.width_left as i32),
-                    -(platform_height as i32),
-                )
-                .unwrap(),
-            &platform_candidate
-                .pos
-                .shifted_by(platform_candidate.width_right as i32, 0)
-                .unwrap(),
-            &BlockType::Platform,
-            &Overwrite::Force,
-        );
-        map.set_area(
-            &platform_candidate
-                .pos
-                .shifted_by(
-                    -(platform_candidate.width_left as i32),
-                    -(platform_candidate.available_height as i32),
+                    -((platform_candidate.available_height - 1) as i32),
                 )
                 .unwrap(),
             &platform_candidate
                 .pos
                 .shifted_by(
                     platform_candidate.width_right as i32,
-                    -((platform_height + 1) as i32),
+                    -(platform_height as i32),
                 )
                 .unwrap(),
             &BlockType::EmptyReserved,

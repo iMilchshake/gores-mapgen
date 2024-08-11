@@ -475,6 +475,13 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                         );
                         field_edit_widget(
                             ui,
+                            &mut editor.gen_config.plat_min_empty_height,
+                            edit_usize,
+                            "min empty height",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
                             &mut editor.gen_config.plat_soft_overhang,
                             edit_bool,
                             "soft overhang",
