@@ -738,7 +738,7 @@ pub fn get_optimal_greedy_platform_candidate(
 
         // early abort if x or y dimension is already locked, but lower bound isnt reached
         if up_locked
-            && ((up_limit as usize)
+            && (((up_limit + 1) as usize)
                 < gen_config.plat_height_bounds.0 + gen_config.plat_min_empty_height)
         {
             return Err("not enough y space");
@@ -748,7 +748,7 @@ pub fn get_optimal_greedy_platform_candidate(
         {
             return Err("not enough x space");
         }
-        if (up_limit as usize)
+        if ((up_limit + 1) as usize)
             >= (gen_config.plat_height_bounds.1 + gen_config.plat_min_empty_height)
         {
             up_locked = true;
@@ -763,7 +763,7 @@ pub fn get_optimal_greedy_platform_candidate(
         pos: pos.clone(),
         width_left: left_limit as usize,
         width_right: right_limit as usize,
-        available_height: up_limit as usize,
+        available_height: (up_limit + 1) as usize,
     })
 }
 
@@ -815,7 +815,7 @@ pub fn gen_all_platform_candidates(
             let mut area = platform_debug_layer.grid.slice_mut(s![
                 platform_pos.x - platform_candidate.width_left
                     ..=platform_pos.x + platform_candidate.width_right,
-                platform_pos.y - platform_candidate.available_height..=platform_pos.y
+                platform_pos.y - (platform_candidate.available_height - 1)..=platform_pos.y
             ]);
             area.fill(true);
 
@@ -829,16 +829,8 @@ pub fn gen_all_platform_candidates(
 
     // generate platforms
     for platform_candidate in platform_candidates {
-        dbg!(
-            gen_config.plat_height_bounds,
-            gen_config.plat_min_empty_height
-        );
-        dbg!(&platform_candidate);
         let platform_height =
             platform_candidate.available_height - gen_config.plat_min_empty_height;
-        dbg!(platform_height);
-        assert!(gen_config.plat_height_bounds.0 <= platform_height);
-        assert!(platform_height <= gen_config.plat_height_bounds.1);
 
         if platform_height > 0 {
             map.set_area(
