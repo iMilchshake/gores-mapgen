@@ -88,15 +88,17 @@ pub struct GenerationConfig {
     /// probability weighting for random selection from best to worst towards next goal
     pub shift_weights: RandomDistConfig<ShiftDirection>,
 
-    // ===================================[ PLATFORMS ]==========================================
+    // ===================================[ platforms ]==========================================
     /// min distance between platforms
     pub plat_min_distance: usize,
     pub plat_width_bounds: (usize, usize),
     pub plat_height_bounds: (usize, usize),
+    pub plat_min_empty_height: usize,
 
     /// allow "soft" overlaps -> non-empty blocks below platform (e.g. freeze)
     pub plat_soft_overhang: bool,
 
+    // ===================================[ ]==========================================
     /// probability for doing the last shift direction again
     pub momentum_prob: f32,
 
@@ -250,6 +252,7 @@ impl Default for GenerationConfig {
             plat_min_distance: 100,
             plat_width_bounds: (4, 5),
             plat_height_bounds: (3, 5),
+            plat_min_empty_height: 5,
             plat_soft_overhang: false,
             momentum_prob: 0.01,
             max_distance: 3.0,

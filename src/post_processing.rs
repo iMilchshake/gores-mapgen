@@ -741,19 +741,25 @@ pub fn get_optimal_greedy_platform_candidate(
         }
 
         // early abort if x or y dimension is already locked, but lower bound isnt reached
-        if up_locked && (up_limit as usize) < gen_config.plat_height_bounds.0 {
+        if up_locked
+            && ((up_limit as usize)
+                < gen_config.plat_height_bounds.0 + gen_config.plat_min_empty_height)
+        {
             return Err("not enough y space");
         } else if left_locked
             && right_locked
-            && ((left_limit + right_limit + 1) as usize) < gen_config.plat_width_bounds.0
+            && (((left_limit + right_limit + 1) as usize) < gen_config.plat_width_bounds.0)
         {
             return Err("not enough x space");
-        } else if (up_limit as usize) == gen_config.plat_height_bounds.1 {
-            break; // upper bound reached -> return
-
-        // can overshoot
-        } else if ((left_limit + right_limit + 1) as usize) >= gen_config.plat_width_bounds.1 {
-            break; // upper bound reached -> return
+        }
+        if (up_limit as usize)
+            >= (gen_config.plat_height_bounds.1 + gen_config.plat_min_empty_height)
+        {
+            up_locked = true;
+        }
+        if ((left_limit + right_limit + 1) as usize) >= gen_config.plat_width_bounds.1 {
+            left_locked = true;
+            right_locked = true;
         }
     }
 
@@ -827,10 +833,24 @@ pub fn gen_all_platform_candidates(
 
     // generate platforms
     for platform_candidate in platform_candidates {
+        dbg!(
+            gen_config.plat_height_bounds,
+            gen_config.plat_min_empty_height
+        );
+        dbg!(&platform_candidate);
+        let platform_height =
+            platform_candidate.available_height - gen_config.plat_min_empty_height;
+        dbg!(platform_height);
+        assert!(gen_config.plat_height_bounds.0 <= platform_height);
+        assert!(platform_height <= gen_config.plat_height_bounds.1);
+
         map.set_area(
             &platform_candidate
                 .pos
-                .shifted_by(-(platform_candidate.width_left as i32), -1)
+                .shifted_by(
+                    -(platform_candidate.width_left as i32),
+                    -(platform_height as i32),
+                )
                 .unwrap(),
             &platform_candidate
                 .pos
@@ -849,7 +869,10 @@ pub fn gen_all_platform_candidates(
                 .unwrap(),
             &platform_candidate
                 .pos
-                .shifted_by(platform_candidate.width_right as i32, -2)
+                .shifted_by(
+                    platform_candidate.width_right as i32,
+                    -((platform_height + 1) as i32),
+                )
                 .unwrap(),
             &BlockType::EmptyReserved,
             &Overwrite::Force,
