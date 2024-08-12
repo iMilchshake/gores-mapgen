@@ -1,11 +1,11 @@
-use gores_mapgen_rust::config::{GenerationConfig, MapConfig};
-use gores_mapgen_rust::generator::Generator;
-use gores_mapgen_rust::random::Seed;
+use gores_mapgen::config::{GenerationConfig, MapConfig};
+use gores_mapgen::generator::Generator;
+use gores_mapgen::random::Seed;
 
 fn main() {
     for seed in 0..u64::max_value() {
         println!("generating {:?}", seed);
-        Generator::generate_map(
+        let _ = Generator::generate_map(
             200_000,
             &Seed::from_u64(seed),
             &GenerationConfig::get_all_configs().get("insaneV2").unwrap(),

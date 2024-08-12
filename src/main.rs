@@ -1,7 +1,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use clap::{crate_version, Parser};
-use gores_mapgen_rust::{
+use gores_mapgen::{
     config::{GenerationConfig, MapConfig},
     editor::*,
     fps_control::*,

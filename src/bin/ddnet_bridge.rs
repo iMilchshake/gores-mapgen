@@ -1,8 +1,8 @@
 use clap::{crate_version, Parser};
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
-use gores_mapgen_rust::config::MapConfig;
-use gores_mapgen_rust::random::Seed;
-use gores_mapgen_rust::{config::GenerationConfig, generator::Generator};
+use gores_mapgen::config::MapConfig;
+use gores_mapgen::random::Seed;
+use gores_mapgen::{config::GenerationConfig, generator::Generator};
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use simple_logger::SimpleLogger;

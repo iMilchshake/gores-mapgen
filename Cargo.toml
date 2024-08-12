@@ -1,5 +1,5 @@
 [package]
-name = "gores-mapgen-rust"
+name = "gores-mapgen"
 version = "1.0.0"
 edition = "2021"
 default-run = "gores-generator"
