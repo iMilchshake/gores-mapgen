@@ -291,15 +291,6 @@ impl Generator {
         let flood_fill = get_flood_fill(self, &self.spawn);
         print_time(&timer, "flood fill");
 
-        post::generate_all_skips(
-            self,
-            gen_config.skip_length_bounds,
-            gen_config.skip_min_spacing_sqr,
-            gen_config.max_level_skip,
-            &flood_fill,
-        );
-        print_time(&timer, "generate skips");
-
         post::gen_all_platform_candidates(
             &self.walker.position_history,
             &flood_fill,
@@ -309,9 +300,17 @@ impl Generator {
         );
         print_time(&timer, "platforms");
 
-        // TODO: re-add
-        // post::fill_open_areas(self, &gen_config.max_distance);
-        // print_time(&timer, "place obstacles");
+        post::generate_all_skips(
+            self,
+            gen_config.skip_length_bounds,
+            gen_config.skip_min_spacing_sqr,
+            gen_config.max_level_skip,
+            &flood_fill,
+        );
+        print_time(&timer, "generate skips");
+
+        post::fill_open_areas(self, &gen_config.max_distance);
+        print_time(&timer, "place obstacles");
 
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
