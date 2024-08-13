@@ -42,6 +42,7 @@ serde = "1.0.197"
 serde_json = "1.0.115"
 rust-embed = "8.3.0"
 tinyfiledialogs = "3.9.1"
+dark-light = "1.1.1"
 
 # dt = "1.0.6"
 dt = {git = "https://github.com/iMilchshake/dt"}
