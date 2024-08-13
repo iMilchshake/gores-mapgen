@@ -236,17 +236,36 @@ impl Editor {
         )));
     }
 
+    /// Returns the aspect ratios for width & height.
+    fn aspect_ratio(canvas: &egui::Rect) -> (f32, f32) {
+        if canvas.width() > canvas.height() {
+            (canvas.width() / canvas.height(), 1.0)
+        } else {
+            (1.0, canvas.height() / canvas.width())
+        }
+    }
+
     pub fn set_cam(&mut self) {
+        let canvas = self
+            .canvas
+            .expect("expect define_egui() to be called before");
         let map = &self.gen.map;
-        let display_factor = self.get_display_factor(map);
-        let x_view = display_factor * map.width as f32;
-        let y_view = display_factor * map.height as f32;
-        let y_shift = screen_height() - y_view;
-        let map_rect = Rect::new(0.0, 0.0, map.width as f32, map.height as f32);
+        let (scale_w, scale_h) = Self::aspect_ratio(&canvas);
+        let x_view = scale_w * map.width as f32;
+        let y_view = scale_h * map.height as f32;
+        let map_rect = Rect::new(0.0, 0.0, x_view, y_view);
         let mut cam = Camera2D::from_display_rect(map_rect);
 
-        // so i guess this is (x, y, width, height) not two positions?
-        cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
+        // OpenGL viewports start at the bottom
+        // (https://www.saschawillems.de/images/2019-03-29-vulkan-flipping-the-viewport/viewports_gl_vk.png)
+        let y_shift = screen_height() - canvas.max.y;
+        // use the remaining canvas as viewport
+        cam.viewport = Some((
+            canvas.min.x as i32,
+            y_shift as i32,
+            canvas.width() as i32,
+            canvas.height() as i32,
+        ));
 
         cam.target -= self.offset;
         cam.zoom *= self.zoom;
