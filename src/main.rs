@@ -117,7 +117,15 @@ async fn main() {
         editor.set_cam();
         editor.handle_user_inputs();
 
-        clear_background(WHITE);
+        match dark_light::detect() {
+            dark_light::Mode::Dark => {
+                clear_background(BLACK);
+            }
+            dark_light::Mode::Light | dark_light::Mode::Default => {
+                clear_background(WHITE);
+            }
+        }
+
         // draw_grid_blocks(&editor.gen.map.grid);
         draw_chunked_grid(
             &editor.gen.map.grid,
