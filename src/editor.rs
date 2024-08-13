@@ -251,8 +251,9 @@ impl Editor {
             .expect("expect define_egui() to be called before");
         let map = &self.gen.map;
         let (scale_w, scale_h) = Self::aspect_ratio(&canvas);
-        let x_view = scale_w * map.width as f32;
-        let y_view = scale_h * map.height as f32;
+        let size = map.width.max(map.height);
+        let x_view = scale_w * size as f32;
+        let y_view = scale_h * size as f32;
         let map_rect = Rect::new(0.0, 0.0, x_view, y_view);
         let mut cam = Camera2D::from_display_rect(map_rect);
 
