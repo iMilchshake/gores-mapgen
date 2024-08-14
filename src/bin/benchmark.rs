@@ -7,30 +7,24 @@ use std::panic;
 use std::time::Instant;
 
 fn main() {
-    //thanks tobi for the code hehehe
     let init_gen_configs: HashMap<String, GenerationConfig> = GenerationConfig::get_all_configs();
     let init_map_configs: HashMap<String, MapConfig> = MapConfig::get_all_configs();
 
     let seed: u64 = random::<u64>();
-    //Loop through the keys of the hashmap
-    for gkey in init_gen_configs.keys() {
-        for mkey in init_map_configs.keys() {
-            //We access the generate_map arguments now so the time from instant is only timing the generation function and not retreiving the data for the var also.
-            let seed = Seed::from_u64(seed);
-            let gen_cfg = init_gen_configs.get(gkey).unwrap();
-            let map_cfg = init_map_configs.get(mkey).unwrap();
 
-            let now = Instant::now();
+    for (gen_config_name, gen_config) in init_gen_configs.iter() {
+        for (map_config_name, map_config) in init_map_configs.iter() {
+            let seed = Seed::from_u64(seed);
+            let start_time = Instant::now();
             let _ = panic::catch_unwind(|| {
-                let gen_result = Generator::generate_map(200_000, &seed, gen_cfg, map_cfg);
-                let elapsed = now.elapsed(); //compare the time difference
+                let gen_result = Generator::generate_map(200_000, &seed, gen_config, map_config);
+                let elapsed = start_time.elapsed(); 
                 match gen_result {
-                    //Handiling the Result<t,e>
                     Ok(_) => {
-                        println!("GEN {gkey} WITH {mkey} MAP GEN | ELAPSED TIME: {elapsed:?\n}")
+                        println!("GEN {gen_config_name} WITH {map_config_name} MAP GEN | ELAPSED TIME: {elapsed:?\n}")
                     }
                     Err(e) => println!(
-                        "ERROR IN GENERATING MAP: {e} | GENERATION THAT FAILED: {gkey} with {mkey}"
+                        "ERROR IN GENERATING MAP: {e} | GENERATION THAT FAILED: {gen_config_name} with {map_config_name}"
                     ),
                 }
             });
