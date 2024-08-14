@@ -5,11 +5,14 @@ use std::collections::HashMap;
 use std::panic;
 use std::time::{Duration, Instant};
 
-// TODO: add cli flag for this?
-const MAX_SEED: u64 = 5;
+// TODO: add clap cli for this?
+const MAX_SEED: u64 = 100;
 const MAX_GENERATION_STEPS: usize = 200_000;
 
 fn main() {
+    // disable panic hook so they no longer get printed
+    panic::set_hook(Box::new(|_info| {}));
+
     let init_gen_configs: HashMap<String, GenerationConfig> = GenerationConfig::get_all_configs();
     let init_map_configs: HashMap<String, MapConfig> = MapConfig::get_all_configs();
 
@@ -51,7 +54,6 @@ fn main() {
                 .checked_div(valid_count)
                 .map(|v| format!("{v:?}"))
                 .unwrap_or("XXX".to_string());
-
             let error_rate = (error_count as f32) / (MAX_SEED as f32);
             let panic_rate = (panic_count as f32) / (MAX_SEED as f32);
 
