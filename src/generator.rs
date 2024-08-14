@@ -14,8 +14,13 @@ use crate::{
 
 use macroquad::color::{colors, Color};
 
+const PRINT_TIMES: bool = false;
+
 pub fn print_time(timer: &Timer, message: &str) {
-    println!("{}: {:?}", message, timer.elapsed());
+    // TODO: add cli flag for this
+    if PRINT_TIMES {
+        println!("{}: {:?}", message, timer.elapsed());
+    }
 }
 
 pub struct Generator {
