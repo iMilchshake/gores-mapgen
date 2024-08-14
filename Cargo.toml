@@ -20,6 +20,9 @@ name = "check_generator"
 [[bin]]
 name = "automap_test"
 
+[[bin]]
+name = "benchmark"
+
 [dependencies]
 # egui-macroquad = { git = "https://github.com/optozorax/egui-macroquad", default-features = false, rev="dfbdb967d6cf4e4726b84a568ec1b2bdc7e4f492" }
 # macroquad = "0.4.4"
