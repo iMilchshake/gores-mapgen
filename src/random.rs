@@ -1,11 +1,11 @@
 use crate::config::GenerationConfig;
 use crate::position::ShiftDirection;
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use rand::prelude::*;
 use rand::rngs::SmallRng;
 use rand_distr::WeightedAliasIndex;
 use seahash::hash;
 use serde::{Deserialize, Serialize};
-use z85;
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct RandomDistConfig<T> {
@@ -95,15 +95,17 @@ impl Seed {
         Seed::from_u64(rnd.random_u64())
     }
 
-    pub fn from_z85(z85_str: String) -> Seed {
-        let z85_blocks = z85::decode(z85_str).expect("coulnt decode given z85 string");
-        assert_eq!(z85_blocks.len(), 8, "exactly 8 blocks expected");
-        let seed_u64: u64 = u64::from_be_bytes(z85_blocks.try_into().unwrap());
+    pub fn from_base64(base64_str: String) -> Seed {
+        let decoded_bytes = URL_SAFE
+            .decode(base64_str)
+            .expect("couldn't decode given base64 string");
+        assert_eq!(decoded_bytes.len(), 8, "exactly 8 bytes expected");
+        let seed_u64: u64 = u64::from_be_bytes(decoded_bytes.try_into().unwrap());
         Seed::from_u64(seed_u64)
     }
 
-    pub fn to_z85(&self) -> String {
-        z85::encode(self.seed_u64.to_be_bytes())
+    pub fn to_base64(&self) -> String {
+        URL_SAFE.encode(self.seed_u64.to_be_bytes())
     }
 
     pub fn random() -> Seed {
