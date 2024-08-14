@@ -21,7 +21,7 @@ name = "check_generator"
 name = "automap_test"
 
 [[bin]]
-name = "map_test"
+name = "benchmark"
 
 [dependencies]
 # egui-macroquad = { git = "https://github.com/optozorax/egui-macroquad", default-features = false, rev="dfbdb967d6cf4e4726b84a568ec1b2bdc7e4f492" }
