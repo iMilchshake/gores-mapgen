@@ -52,6 +52,7 @@ derivative = "2.2.0"
 timing = "0.2.3"
 log = "0.4.22"
 simple_logger = "5.0.0"
+z85 = "3.0.5"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
