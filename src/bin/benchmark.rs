@@ -13,6 +13,8 @@ fn main() {
     // disable panic hook so they no longer get printed
     panic::set_hook(Box::new(|_info| {}));
 
+    // TODO: it would be great to sort these by name, so the order of map/gen configs is
+    // consistent. But i guess this should be done in the config storage, not here.
     let init_gen_configs: HashMap<String, GenerationConfig> = GenerationConfig::get_all_configs();
     let init_map_configs: HashMap<String, MapConfig> = MapConfig::get_all_configs();
 
