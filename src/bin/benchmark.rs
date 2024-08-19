@@ -30,7 +30,11 @@ fn main() {
     let init_map_configs: HashMap<String, MapConfig> = MapConfig::get_all_configs();
 
     for (map_config_name, map_config) in init_map_configs.iter() {
-        println!("\n### Map Layout: {map_config_name}");
+        println!(
+            "\n### LAYOUT={} | LENGTH={:.1}",
+            map_config_name,
+            map_config.get_map_length()
+        );
 
         for (gen_config_name, gen_config) in init_gen_configs.iter() {
             let mut elapsed = Duration::ZERO;
@@ -71,12 +75,15 @@ fn main() {
 
             let avg_elapsed_text = elapsed
                 .checked_div(valid_count)
-                .map(|v| format!("{v:?}"))
-                .unwrap_or("XXX".to_string());
-            let error_rate = (error_count as f32) / (iterations as f32);
-            let panic_rate = (panic_count as f32) / (iterations as f32);
+                .map(|v| format!("{} ms", v.as_millis()))
+                .unwrap_or("?".to_string());
+            let error_rate = (error_count as f32) / (MAX_SEED as f32);
+            let panic_rate = (panic_count as f32) / (MAX_SEED as f32);
 
-            println!("GEN {gen_config_name} | AVG_TIME={avg_elapsed_text} | ERROR_RATE={error_rate} | PANIC_RATE={panic_rate}");
+            println!(
+                "GEN {:<15} | AVG_TIME={:<12} | ERROR_RATE={:<4} | PANIC_RATE={:<4}",
+                gen_config_name, avg_elapsed_text, error_rate, panic_rate
+            );
         }
     }
 }
