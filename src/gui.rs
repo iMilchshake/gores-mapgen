@@ -362,7 +362,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
         ui.label("load generation config:");
         egui::ComboBox::from_label("")
-            .selected_text(format!("{:}", editor.gen_config.name))
+            .selected_text(editor.gen_config.name.to_string())
             .show_ui(ui, |ui| {
                 for (name, cfg) in editor.init_gen_configs.iter() {
                     ui.selectable_value(&mut editor.gen_config, cfg.clone(), name);
@@ -370,7 +370,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             });
         ui.label("load map config:");
         egui::ComboBox::from_label(" ")
-            .selected_text(format!("{:}", editor.map_config.name))
+            .selected_text(editor.map_config.name.to_string())
             .show_ui(ui, |ui| {
                 for (name, cfg) in editor.init_map_configs.iter() {
                     // TODO: reinitialize generator with new mapconfig! careful with overriding gen config!

@@ -263,7 +263,7 @@ impl Map {
         F: Fn(&BlockType) -> bool,
     {
         match self.grid.get(pos.as_index()) {
-            Some(value) => criterion(&value),
+            Some(value) => criterion(value),
             None => false,
         }
     }

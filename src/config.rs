@@ -232,7 +232,7 @@ impl GenerationConfig {
             }
         }
 
-        return GenerationConfig::default();
+        GenerationConfig::default()
     }
 }
 

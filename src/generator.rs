@@ -114,11 +114,11 @@ impl Generator {
     /// derive an initial generator state based on a GenerationConfig
     pub fn new(gen_config: &GenerationConfig, map_config: &MapConfig, seed: Seed) -> Generator {
         let map = Map::new(map_config.width, map_config.height, BlockType::Hookable);
-        let spawn = map_config.waypoints.get(0).unwrap().clone();
+        let spawn = map_config.waypoints.first().unwrap().clone();
         let mut rnd = Random::new(seed, gen_config);
 
         let subwaypoints =
-            Generator::generate_sub_waypoints(&map_config.waypoints, &gen_config, &mut rnd)
+            Generator::generate_sub_waypoints(&map_config.waypoints, gen_config, &mut rnd)
                 .unwrap_or(map_config.waypoints.clone()); // on failure just use initial waypoints
 
         // initialize walker
@@ -267,7 +267,7 @@ impl Generator {
 
         // lock all remaining blocks
         self.walker
-            .lock_previous_location(&self.map, &gen_config, true)?;
+            .lock_previous_location(&self.map, gen_config, true)?;
         // TODO: REVERT
         self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
 

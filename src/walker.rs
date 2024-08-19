@@ -277,7 +277,7 @@ impl CuteWalker {
             self.pulse_counter = 0;
         };
 
-        self.last_shift = Some(current_shift.clone());
+        self.last_shift = Some(current_shift);
 
         Ok(())
     }

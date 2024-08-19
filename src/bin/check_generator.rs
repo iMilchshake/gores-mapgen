@@ -8,8 +8,8 @@ fn main() {
         let _ = Generator::generate_map(
             200_000,
             &Seed::from_u64(seed),
-            &GenerationConfig::get_all_configs().get("insaneV2").unwrap(),
-            &MapConfig::get_all_configs().get("hor_line").unwrap(),
+            GenerationConfig::get_all_configs().get("insaneV2").unwrap(),
+            MapConfig::get_all_configs().get("hor_line").unwrap(),
         );
     }
 }

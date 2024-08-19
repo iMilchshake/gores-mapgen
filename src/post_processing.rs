@@ -268,7 +268,7 @@ pub fn check_corner_skip(
             start_pos: init_pos.clone(),
             end_pos: pos,
             length,
-            direction: shift.clone(),
+            direction: *shift,
         })
     } else {
         None
@@ -629,13 +629,9 @@ pub fn get_flood_fill(gen: &Generator, start_pos: &Position) -> Array2<Option<us
 
         for neighbor in neighbors.iter() {
             if let Ok(neighbor_pos) = neighbor {
-                if gen.map.pos_in_bounds(&neighbor_pos) {
-                    if !solid[neighbor_pos.as_index()]
-                        && distance[neighbor_pos.as_index()].is_none()
-                    {
-                        distance[neighbor_pos.as_index()] = Some(dist + 1);
-                        queue.push_back((neighbor_pos.clone(), dist + 1));
-                    }
+                if gen.map.pos_in_bounds(neighbor_pos) && !solid[neighbor_pos.as_index()] && distance[neighbor_pos.as_index()].is_none() {
+                    distance[neighbor_pos.as_index()] = Some(dist + 1);
+                    queue.push_back((neighbor_pos.clone(), dist + 1));
                 }
             }
         }
