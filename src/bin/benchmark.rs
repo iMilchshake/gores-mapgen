@@ -1,15 +1,26 @@
-use gores_mapgen::config::{GenerationConfig, MapConfig};
-use gores_mapgen::generator::Generator;
-use gores_mapgen::random::Seed;
 use std::collections::HashMap;
 use std::panic;
 use std::time::{Duration, Instant};
 
-// TODO: add clap cli for this?
-const MAX_SEED: u64 = 100;
-const MAX_GENERATION_STEPS: usize = 200_000;
+use gores_mapgen::config::{GenerationConfig, MapConfig};
+use gores_mapgen::generator::Generator;
+
+use clap::Parser;
+use gores_mapgen::random::Seed;
+use seed_gen::cli::Seeds;
+
+#[derive(Parser, Debug)]
+pub struct Args {
+    #[arg(short, long, default_value = "200000")]
+    pub max_generation_steps: usize,
+
+    #[command(subcommand)]
+    pub seeds: Seeds,
+}
 
 fn main() {
+    let args = Args::parse();
+
     // disable panic hook so they no longer get printed
     panic::set_hook(Box::new(|_info| {}));
 
@@ -27,12 +38,18 @@ fn main() {
             let mut error_count = 0;
             let mut valid_count = 0;
 
-            for seed in 0..MAX_SEED {
+            let mut iterations = 0;
+            for seed in &args.seeds {
                 let seed = Seed::from_u64(seed);
-
+                iterations += 1;
                 let start_time = Instant::now();
                 let generation_result = panic::catch_unwind(|| {
-                    Generator::generate_map(MAX_GENERATION_STEPS, &seed, gen_config, map_config)
+                    Generator::generate_map(
+                        args.max_generation_steps,
+                        &seed,
+                        gen_config,
+                        map_config,
+                    )
                 });
 
                 match generation_result {
@@ -56,8 +73,8 @@ fn main() {
                 .checked_div(valid_count)
                 .map(|v| format!("{v:?}"))
                 .unwrap_or("XXX".to_string());
-            let error_rate = (error_count as f32) / (MAX_SEED as f32);
-            let panic_rate = (panic_count as f32) / (MAX_SEED as f32);
+            let error_rate = (error_count as f32) / (iterations as f32);
+            let panic_rate = (panic_count as f32) / (iterations as f32);
 
             println!("GEN {gen_config_name} | AVG_TIME={avg_elapsed_text} | ERROR_RATE={error_rate} | PANIC_RATE={panic_rate}");
         }
