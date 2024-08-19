@@ -41,8 +41,8 @@ fn main() {
             let mut panic_count = 0;
             let mut error_count = 0;
             let mut valid_count = 0;
-
             let mut iterations = 0;
+
             for seed in &args.seeds {
                 let seed = Seed::from_u64(seed);
                 iterations += 1;
@@ -77,11 +77,11 @@ fn main() {
                 .checked_div(valid_count)
                 .map(|v| format!("{} ms", v.as_millis()))
                 .unwrap_or("?".to_string());
-            let error_rate = (error_count as f32) / (MAX_SEED as f32);
-            let panic_rate = (panic_count as f32) / (MAX_SEED as f32);
+            let error_rate = (error_count as f32) / (iterations as f32);
+            let panic_rate = (panic_count as f32) / (iterations as f32);
 
             println!(
-                "GEN {:<15} | AVG_TIME={:<12} | ERROR_RATE={:<4} | PANIC_RATE={:<4}",
+                "GEN {:<15} | AVG_TIME={:<12} | ERROR_RATE={:<4.2} | PANIC_RATE={:<4.2}",
                 gen_config_name, avg_elapsed_text, error_rate, panic_rate
             );
         }
