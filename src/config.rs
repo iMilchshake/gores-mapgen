@@ -59,6 +59,14 @@ impl MapConfig {
         let config: MapConfig = serde_json::from_str(data).unwrap();
         config
     }
+
+    /// calculates approximative map length based on waypoints
+    pub fn get_map_length(&self) -> f32 {
+        self.waypoints
+            .windows(2)
+            .map(|w| w[0].distance(&w[1]))
+            .sum()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
