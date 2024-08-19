@@ -77,7 +77,7 @@ async fn main() {
 
         // perform walker step
         let steps = match editor.instant {
-            true => usize::max_value(),
+            true => usize::MAX,
             false => editor.steps_per_frame,
         };
 

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, isize};
+use std::{collections::HashMap, env};
 
 use egui::RichText;
 use tinyfiledialogs;
@@ -68,11 +68,10 @@ pub fn random_dist_cfg_edit<T, F>(
                 for index in 0..cfg.probs.len() {
                     ui.horizontal(|ui| {
                         edit_f32_prob(ui, &mut cfg.probs[index]);
-                        if dist_has_values && edit_element.is_some() {
-                            edit_element.as_ref().unwrap()(
-                                ui,
-                                &mut cfg.values.as_mut().unwrap()[index],
-                            );
+                        if dist_has_values {
+                            if let Some(edit_element) = &edit_element {
+                                edit_element(ui, &mut cfg.values.as_mut().unwrap()[index]);
+                            }
                         }
                     });
                 }
@@ -164,7 +163,7 @@ pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
 }
 
 pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
-    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::max_value()));
+    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::MAX));
 }
 
 pub fn edit_f32_bounded(min: f32, max: f32) -> impl Fn(&mut Ui, &mut f32) {
@@ -227,9 +226,7 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
         ui.label("min:");
         ui.add(egui::widgets::DragValue::new(&mut values.0).clamp_range(0..=values.1));
         ui.label("max:");
-        ui.add(
-            egui::widgets::DragValue::new(&mut values.1).clamp_range(values.0..=usize::max_value()),
-        );
+        ui.add(egui::widgets::DragValue::new(&mut values.1).clamp_range(values.0..=usize::MAX));
     });
 }
 

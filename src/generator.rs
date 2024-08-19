@@ -223,7 +223,7 @@ impl Generator {
     /// distance to the target waypoint.
     /// TODO: currently uses non squared distances, could be optimized
     pub fn generate_sub_waypoints(
-        waypoints: &Vec<Position>,
+        waypoints: &[Position],
         gen_config: &GenerationConfig,
         rnd: &mut Random,
     ) -> Option<Vec<Position>> {

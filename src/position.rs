@@ -1,9 +1,8 @@
-use dt::num::{integer::Roots, Float, ToPrimitive};
+use dt::num::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::{map::Map, random::Random};
 use std::f32::consts::PI;
-use std::usize;
 
 // using my own position vector to meet ndarray's indexing standard using usize
 //

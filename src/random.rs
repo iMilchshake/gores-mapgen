@@ -203,7 +203,7 @@ impl Random {
             self.skip();
             false
         } else {
-            (self.gen.next_u64() as f32) < (u64::max_value() as f32 * probability)
+            (self.gen.next_u64() as f32) < (u64::MAX as f32 * probability)
         }
     }
 
@@ -224,6 +224,6 @@ impl Random {
     }
 
     pub fn random_fraction(&mut self) -> f32 {
-        self.gen.next_u64() as f32 / u64::max_value() as f32
+        self.gen.next_u64() as f32 / u64::MAX as f32
     }
 }
