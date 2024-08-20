@@ -10,12 +10,15 @@ use gores_mapgen::random::Seed;
 use seed_gen::cli::Seeds;
 
 #[derive(Parser, Debug)]
+/// Benchmarks map generation with the specified options. Default is seeds 0 to 100.
 pub struct Args {
     #[arg(short, long, default_value = "200000")]
+    /// The maximum amount of generation steps before generation stops
     pub max_generation_steps: usize,
 
     #[command(subcommand)]
-    pub seeds: Seeds,
+    /// Specify which seed/seeds to use. Default 0 to 100
+    pub seeds: Option<Seeds>,
 }
 
 fn main() {
@@ -43,7 +46,13 @@ fn main() {
             let mut valid_count = 0;
             let mut iterations = 0;
 
-            for seed in &args.seeds {
+            let seeds = args.seeds.clone().unwrap_or_else(|| Seeds::Range {
+                min: 0,
+                max: 100,
+                step: None,
+            });
+
+            for seed in &seeds {
                 let seed = Seed::from_u64(seed);
                 iterations += 1;
                 let start_time = Instant::now();
