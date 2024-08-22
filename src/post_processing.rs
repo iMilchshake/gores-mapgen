@@ -9,7 +9,6 @@ use crate::{
 use std::{
     collections::{HashMap, VecDeque},
     f32::consts::SQRT_2,
-    usize,
 };
 
 use dt::dt_bool;
@@ -268,7 +267,7 @@ pub fn check_corner_skip(
             start_pos: init_pos.clone(),
             end_pos: pos,
             length,
-            direction: shift.clone(),
+            direction: *shift,
         })
     } else {
         None
@@ -422,7 +421,7 @@ pub fn generate_all_skips(
         }
 
         // invalidate if skip would have no neighboring blocks
-        if count_skip_neighbours(gen, skip, 2).unwrap_or(0) <= 0 {
+        if count_skip_neighbours(gen, skip, 2).unwrap_or(0) == 0 {
             // if yes, test if freeze skip would have neighboring blocks
             if count_skip_neighbours(gen, skip, 1).unwrap_or(0) >= 1 {
                 skip_status[skip_index] = SkipStatus::ValidFreezeSkipOnly;
@@ -627,16 +626,13 @@ pub fn get_flood_fill(gen: &Generator, start_pos: &Position) -> Array2<Option<us
             pos.shifted_by(0, 1),
         ];
 
-        for neighbor in neighbors.iter() {
-            if let Ok(neighbor_pos) = neighbor {
-                if gen.map.pos_in_bounds(&neighbor_pos) {
-                    if !solid[neighbor_pos.as_index()]
-                        && distance[neighbor_pos.as_index()].is_none()
-                    {
-                        distance[neighbor_pos.as_index()] = Some(dist + 1);
-                        queue.push_back((neighbor_pos.clone(), dist + 1));
-                    }
-                }
+        for neighbor in neighbors.iter().flatten() {
+            if gen.map.pos_in_bounds(neighbor)
+                && !solid[neighbor.as_index()]
+                && distance[neighbor.as_index()].is_none()
+            {
+                distance[neighbor.as_index()] = Some(dist + 1);
+                queue.push_back((neighbor.clone(), dist + 1));
             }
         }
     }
@@ -777,9 +773,7 @@ pub fn gen_all_platform_candidates(
     let mut platform_candidates: Vec<Platform> = Vec::new();
     let mut last_platform_level_distance = 0;
 
-    for pos_index in 0..walker_pos_history.len() {
-        let pos = &walker_pos_history[pos_index];
-
+    for pos in walker_pos_history {
         // skip if initial walker pos is non empty
         if map.grid[pos.as_index()] != BlockType::Empty {
             continue;

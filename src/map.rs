@@ -119,6 +119,8 @@ pub struct Map {
     pub chunk_size: usize,
 }
 
+// TODO: remove this method if not needed
+#[allow(dead_code)]
 fn get_maps_path() -> PathBuf {
     if cfg!(target_os = "windows") {
         dirs::data_dir().unwrap().join("Teeworlds").join("maps")
@@ -263,7 +265,7 @@ impl Map {
         F: Fn(&BlockType) -> bool,
     {
         match self.grid.get(pos.as_index()) {
-            Some(value) => criterion(&value),
+            Some(value) => criterion(value),
             None => false,
         }
     }

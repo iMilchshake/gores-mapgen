@@ -133,43 +133,40 @@ impl Random {
     pub fn sample_inner_kernel_size(&mut self) -> usize {
         let dist = &self.inner_kernel_size_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        dist.rnd_cfg
+        *dist.rnd_cfg
             .values
             .as_ref()
             .unwrap()
             .get(index)
             .unwrap()
-            .clone()
     }
 
     pub fn sample_outer_kernel_margin(&mut self) -> usize {
         let dist = &self.outer_kernel_margin_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        dist.rnd_cfg
+        *dist.rnd_cfg
             .values
             .as_ref()
             .unwrap()
             .get(index)
             .unwrap()
-            .clone()
     }
 
     pub fn sample_circularity(&mut self) -> f32 {
         let dist = &self.circ_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        dist.rnd_cfg
+        *dist.rnd_cfg
             .values
             .as_ref()
             .unwrap()
             .get(index)
             .unwrap()
-            .clone()
     }
 
     pub fn sample_shift(&mut self, ordered_shifts: &[ShiftDirection; 4]) -> ShiftDirection {
         let dist = &self.shift_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        ordered_shifts.get(index).unwrap().clone()
+        *ordered_shifts.get(index).unwrap()
     }
 
     /// derive a u64 seed from entropy
@@ -206,7 +203,7 @@ impl Random {
             self.skip();
             false
         } else {
-            (self.gen.next_u64() as f32) < (u64::max_value() as f32 * probability)
+            (self.gen.next_u64() as f32) < (u64::MAX as f32 * probability)
         }
     }
 
@@ -227,6 +224,6 @@ impl Random {
     }
 
     pub fn random_fraction(&mut self) -> f32 {
-        self.gen.next_u64() as f32 / u64::max_value() as f32
+        self.gen.next_u64() as f32 / u64::MAX as f32
     }
 }

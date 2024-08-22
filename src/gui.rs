@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, isize};
+use std::{collections::HashMap, env};
 
 use egui::RichText;
 use tinyfiledialogs;
@@ -68,11 +68,10 @@ pub fn random_dist_cfg_edit<T, F>(
                 for index in 0..cfg.probs.len() {
                     ui.horizontal(|ui| {
                         edit_f32_prob(ui, &mut cfg.probs[index]);
-                        if dist_has_values && edit_element.is_some() {
-                            edit_element.as_ref().unwrap()(
-                                ui,
-                                &mut cfg.values.as_mut().unwrap()[index],
-                            );
+                        if dist_has_values {
+                            if let Some(edit_element) = &edit_element {
+                                edit_element(ui, &mut cfg.values.as_mut().unwrap()[index]);
+                            }
                         }
                     });
                 }
@@ -164,7 +163,7 @@ pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
 }
 
 pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
-    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::max_value()));
+    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::MAX));
 }
 
 pub fn edit_f32_bounded(min: f32, max: f32) -> impl Fn(&mut Ui, &mut f32) {
@@ -227,9 +226,7 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
         ui.label("min:");
         ui.add(egui::widgets::DragValue::new(&mut values.0).clamp_range(0..=values.1));
         ui.label("max:");
-        ui.add(
-            egui::widgets::DragValue::new(&mut values.1).clamp_range(values.0..=usize::max_value()),
-        );
+        ui.add(egui::widgets::DragValue::new(&mut values.1).clamp_range(values.0..=usize::MAX));
     });
 }
 
@@ -362,7 +359,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
         ui.label("load generation config:");
         egui::ComboBox::from_label("")
-            .selected_text(format!("{:}", editor.gen_config.name))
+            .selected_text(editor.gen_config.name.to_string())
             .show_ui(ui, |ui| {
                 for (name, cfg) in editor.init_gen_configs.iter() {
                     ui.selectable_value(&mut editor.gen_config, cfg.clone(), name);
@@ -370,7 +367,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             });
         ui.label("load map config:");
         egui::ComboBox::from_label(" ")
-            .selected_text(format!("{:}", editor.map_config.name))
+            .selected_text(editor.map_config.name.to_string())
             .show_ui(ui, |ui| {
                 for (name, cfg) in editor.init_map_configs.iter() {
                     // TODO: reinitialize generator with new mapconfig! careful with overriding gen config!
