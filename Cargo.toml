@@ -51,6 +51,7 @@ log = "0.4.22"
 simple_logger = "5.0.0"
 base64 = "0.22.1"
 seed_gen = "1.1.0"
+indicatif = "0.17.8"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
