@@ -46,7 +46,7 @@ fn main() {
             let mut valid_count = 0;
             let mut iterations = 0;
 
-            let seeds = args.seeds.clone().unwrap_or_else(|| Seeds::Range {
+            let seeds = args.seeds.clone().unwrap_or(Seeds::Range {
                 min: 0,
                 max: 100,
                 step: None,
