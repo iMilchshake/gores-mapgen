@@ -8,6 +8,7 @@ use gores_mapgen::{
     map::*,
     rendering::*,
 };
+use log::warn;
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
 use simple_logger::SimpleLogger;
@@ -44,15 +45,16 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    // initialization
     let args = Args::parse();
     SimpleLogger::new().init().unwrap();
-
     let mut editor = Editor::new(
         GenerationConfig::get_initial_gen_config(),
         MapConfig::get_initial_config(),
     );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
+    // handle cli args TODO: move all to some editor function
     if args.testing {
         editor.instant = true;
         editor.fixed_seed = true;
@@ -61,27 +63,28 @@ async fn main() {
     }
 
     if let Some(config_name) = args.config {
-        if editor.init_gen_configs.contains_key(&config_name) {
-            editor.gen_config = editor.init_gen_configs.get(&config_name).unwrap().clone();
+        if editor.load_gen_config(&config_name).is_err() {
+            warn!("Coulnt load config {}", config_name);
         }
     }
 
+    // main loop for gui (and step-wise map generation)
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
-        // optionally, start generating next map right away
+        // "auto generate": start generating next map right away
         if editor.is_paused() && editor.auto_generate {
             editor.set_playing();
         }
 
-        // perform walker step
-        let steps = match editor.instant {
+        // "instant": perform maximum possible amount of generation steps
+        let generation_steps = match editor.instant {
             true => usize::MAX,
             false => editor.steps_per_frame,
         };
 
-        for _ in 0..steps {
+        for _ in 0..generation_steps {
             if editor.is_paused() || editor.gen.walker.finished {
                 break;
             }
@@ -140,7 +143,6 @@ async fn main() {
         }
 
         egui_macroquad::draw();
-
         fps_ctrl.wait_for_next_frame().await;
     }
 }

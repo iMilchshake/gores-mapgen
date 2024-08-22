@@ -59,8 +59,8 @@ enum PausedState {
 }
 pub struct Editor {
     state: EditorState,
-    pub init_gen_configs: HashMap<String, GenerationConfig>,
-    pub init_map_configs: HashMap<String, MapConfig>,
+    pub init_gen_configs: Vec<GenerationConfig>,
+    pub init_map_configs: Vec<MapConfig>,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub average_fps: f32,
@@ -95,9 +95,8 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(gen_config: GenerationConfig, map_config: MapConfig) -> Editor {
-        let init_gen_configs: HashMap<String, GenerationConfig> =
-            GenerationConfig::get_all_configs();
-        let init_map_configs: HashMap<String, MapConfig> = MapConfig::get_all_configs();
+        let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
+        let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
 
         // TODO: its kinda stupid to initialize this as its literally re-initialized anyways
         // when starting the first map generation. But i dont wanna bother adding an Option here as
@@ -308,6 +307,19 @@ impl Editor {
         // mouse pressed for first frame, reset last position
         } else if is_mouse_button_released(MouseButton::Left) {
             self.last_mouse = None;
+        }
+    }
+
+    pub fn load_gen_config(&mut self, config_name: &str) -> Result<(), &'static str> {
+        if let Some(config) = self
+            .init_gen_configs
+            .iter()
+            .find(|&c| c.name == config_name)
+        {
+            self.gen_config = config.clone();
+            Ok(())
+        } else {
+            Err("Generation config not found!")
         }
     }
 }

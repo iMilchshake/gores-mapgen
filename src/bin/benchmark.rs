@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::panic;
 use std::time::{Duration, Instant};
 
@@ -27,19 +26,17 @@ fn main() {
     // disable panic hook so they no longer get printed
     panic::set_hook(Box::new(|_info| {}));
 
-    // TODO: it would be great to sort these by name, so the order of map/gen configs is
-    // consistent. But i guess this should be done in the config storage, not here.
-    let init_gen_configs: HashMap<String, GenerationConfig> = GenerationConfig::get_all_configs();
-    let init_map_configs: HashMap<String, MapConfig> = MapConfig::get_all_configs();
+    let init_gen_configs = GenerationConfig::get_all_configs();
+    let init_map_configs = MapConfig::get_all_configs();
 
-    for (map_config_name, map_config) in init_map_configs.iter() {
+    for map_config in init_map_configs.iter() {
         println!(
             "\n### LAYOUT={} | LENGTH={:.1}",
-            map_config_name,
+            map_config.name,
             map_config.get_map_length()
         );
 
-        for (gen_config_name, gen_config) in init_gen_configs.iter() {
+        for gen_config in init_gen_configs.iter() {
             let mut elapsed = Duration::ZERO;
             let mut panic_count = 0;
             let mut error_count = 0;
@@ -91,7 +88,7 @@ fn main() {
 
             println!(
                 "GEN {:<15} | AVG_TIME={:<12} | ERROR_RATE={:<4.2} | PANIC_RATE={:<4.2}",
-                gen_config_name, avg_elapsed_text, error_rate, panic_rate
+                gen_config.name, avg_elapsed_text, error_rate, panic_rate
             );
         }
     }

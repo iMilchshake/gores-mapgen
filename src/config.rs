@@ -3,7 +3,6 @@ use crate::random::RandomDistConfig;
 use log::warn;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -32,15 +31,23 @@ pub struct MapConfig {
 }
 
 impl MapConfig {
-    pub fn get_all_configs() -> HashMap<String, MapConfig> {
-        let mut configs = HashMap::new();
+    pub fn get_all_configs() -> Vec<MapConfig> {
+        let mut configs: Vec<MapConfig> = Vec::new();
 
         for file_name in MapConfigStorage::iter() {
             let file = MapConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
-            let config: MapConfig = serde_json::from_str(data).unwrap();
-            configs.insert(config.name.clone(), config);
+            match serde_json::from_str::<MapConfig>(data) {
+                Ok(config) => {
+                    configs.push(config);
+                }
+                Err(e) => {
+                    warn!("couldn't parse map config {}: {}", file_name, e);
+                }
+            }
         }
+
+        configs.sort_by(|a, b| a.name.cmp(&b.name));
 
         configs
     }
@@ -211,21 +218,23 @@ impl GenerationConfig {
         deserialized
     }
 
-    pub fn get_all_configs() -> HashMap<String, GenerationConfig> {
-        let mut configs = HashMap::new();
+    pub fn get_all_configs() -> Vec<GenerationConfig> {
+        let mut configs: Vec<GenerationConfig> = Vec::new();
 
         for file_name in GenerationConfigStorage::iter() {
             let file = GenerationConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
             match serde_json::from_str::<GenerationConfig>(data) {
                 Ok(config) => {
-                    configs.insert(config.name.clone(), config);
+                    configs.push(config);
                 }
                 Err(e) => {
                     warn!("couldn't parse gen config {}: {}", file_name, e);
                 }
             }
         }
+
+        configs.sort_by(|a, b| a.name.cmp(&b.name));
 
         configs
     }

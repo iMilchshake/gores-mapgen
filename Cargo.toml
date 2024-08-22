@@ -15,9 +15,6 @@ name = "camera_test"
 name = "twmap_test"
 
 [[bin]]
-name = "check_generator"
-
-[[bin]]
 name = "automap_test"
 
 [[bin]]
