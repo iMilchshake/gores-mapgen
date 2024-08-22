@@ -1,15 +1,29 @@
-use gores_mapgen::config::{GenerationConfig, MapConfig};
-use gores_mapgen::generator::Generator;
-use gores_mapgen::random::Seed;
 use std::collections::HashMap;
 use std::panic;
 use std::time::{Duration, Instant};
 
-// TODO: add clap cli for this?
-const MAX_SEED: u64 = 100;
-const MAX_GENERATION_STEPS: usize = 200_000;
+use gores_mapgen::config::{GenerationConfig, MapConfig};
+use gores_mapgen::generator::Generator;
+
+use clap::Parser;
+use gores_mapgen::random::Seed;
+use seed_gen::cli::Seeds;
+
+#[derive(Parser, Debug)]
+/// Benchmarks map generation with the specified options. Default is seeds 0 to 100.
+pub struct Args {
+    #[arg(short, long, default_value = "200000")]
+    /// The maximum amount of generation steps before generation stops
+    pub max_generation_steps: usize,
+
+    #[command(subcommand)]
+    /// Specify which seed/seeds to use. Default 0 to 100
+    pub seeds: Option<Seeds>,
+}
 
 fn main() {
+    let args = Args::parse();
+
     // disable panic hook so they no longer get printed
     panic::set_hook(Box::new(|_info| {}));
 
@@ -30,13 +44,25 @@ fn main() {
             let mut panic_count = 0;
             let mut error_count = 0;
             let mut valid_count = 0;
+            let mut iterations = 0;
 
-            for seed in 0..MAX_SEED {
+            let seeds = args.seeds.clone().unwrap_or_else(|| Seeds::Range {
+                min: 0,
+                max: 100,
+                step: None,
+            });
+
+            for seed in &seeds {
                 let seed = Seed::from_u64(seed);
-
+                iterations += 1;
                 let start_time = Instant::now();
                 let generation_result = panic::catch_unwind(|| {
-                    Generator::generate_map(MAX_GENERATION_STEPS, &seed, gen_config, map_config)
+                    Generator::generate_map(
+                        args.max_generation_steps,
+                        &seed,
+                        gen_config,
+                        map_config,
+                    )
                 });
 
                 match generation_result {
@@ -60,11 +86,11 @@ fn main() {
                 .checked_div(valid_count)
                 .map(|v| format!("{} ms", v.as_millis()))
                 .unwrap_or("?".to_string());
-            let error_rate = (error_count as f32) / (MAX_SEED as f32);
-            let panic_rate = (panic_count as f32) / (MAX_SEED as f32);
+            let error_rate = (error_count as f32) / (iterations as f32);
+            let panic_rate = (panic_count as f32) / (iterations as f32);
 
             println!(
-                "GEN {:<15} | AVG_TIME={:<12} | ERROR_RATE={:<4} | PANIC_RATE={:<4}",
+                "GEN {:<15} | AVG_TIME={:<12} | ERROR_RATE={:<4.2} | PANIC_RATE={:<4.2}",
                 gen_config_name, avg_elapsed_text, error_rate, panic_rate
             );
         }
