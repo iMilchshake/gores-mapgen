@@ -115,7 +115,7 @@ impl Editor {
             egui_wants_mouse: None,
             average_fps: 0.0,
             cam: None,
-            map_cam: MapCamera::new(),
+            map_cam: MapCamera::default(),
             gen_config,
             map_config,
             steps_per_frame: STEPS_PER_FRAME,

@@ -9,9 +9,6 @@ name = "gores-generator"
 path = "src/main.rs"
 
 [[bin]]
-name = "camera_test"
-
-[[bin]]
 name = "twmap_test"
 
 [[bin]]

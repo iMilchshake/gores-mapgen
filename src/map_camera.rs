@@ -10,31 +10,28 @@ const ZOOM_FACTOR: f32 = 0.9;
 pub struct MapCamera {
     offset: Vec2,
     zoom: f32,
-    map_width: f32,
-    map_height: f32,
-    viewport: Vec2,
+    map_size: Option<Vec2>,
+    viewport: Option<Vec2>,
 }
 
-impl MapCamera {
-    pub fn new() -> MapCamera {
+impl Default for MapCamera {
+    fn default() -> MapCamera {
         MapCamera {
             offset: Vec2::ZERO,
             zoom: 1.0,
-
-            // TODO: i guess it would be cleaner to use options here :3
-            map_width: 0.,
-            map_height: 0.,
-            viewport: Vec2::ZERO,
+            map_size: None,
+            viewport: None,
         }
     }
+}
 
+impl MapCamera {
     pub fn update_map_size(&mut self, map_width: usize, map_height: usize) {
-        self.map_width = map_width as f32;
-        self.map_height = map_height as f32;
+        self.map_size = Some(Vec2::new(map_width as f32, map_height as f32));
     }
 
     pub fn update_viewport_from_egui_rect(&mut self, canvas: &EGuiRect) {
-        self.viewport = Vec2::new(canvas.max.x, canvas.max.y);
+        self.viewport = Some(Vec2::new(canvas.max.x, canvas.max.y));
     }
 
     /// reset camera transformations
@@ -54,21 +51,25 @@ impl MapCamera {
     /// expects a "local" shift in [-1, +1] range wrt. to the full window size.
     /// if a viewport is used it will be scaled accordingly.
     pub fn shift(&mut self, local_shift: Vec2) {
-        let x_ratio = self.viewport.x / screen_width();
-        let y_ratio = self.viewport.y / screen_height();
+        let viewport = self.viewport.expect("viewport not defined!");
+        let x_ratio = viewport.x / screen_width();
+        let y_ratio = viewport.y / screen_height();
         let local_shift = Vec2::new(local_shift.x / x_ratio, local_shift.y / y_ratio);
 
         self.offset += local_shift / self.zoom;
     }
 
     pub fn get_macroquad_cam(&self) -> Camera2D {
+        let viewport = self.viewport.expect("viewport not defined!");
+        let map_size = self.map_size.expect("map size not defined!");
+
         // Calculate aspect ratio
-        let viewport_ratio = self.viewport.x / self.viewport.y;
-        let map_ratio = self.map_width / self.map_height;
+        let viewport_ratio = viewport.x / viewport.y;
+        let map_ratio = map_size.x / map_size.y;
         let (cam_width, cam_height) = if viewport_ratio > map_ratio {
-            (self.map_width * viewport_ratio / map_ratio, self.map_height)
+            (map_size.x * viewport_ratio / map_ratio, map_size.y)
         } else {
-            (self.map_width, self.map_height * map_ratio / viewport_ratio)
+            (map_size.x, map_size.y * map_ratio / viewport_ratio)
         };
 
         // set camera rect
@@ -80,20 +81,18 @@ impl MapCamera {
             (-self.offset.y / cam.zoom.y) + (cam_height / 2.),
         );
         cam.zoom *= self.zoom;
-        cam.viewport = Some((0, 0, self.viewport.x as i32, self.viewport.y as i32));
+        cam.viewport = Some((0, 0, viewport.x as i32, viewport.y as i32));
 
         cam
     }
 
     /// debug draws
     pub fn draw_cam_debug(&self, cam: &Camera2D) {
-        // doesnt work due to viewport
-        // let mouse_abs = cam.screen_to_world(Vec2::new(mouse_position().0, mouse_position().1));
-        // draw_circle(mouse_abs.x, mouse_abs.y, 1.0, LIME);
+        let map_size = self.map_size.expect("map size not defined!");
 
-        draw_line(0.0, 0.0, self.map_width, self.map_height, 2., BLUE);
-        draw_rectangle_lines(0.0, 0.0, self.map_width, self.map_height, 2.0, RED);
-        draw_circle(self.map_width / 2., self.map_height / 2., 2.0, LIME);
+        draw_line(0.0, 0.0, map_size.x, map_size.y, 2., BLUE);
+        draw_rectangle_lines(0.0, 0.0, map_size.x, map_size.y, 2.0, RED);
+        draw_circle(map_size.x / 2., map_size.y / 2., 2.0, LIME);
         draw_circle(cam.target.x, cam.target.y, 2.0, DARKBLUE);
     }
 }
