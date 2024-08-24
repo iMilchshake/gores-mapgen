@@ -117,11 +117,10 @@ async fn main() {
         }
 
         editor.define_egui();
-        editor.set_cam();
+        editor.update_cam();
         editor.handle_user_inputs();
 
         clear_background(WHITE);
-        // draw_grid_blocks(&editor.gen.map.grid);
         draw_chunked_grid(
             &editor.gen.map.grid,
             &editor.gen.map.chunk_edited,
