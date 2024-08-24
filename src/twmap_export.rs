@@ -1,6 +1,6 @@
 use crate::map::{BlockTypeTW, Map};
 use crate::position::Position;
-use ndarray::{Array2};
+use ndarray::Array2;
 use rust_embed::RustEmbed;
 use std::path::PathBuf;
 use twmap::{
@@ -90,7 +90,9 @@ impl TwExport {
     }
 
     pub fn export(map: &Map, path: &PathBuf) {
-        let mut tw_map = TwMap::parse_file("automap_test.map").expect("parsing failed");
+        let mut tw_map =
+            TwMap::parse(&std::fs::read("automap_test.map").expect("map file couldn't be read"))
+                .expect("parsing failed");
         tw_map.load().expect("loading failed");
 
         TwExport::process_layer(&mut tw_map, map, &0, "Freeze", &BlockTypeTW::Freeze);
@@ -115,6 +117,8 @@ impl TwExport {
 
         // save map
         println!("exporting map to {:?}", &path);
-        tw_map.save_file(path).expect("failed to write map file");
+
+        let mut file = std::fs::File::create(path).unwrap();
+        tw_map.save(&mut file).expect("failed to write map file");
     }
 }

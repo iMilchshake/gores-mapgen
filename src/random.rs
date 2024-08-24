@@ -1,5 +1,6 @@
 use crate::config::GenerationConfig;
 use crate::position::ShiftDirection;
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use rand::prelude::*;
 use rand::rngs::SmallRng;
 use rand_distr::WeightedAliasIndex;
@@ -73,7 +74,7 @@ pub struct Random {
 #[derive(Debug, Clone)]
 pub struct Seed {
     pub seed_u64: u64,
-    pub seed_str: String,
+    pub seed_str: String, // TODO: yeah okay no idea why i did this lol
 }
 
 impl Seed {
@@ -93,6 +94,19 @@ impl Seed {
 
     pub fn from_random(rnd: &mut Random) -> Seed {
         Seed::from_u64(rnd.random_u64())
+    }
+
+    pub fn from_base64(base64_str: String) -> Seed {
+        let decoded_bytes = URL_SAFE
+            .decode(base64_str)
+            .expect("couldn't decode given base64 string");
+        assert_eq!(decoded_bytes.len(), 8, "exactly 8 bytes expected");
+        let seed_u64: u64 = u64::from_be_bytes(decoded_bytes.try_into().unwrap());
+        Seed::from_u64(seed_u64)
+    }
+
+    pub fn to_base64(&self) -> String {
+        URL_SAFE.encode(self.seed_u64.to_be_bytes())
     }
 
     pub fn random() -> Seed {
@@ -120,43 +134,25 @@ impl Random {
     pub fn sample_inner_kernel_size(&mut self) -> usize {
         let dist = &self.inner_kernel_size_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        dist.rnd_cfg
-            .values
-            .as_ref()
-            .unwrap()
-            .get(index)
-            .unwrap()
-            .clone()
+        *dist.rnd_cfg.values.as_ref().unwrap().get(index).unwrap()
     }
 
     pub fn sample_outer_kernel_margin(&mut self) -> usize {
         let dist = &self.outer_kernel_margin_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        dist.rnd_cfg
-            .values
-            .as_ref()
-            .unwrap()
-            .get(index)
-            .unwrap()
-            .clone()
+        *dist.rnd_cfg.values.as_ref().unwrap().get(index).unwrap()
     }
 
     pub fn sample_circularity(&mut self) -> f32 {
         let dist = &self.circ_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        dist.rnd_cfg
-            .values
-            .as_ref()
-            .unwrap()
-            .get(index)
-            .unwrap()
-            .clone()
+        *dist.rnd_cfg.values.as_ref().unwrap().get(index).unwrap()
     }
 
     pub fn sample_shift(&mut self, ordered_shifts: &[ShiftDirection; 4]) -> ShiftDirection {
         let dist = &self.shift_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
-        ordered_shifts.get(index).unwrap().clone()
+        *ordered_shifts.get(index).unwrap()
     }
 
     /// derive a u64 seed from entropy
@@ -193,7 +189,7 @@ impl Random {
             self.skip();
             false
         } else {
-            (self.gen.next_u64() as f32) < (u64::max_value() as f32 * probability)
+            (self.gen.next_u64() as f32) < (u64::MAX as f32 * probability)
         }
     }
 
@@ -213,7 +209,7 @@ impl Random {
         &values[self.in_range_exclusive(0, values.len())]
     }
 
-    pub fn random_circularity(&mut self) -> f32 {
-        self.gen.next_u64() as f32 / u64::max_value() as f32
+    pub fn random_fraction(&mut self) -> f32 {
+        self.gen.next_u64() as f32 / u64::MAX as f32
     }
 }

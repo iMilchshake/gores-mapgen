@@ -1,13 +1,14 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use clap::{crate_version, Parser};
-use gores_mapgen_rust::{
+use gores_mapgen::{
     config::{GenerationConfig, MapConfig},
     editor::*,
     fps_control::*,
     map::*,
     rendering::*,
 };
+use log::warn;
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
 use simple_logger::SimpleLogger;
@@ -44,15 +45,16 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    // initialization
     let args = Args::parse();
     SimpleLogger::new().init().unwrap();
-
     let mut editor = Editor::new(
-        GenerationConfig::get_initial_config(true),
+        GenerationConfig::get_initial_gen_config(),
         MapConfig::get_initial_config(),
     );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
+    // handle cli args TODO: move all to some editor function
     if args.testing {
         editor.instant = true;
         editor.fixed_seed = true;
@@ -61,27 +63,28 @@ async fn main() {
     }
 
     if let Some(config_name) = args.config {
-        if editor.init_gen_configs.contains_key(&config_name) {
-            editor.gen_config = editor.init_gen_configs.get(&config_name).unwrap().clone();
+        if editor.load_gen_config(&config_name).is_err() {
+            warn!("Coulnt load config {}", config_name);
         }
     }
 
+    // main loop for gui (and step-wise map generation)
     loop {
         fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
-        // optionally, start generating next map right away
+        // "auto generate": start generating next map right away
         if editor.is_paused() && editor.auto_generate {
             editor.set_playing();
         }
 
-        // perform walker step
-        let steps = match editor.instant {
-            true => usize::max_value(),
+        // "instant": perform maximum possible amount of generation steps
+        let generation_steps = match editor.instant {
+            true => usize::MAX,
             false => editor.steps_per_frame,
         };
 
-        for _ in 0..steps {
+        for _ in 0..generation_steps {
             if editor.is_paused() || editor.gen.walker.finished {
                 break;
             }
@@ -103,7 +106,7 @@ async fn main() {
             let _ = panic::catch_unwind(AssertUnwindSafe(|| {
                 editor
                     .gen
-                    .post_processing(&editor.gen_config)
+                    .perform_all_post_processing(&editor.gen_config)
                     .unwrap_or_else(|err| {
                         println!("Post Processing Failed: {:}", err);
                     });
@@ -114,21 +117,22 @@ async fn main() {
         }
 
         editor.define_egui();
-        editor.set_cam();
+        editor.update_cam();
         editor.handle_user_inputs();
 
         clear_background(WHITE);
-        // draw_grid_blocks(&editor.gen.map.grid);
         draw_chunked_grid(
             &editor.gen.map.grid,
             &editor.gen.map.chunk_edited,
             editor.gen.map.chunk_size,
         );
+
+        // TODO: group in some "debug" visualization call
         draw_walker_kernel(&editor.gen.walker, KernelType::Outer);
         draw_walker_kernel(&editor.gen.walker, KernelType::Inner);
         draw_walker(&editor.gen.walker);
-
-        draw_waypoints(&editor.map_config.waypoints);
+        draw_waypoints(&editor.gen.walker.waypoints, colors::BLUE);
+        draw_waypoints(&editor.map_config.waypoints, colors::RED);
 
         // draw debug layers
         if let Some(ref mut debug_layers) = editor.gen.debug_layers {
@@ -140,7 +144,6 @@ async fn main() {
         }
 
         egui_macroquad::draw();
-
         fps_ctrl.wait_for_next_frame().await;
     }
 }

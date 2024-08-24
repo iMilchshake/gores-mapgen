@@ -1,7 +1,8 @@
+use dt::num::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::map::Map;
-use std::usize;
+use crate::{map::Map, random::Random};
+use std::f32::consts::PI;
 
 // using my own position vector to meet ndarray's indexing standard using usize
 //
@@ -71,6 +72,21 @@ impl Position {
         Ok(())
     }
 
+    /// will return a randomly shifted
+    pub fn random_shift(
+        &self,
+        rnd: &mut Random,
+        max_distance: f32,
+    ) -> Result<Position, &'static str> {
+        let direction_radians = rnd.random_fraction() * 2.0 * PI;
+        let distance = rnd.random_fraction() * max_distance;
+
+        let delta_x = distance * direction_radians.cos();
+        let delta_y = distance * direction_radians.sin();
+
+        self.shifted_by(delta_x.round() as i32, delta_y.round() as i32)
+    }
+
     pub fn is_shift_valid(&self, shift: &ShiftDirection, map: &Map) -> bool {
         match shift {
             ShiftDirection::Up => self.y > 0,
@@ -103,6 +119,24 @@ impl Position {
     /// squared euclidean distance between two Positions
     pub fn distance_squared(&self, rhs: &Position) -> usize {
         self.x.abs_diff(rhs.x).saturating_pow(2) + self.y.abs_diff(rhs.y).saturating_pow(2)
+    }
+
+    /// euclidean distance between two Positions
+    pub fn distance(&self, rhs: &Position) -> f32 {
+        (self.x.abs_diff(rhs.x).saturating_pow(2) + self.y.abs_diff(rhs.y).saturating_pow(2))
+            .to_f32()
+            .unwrap()
+            .sqrt()
+    }
+
+    pub fn lerp(&self, other: &Position, weight: f32) -> Position {
+        let lerp_x = (self.x as f32 * (1.0 - weight) + other.x as f32 * weight).round() as usize;
+        let lerp_y = (self.y as f32 * (1.0 - weight) + other.y as f32 * weight).round() as usize;
+
+        Position {
+            x: lerp_x,
+            y: lerp_y,
+        }
     }
 
     /// returns a Vec with all possible shifts, sorted by how close they get

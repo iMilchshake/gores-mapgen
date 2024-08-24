@@ -1,39 +1,23 @@
 [package]
-name = "gores-mapgen-rust"
+name = "gores-mapgen"
 version = "1.0.0"
 edition = "2021"
 default-run = "gores-generator"
-
-# [features]
-# ddnet_bridge = ["dep:regex", "dep:telnet"]
 
 [[bin]]
 name = "gores-generator"
 path = "src/main.rs"
 
 [[bin]]
-name = "camera_test"
-
-[[bin]]
-name = "kernel_test"
-
-[[bin]]
 name = "twmap_test"
-
-[[bin]]
-name = "ddnet_bridge"
-
-[[bin]]
-name = "check_generator"
 
 [[bin]]
 name = "automap_test"
 
+[[bin]]
+name = "benchmark"
+
 [dependencies]
-# egui-macroquad = { git = "https://github.com/optozorax/egui-macroquad", default-features = false, rev="dfbdb967d6cf4e4726b84a568ec1b2bdc7e4f492" }
-# macroquad = "0.4.4"
-# egui = "0.25.0"
-egui_struct = { version = "0.4", default-features = false, features = [ "egui21" ] }
 egui-macroquad = "0.15.0"
  
 egui = "0.21.0"
@@ -44,10 +28,7 @@ ndarray = "0.15.6"
 rand = {version="0.8.5", features=['small_rng']}
 seahash = "4.1.0"
 rand_distr = "0.4.3"
-itertools = "0.12.1"
 twmap = "0.12.0"
-telnet = "0.2.1"
-regex = "1.10.4"
 clap = { version = "4.5.4", features = ["derive", "cargo"] }
 dirs = "5.0.1"
 serde = "1.0.197"
@@ -55,17 +36,15 @@ serde_json = "1.0.115"
 rust-embed = "8.3.0"
 tinyfiledialogs = "3.9.1"
 
-
 # dt = "1.0.6"
 dt = {git = "https://github.com/iMilchshake/dt"}
 derivative = "2.2.0"
 timing = "0.2.3"
-log = "0.4.21"
+log = "0.4.22"
 simple_logger = "5.0.0"
-
-
-[dev-dependencies]
-telnet = { version = "0.2.1"}
+base64 = "0.22.1"
+seed_gen = "1.1.0"
+indicatif = "0.17.8"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

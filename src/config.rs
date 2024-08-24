@@ -3,7 +3,6 @@ use crate::random::RandomDistConfig;
 use log::warn;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -32,15 +31,23 @@ pub struct MapConfig {
 }
 
 impl MapConfig {
-    pub fn get_all_configs() -> HashMap<String, MapConfig> {
-        let mut configs = HashMap::new();
+    pub fn get_all_configs() -> Vec<MapConfig> {
+        let mut configs: Vec<MapConfig> = Vec::new();
 
         for file_name in MapConfigStorage::iter() {
             let file = MapConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
-            let config: MapConfig = serde_json::from_str(data).unwrap();
-            configs.insert(config.name.clone(), config);
+            match serde_json::from_str::<MapConfig>(data) {
+                Ok(config) => {
+                    configs.push(config);
+                }
+                Err(e) => {
+                    warn!("couldn't parse map config {}: {}", file_name, e);
+                }
+            }
         }
+
+        configs.sort_by(|a, b| a.name.cmp(&b.name));
 
         configs
     }
@@ -58,6 +65,14 @@ impl MapConfig {
         let data = std::str::from_utf8(&file.data).unwrap();
         let config: MapConfig = serde_json::from_str(data).unwrap();
         config
+    }
+
+    /// calculates approximative map length based on waypoints
+    pub fn get_map_length(&self) -> f32 {
+        self.waypoints
+            .windows(2)
+            .map(|w| w[0].distance(&w[1]))
+            .sum()
     }
 }
 
@@ -88,13 +103,22 @@ pub struct GenerationConfig {
     /// probability weighting for random selection from best to worst towards next goal
     pub shift_weights: RandomDistConfig<ShiftDirection>,
 
-    /// (min, max) distance between platforms
-    pub platform_distance_bounds: (usize, usize),
+    // ===================================[ platforms ]==========================================
+    /// min distance between platforms
+    pub plat_min_distance: usize,
+    pub plat_width_bounds: (usize, usize),
+    pub plat_height_bounds: (usize, usize),
+    pub plat_min_empty_height: usize,
 
+    /// allow "soft" overlaps -> non-empty blocks below platform (e.g. freeze)
+    pub plat_soft_overhang: bool,
+
+    // ===================================[ ]==========================================
     /// probability for doing the last shift direction again
     pub momentum_prob: f32,
 
-    /// maximum distance from empty blocks to nearest non empty block
+    /// maximum distance from empty blocks to nearest non empty block for obstacle generation
+    /// TODO: rename in new version bump, as this is not self explanatory at all xd
     pub max_distance: f32,
 
     /// min distance to next waypoint that is considered reached
@@ -112,8 +136,13 @@ pub struct GenerationConfig {
     /// (min, max) distance for skips
     pub skip_length_bounds: (usize, usize),
 
-    /// min distance between skips
+    /// min distance between skips. If a skip is validated, all neighbouring skips closer than this
+    /// range are invalidated.
     pub skip_min_spacing_sqr: usize,
+
+    /// maximum amount of the level is allowed to skip. This ensures that different parts of a map
+    /// are not connected.
+    pub max_level_skip: usize,
 
     /// min unconnected freeze obstacle size
     pub min_freeze_size: usize,
@@ -139,6 +168,21 @@ pub struct GenerationConfig {
 
     /// goal min kernel size for fading
     pub fade_min_size: usize,
+
+    /// maximum valid distance between subwaypoints
+    pub max_subwaypoint_dist: f32,
+
+    /// maximum distance that subwaypoints are shifted from their base position
+    pub subwaypoint_max_shift_dist: f32,
+
+    /// how close previous positions may be locked
+    pub pos_lock_max_dist: f32,
+
+    /// how many steps the locking may lack behind until the generation is considered "stuck"
+    pub pos_lock_max_delay: usize,
+
+    /// size of area that is locked
+    pub lock_kernel_size: usize,
 }
 
 impl GenerationConfig {
@@ -154,6 +198,11 @@ impl GenerationConfig {
         // 2. Check fade config
         if self.fade_max_size == 0 || self.fade_min_size == 0 {
             return Err("fade kernel sizes must be larger than zero");
+        }
+
+        // 3. Check subwaypoint config
+        if self.max_subwaypoint_dist <= 0.0 {
+            return Err("max subwaypoint distance must be >0");
         }
 
         Ok(())
@@ -174,15 +223,15 @@ impl GenerationConfig {
         deserialized
     }
 
-    pub fn get_all_configs() -> HashMap<String, GenerationConfig> {
-        let mut configs = HashMap::new();
+    pub fn get_all_configs() -> Vec<GenerationConfig> {
+        let mut configs: Vec<GenerationConfig> = Vec::new();
 
         for file_name in GenerationConfigStorage::iter() {
             let file = GenerationConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
             match serde_json::from_str::<GenerationConfig>(data) {
                 Ok(config) => {
-                    configs.insert(config.name.clone(), config);
+                    configs.push(config);
                 }
                 Err(e) => {
                     warn!("couldn't parse gen config {}: {}", file_name, e);
@@ -190,19 +239,22 @@ impl GenerationConfig {
             }
         }
 
+        configs.sort_by(|a, b| a.name.cmp(&b.name));
+
         configs
     }
 
     /// This function defines the initial default config for actual map generator
-    pub fn get_initial_config(use_default: bool) -> GenerationConfig {
-        if use_default {
-            GenerationConfig::default()
-        } else {
-            let file = GenerationConfigStorage::get("hardV2.json").unwrap();
-            let data = std::str::from_utf8(&file.data).unwrap();
-            let config: GenerationConfig = serde_json::from_str(data).unwrap();
-            config
+    pub fn get_initial_gen_config() -> GenerationConfig {
+        if let Some(file) = GenerationConfigStorage::get("hardV2.json") {
+            if let Ok(data) = std::str::from_utf8(&file.data) {
+                if let Ok(config) = serde_json::from_str(data) {
+                    return config;
+                }
+            }
         }
+
+        GenerationConfig::default()
     }
 }
 
@@ -219,7 +271,11 @@ impl Default for GenerationConfig {
             outer_rad_mut_prob: 0.25,
             outer_size_mut_prob: 0.5,
             shift_weights: RandomDistConfig::new(None, vec![0.4, 0.22, 0.2, 0.18]),
-            platform_distance_bounds: (500, 750),
+            plat_min_distance: 75,
+            plat_width_bounds: (3, 5),
+            plat_height_bounds: (1, 2),
+            plat_min_empty_height: 4,
+            plat_soft_overhang: false,
             momentum_prob: 0.01,
             max_distance: 3.0,
             waypoint_reached_dist: 250,
@@ -228,6 +284,7 @@ impl Default for GenerationConfig {
             circ_probs: RandomDistConfig::new(Some(vec![0.0, 0.6, 0.8]), vec![0.75, 0.15, 0.05]),
             skip_min_spacing_sqr: 45,
             skip_length_bounds: (3, 11),
+            max_level_skip: 90,
             min_freeze_size: 0,
             enable_pulse: false,
             pulse_corner_delay: 5,
@@ -236,6 +293,11 @@ impl Default for GenerationConfig {
             fade_steps: 60,
             fade_max_size: 6,
             fade_min_size: 3,
+            max_subwaypoint_dist: 50.0,
+            subwaypoint_max_shift_dist: 5.0,
+            pos_lock_max_delay: 1000,
+            pos_lock_max_dist: 20.0,
+            lock_kernel_size: 9,
         }
     }
 }

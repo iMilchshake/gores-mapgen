@@ -1,6 +1,9 @@
+use std::fmt;
+
+use ndarray::{s, Array2};
+
 use crate::{
-    config::{GenerationConfig, MapConfig},
-    generator,
+    config::GenerationConfig,
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
@@ -8,7 +11,6 @@ use crate::{
 };
 
 // this walker is indeed very cute
-#[derive(Debug)]
 pub struct CuteWalker {
     pub pos: Position,
     pub steps: usize,
@@ -21,12 +23,46 @@ pub struct CuteWalker {
     /// indicates whether walker has reached the last waypoint
     pub finished: bool,
 
+    /// keeps track of how many steps ago the last platorm has been placed
     pub steps_since_platform: usize,
 
+    /// keeps track of the last shift direction
     pub last_shift: Option<ShiftDirection>,
 
     /// counts how many steps the pulse constraints have been fulfilled
     pub pulse_counter: usize,
+
+    /// keeps track on which positions can no longer be visited
+    pub locked_positions: Array2<bool>,
+
+    /// keeps track of all positions the walker has visited so far
+    pub position_history: Vec<Position>,
+
+    /// keeps track of current position locking step,
+    pub locked_position_step: usize,
+}
+
+const NUM_SHIFT_SAMPLE_RETRIES: usize = 25;
+
+impl fmt::Debug for CuteWalker {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CuteWalker")
+            .field("pos", &self.pos)
+            .field("steps", &self.steps)
+            // .field("inner_kernel", &self.inner_kernel)
+            // .field("outer_kernel", &self.outer_kernel)
+            .field("goal", &self.goal)
+            .field("goal_index", &self.goal_index)
+            // .field("waypoints", &self.waypoints)
+            .field("finished", &self.finished)
+            .field("steps_since_platform", &self.steps_since_platform)
+            .field("last_shift", &self.last_shift)
+            .field("pulse_counter", &self.pulse_counter)
+            // .field("locked_positions", &self.locked_positions)
+            // .field("position_history", &self.position_history)
+            .field("locked_position_step", &self.locked_position_step)
+            .finish()
+    }
 }
 
 impl CuteWalker {
@@ -34,20 +70,24 @@ impl CuteWalker {
         initial_pos: Position,
         inner_kernel: Kernel,
         outer_kernel: Kernel,
-        map_config: &MapConfig,
+        waypoints: Vec<Position>,
+        map: &Map,
     ) -> CuteWalker {
         CuteWalker {
             pos: initial_pos,
             steps: 0,
             inner_kernel,
             outer_kernel,
-            goal: Some(map_config.waypoints.first().unwrap().clone()),
+            goal: Some(waypoints.first().unwrap().clone()),
             goal_index: 0,
-            waypoints: map_config.waypoints.clone(),
+            waypoints,
             finished: false,
             steps_since_platform: 0,
             last_shift: None,
             pulse_counter: 0,
+            locked_positions: Array2::from_elem((map.width, map.height), false),
+            locked_position_step: 0,
+            position_history: Vec::new(),
         }
     }
 
@@ -67,9 +107,7 @@ impl CuteWalker {
         }
     }
 
-    /// will try to place a platform at the walkers position.
-    /// If force is true it will enforce a platform.
-    pub fn check_platform(
+    pub fn check_platform_at_walker(
         &mut self,
         map: &mut Map,
         min_distance: usize,
@@ -82,25 +120,61 @@ impl CuteWalker {
             return Ok(());
         }
 
-        let walker_pos = self.pos.clone();
-
         // Case 2: max distance has been exceeded -> force platform using a room
         if self.steps_since_platform > max_distance {
-            generator::generate_room(map, &walker_pos.shifted_by(0, 6)?, 5, 3, None)?;
-            self.steps_since_platform = 0;
+            // generator::generate_room(map, &walker_pos.shifted_by(0, 6)?, 5, 3, None)?;
+            // self.steps_since_platform = 0;
+            // return Ok(());
+
+            // try to place floor platform
+            let mut pos = self.position_history[self.steps.saturating_sub(50)].clone();
+            let mut reached_floor = false;
+            while !reached_floor {
+                if pos.shift_in_direction(&ShiftDirection::Down, map).is_err() {
+                    break; // fail while shifting down -> abort!
+                }
+
+                if map.grid[pos.as_index()] == BlockType::Hookable {
+                    reached_floor = true;
+                    break;
+                }
+            }
+
+            let platform_height = 2;
+            let platform_free_height = 3;
+            let platform_width = 2; //
+
+            // check if area above platform is valid
+            if reached_floor
+                && map.check_area_all(
+                    &pos.shifted_by(-platform_width, -(platform_height + platform_free_height))?,
+                    &pos.shifted_by(platform_width, -2)?,
+                    &BlockType::Empty,
+                )?
+            {
+                map.set_area(
+                    &pos.shifted_by(-platform_width, -2)?,
+                    &pos.shifted_by(platform_width, -1)?,
+                    &BlockType::Platform,
+                    &Overwrite::ReplaceNonSolid,
+                );
+
+                self.steps_since_platform = 0;
+            }
+
             return Ok(());
         }
 
         // Case 3: min distance has been exceeded -> Try to place platform, but only if possible
         let area_empty = map.check_area_all(
-            &walker_pos.shifted_by(-3, -3)?,
-            &walker_pos.shifted_by(3, 2)?,
+            &self.pos.shifted_by(-3, -3)?,
+            &self.pos.shifted_by(3, 2)?,
             &BlockType::Empty,
         )?;
         if area_empty {
             map.set_area(
-                &walker_pos.shifted_by(-1, 0)?,
-                &walker_pos.shifted_by(1, 0)?,
+                &self.pos.shifted_by(-1, 0)?,
+                &self.pos.shifted_by(1, 0)?,
                 &BlockType::Platform,
                 &Overwrite::ReplaceEmptyOnly,
             );
@@ -113,12 +187,15 @@ impl CuteWalker {
     pub fn probabilistic_step(
         &mut self,
         map: &mut Map,
-        config: &GenerationConfig,
+        gen_config: &GenerationConfig,
         rnd: &mut Random,
     ) -> Result<(), &'static str> {
         if self.finished {
             return Err("Walker is finished");
         }
+
+        // save position to history before its updated
+        self.position_history.push(self.pos.clone());
 
         // sample next shift
         let goal = self.goal.as_ref().ok_or("Error: Goal is None")?;
@@ -126,16 +203,35 @@ impl CuteWalker {
 
         let mut current_shift = rnd.sample_shift(&shifts);
 
-        let same_dir = match self.last_shift {
-            Some(last_shift) => {
-                // Momentum: re-use last shift direction
-                if rnd.with_probability(config.momentum_prob) {
-                    current_shift = last_shift;
-                }
-
-                // check whether walker hasnt changed direction
-                current_shift == last_shift
+        // Momentum: re-use last shift direction with certain probability
+        if let Some(last_shift) = self.last_shift {
+            if rnd.with_probability(gen_config.momentum_prob) {
+                current_shift = last_shift;
             }
+        }
+
+        let mut current_target_pos = self.pos.clone();
+        current_target_pos.shift_in_direction(&current_shift, map)?;
+
+        // if target pos is locked, re-sample until a valid one is found
+        let mut invalid = false;
+        for _ in 0..NUM_SHIFT_SAMPLE_RETRIES {
+            invalid = self.locked_positions[current_target_pos.as_index()];
+
+            if invalid {
+                current_shift = rnd.sample_shift(&shifts);
+                current_target_pos = self.pos.clone();
+                current_target_pos.shift_in_direction(&current_shift, map)?;
+            }
+        }
+
+        if invalid {
+            return Err("number of shift sample retries exceeded, walker stuck?");
+        }
+
+        // determine if direction changed from last shift
+        let same_dir = match self.last_shift {
+            Some(last_shift) => current_shift == last_shift,
             None => false,
         };
 
@@ -143,43 +239,45 @@ impl CuteWalker {
         self.pos.shift_in_direction(&current_shift, map)?;
         self.steps += 1;
 
-        // perform pulse if direction changed and config constraints allows it
-        let perform_pulse = config.enable_pulse
-            && ((same_dir && self.pulse_counter > config.pulse_straight_delay)
-                || (!same_dir && self.pulse_counter > config.pulse_corner_delay));
+        // lock old position
+        self.lock_previous_location(map, gen_config, false)?;
 
+        // perform pulse if config constraints allows it
+        let perform_pulse = gen_config.enable_pulse
+            && ((same_dir && self.pulse_counter > gen_config.pulse_straight_delay)
+                || (!same_dir && self.pulse_counter > gen_config.pulse_corner_delay));
+
+        // apply kernels
         if perform_pulse {
             self.pulse_counter = 0; // reset pulse counter
             map.apply_kernel(
-                self,
+                &self.pos,
                 &Kernel::new(&self.inner_kernel.size + 4, 0.0),
                 BlockType::Freeze,
             )?;
             map.apply_kernel(
-                self,
+                &self.pos,
                 &Kernel::new(&self.inner_kernel.size + 2, 0.0),
                 BlockType::Empty,
             )?;
         } else {
-            map.apply_kernel(self, &self.outer_kernel, BlockType::Freeze)?;
+            map.apply_kernel(&self.pos, &self.outer_kernel, BlockType::Freeze)?;
 
-            let empty = if self.steps < config.fade_steps {
+            let empty = if self.steps < gen_config.fade_steps {
                 BlockType::EmptyReserved
             } else {
                 BlockType::Empty
             };
-            map.apply_kernel(self, &self.inner_kernel, empty)?;
+            map.apply_kernel(&self.pos, &self.inner_kernel, empty)?;
         };
 
-        // apply kernels
-
-        if same_dir && self.inner_kernel.size <= config.pulse_max_kernel_size {
+        if same_dir && self.inner_kernel.size <= gen_config.pulse_max_kernel_size {
             self.pulse_counter += 1;
         } else {
             self.pulse_counter = 0;
         };
 
-        self.last_shift = Some(current_shift.clone());
+        self.last_shift = Some(current_shift);
 
         Ok(())
     }
@@ -256,5 +354,55 @@ impl CuteWalker {
             self.inner_kernel = Kernel::new(inner_size, inner_circ);
             self.outer_kernel = Kernel::new(outer_size, outer_circ);
         }
+    }
+
+    pub fn lock_previous_location(
+        &mut self,
+        map: &Map,
+        gen_config: &GenerationConfig,
+        ignore_distance: bool,
+    ) -> Result<(), &'static str> {
+        while self.locked_position_step < self.steps {
+            if self.position_history.len() <= self.locked_position_step + 1 {
+                return Ok(()); // history not long enough yet to lock another step
+            }
+
+            // get position of the next step to lock
+            let next_lock_pos = &self.position_history[self.locked_position_step + 1];
+
+            // check if locking lacks too far behind -> walker most likely stuck
+            if self.steps - self.locked_position_step > gen_config.pos_lock_max_delay {
+                return Err("pos_lock_max_delay exceeded, walker stuck");
+            }
+
+            // check if walker is far enough to lock next position
+            if !ignore_distance && next_lock_pos.distance(&self.pos) < gen_config.pos_lock_max_dist
+            {
+                return Ok(());
+            }
+
+            // TODO: rework this by reusing functionality -> lock possible cells
+            let offset: usize = gen_config.lock_kernel_size; // offset of kernel wrt. position (top/left)
+            let extend: usize = (gen_config.lock_kernel_size * 2) - offset; // how much kernel extends position (bot/right)
+            let top_left = next_lock_pos.shifted_by(-(offset as i32), -(offset as i32))?;
+            let bot_right = next_lock_pos.shifted_by(extend as i32, extend as i32)?;
+
+            // check if operation valid
+            if !map.pos_in_bounds(&top_left) || !map.pos_in_bounds(&bot_right) {
+                return Err("kill zone out of bounds");
+            }
+
+            // lock all
+            let mut view = self
+                .locked_positions
+                .slice_mut(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
+            for lock_status in view.iter_mut() {
+                *lock_status = true;
+            }
+
+            self.locked_position_step += 1;
+        }
+
+        Ok(())
     }
 }

@@ -1,17 +1,18 @@
 use crate::{
+    config::GenerationConfig,
+    debug::DebugLayer,
     generator::Generator,
-    map::{BlockType, Overwrite},
+    map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
 };
 
-use std::{f32::consts::SQRT_2, usize};
+use std::{
+    collections::{HashMap, VecDeque},
+    f32::consts::SQRT_2,
+};
 
 use dt::dt_bool;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
-
-pub fn is_freeze(block_type: &&BlockType) -> bool {
-    **block_type == BlockType::Freeze
-}
 
 /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
 /// configurations do not ensure a min. 1-block freeze padding consistently.
@@ -197,7 +198,7 @@ pub fn find_corners(gen: &Generator) -> Result<Vec<(Position, ShiftDirection)>, 
             ];
 
             for (shape, dir) in shapes {
-                if shape.iter().all(is_freeze) {
+                if shape.iter().all(|b| b.is_freeze()) {
                     candidates.push((Position::new(window_x, window_y), dir));
                 }
             }
@@ -205,6 +206,15 @@ pub fn find_corners(gen: &Generator) -> Result<Vec<(Position, ShiftDirection)>, 
     }
 
     Ok(candidates)
+}
+
+/// Replace all map blocks with empty, that were not locked in the generation
+pub fn remove_unused_blocks(map: &mut Map, position_lock: &Array2<bool>) {
+    for (map_block, lock_status) in map.grid.iter_mut().zip(position_lock.iter()) {
+        if !lock_status {
+            *map_block = BlockType::Empty;
+        }
+    }
 }
 
 pub struct Skip {
@@ -257,7 +267,7 @@ pub fn check_corner_skip(
             start_pos: init_pos.clone(),
             end_pos: pos,
             length,
-            direction: shift.clone(),
+            direction: *shift,
         })
     } else {
         None
@@ -377,6 +387,8 @@ pub fn generate_all_skips(
     gen: &mut Generator,
     length_bounds: (usize, usize),
     min_spacing_sqr: usize,
+    max_level_skip: usize,
+    flood_fill: &Array2<Option<usize>>,
 ) {
     // get corner candidates
     let corner_candidates = find_corners(gen).expect("corner detection failed");
@@ -400,12 +412,22 @@ pub fn generate_all_skips(
 
         let skip = &skips[skip_index];
 
-        // skip if no neighboring blocks TODO: where to do dis?
-        if count_skip_neighbours(gen, skip, 2).unwrap_or(0) <= 0 {
-            // but if at least 1 direct, then to a freeze skip
+        // check if too much of the level would be skipped
+        let level_distance_start = flood_fill[skip.start_pos.as_index()].unwrap();
+        let level_distance_end = flood_fill[skip.end_pos.as_index()].unwrap();
+        let level_skip_distance = usize::abs_diff(level_distance_start, level_distance_end);
+        if level_skip_distance > max_level_skip {
+            skip_status[skip_index] = SkipStatus::Invalid;
+            continue;
+        }
+
+        // invalidate if skip would have no neighboring blocks
+        if count_skip_neighbours(gen, skip, 2).unwrap_or(0) == 0 {
+            // if yes, test if freeze skip would have neighboring blocks
             if count_skip_neighbours(gen, skip, 1).unwrap_or(0) >= 1 {
                 skip_status[skip_index] = SkipStatus::ValidFreezeSkipOnly;
             } else {
+                // if both are not the case -> invalidate
                 skip_status[skip_index] = SkipStatus::Invalid;
                 continue;
             }
@@ -582,5 +604,268 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
                 }
             }
         }
+    }
+}
+
+pub fn get_flood_fill(gen: &Generator, start_pos: &Position) -> Array2<Option<usize>> {
+    let width = gen.map.width;
+    let height = gen.map.height;
+    let mut distance = Array2::from_elem((width, height), None);
+    let mut queue = VecDeque::new();
+
+    let solid = gen.map.grid.map(|val| val.is_solid() || val.is_freeze());
+
+    // TODO: error
+    if solid[start_pos.as_index()] {
+        return distance;
+    }
+
+    queue.push_back((start_pos.clone(), 0));
+    distance[start_pos.as_index()] = Some(0);
+
+    while let Some((pos, dist)) = queue.pop_front() {
+        let neighbors = [
+            pos.shifted_by(-1, 0),
+            pos.shifted_by(1, 0),
+            pos.shifted_by(0, -1),
+            pos.shifted_by(0, 1),
+        ];
+
+        for neighbor in neighbors.iter().flatten() {
+            if gen.map.pos_in_bounds(neighbor)
+                && !solid[neighbor.as_index()]
+                && distance[neighbor.as_index()].is_none()
+            {
+                distance[neighbor.as_index()] = Some(dist + 1);
+                queue.push_back((neighbor.clone(), dist + 1));
+            }
+        }
+    }
+
+    distance
+}
+
+/// stores all relevant information about platform candidates
+#[derive(Debug, Clone)]
+pub struct Platform {
+    /// how total height is available for platform generation
+    pub available_height: usize,
+
+    /// how much platform extends to the left
+    pub width_left: usize,
+
+    /// how much platform extends to the right
+    pub width_right: usize,
+
+    /// lowest center position of platform
+    pub pos: Position,
+}
+
+pub fn get_optimal_greedy_platform_candidate(
+    pos: &Position,
+    map: &Map,
+    gen_config: &GenerationConfig,
+) -> Result<Platform, &'static str> {
+    // how far empty box has been extended
+    let mut left_limit = 0;
+    let mut right_limit = 0;
+    let mut up_limit = 0;
+
+    // which directions are already locked due to hitting a limit
+    let mut left_locked = false;
+    let mut right_locked = false;
+    let mut up_locked = false;
+
+    while !left_locked || !right_locked || !up_locked {
+        // try to expand upwards
+        if !up_locked {
+            let next_limit_valid = map.check_area_all(
+                &pos.shifted_by(-left_limit, -(up_limit + 1))?,
+                &pos.shifted_by(right_limit, -(up_limit + 1))?,
+                &BlockType::Empty,
+            )?;
+
+            if next_limit_valid {
+                up_limit += 1;
+            } else {
+                up_locked = true;
+            }
+        }
+
+        // try to expand left
+        if !left_locked {
+            // check if platform has no overhang
+            let no_overhang =
+                map.check_position_crit(&pos.shifted_by(-(left_limit + 1), 1)?, |b| {
+                    match (gen_config.plat_soft_overhang, b) {
+                        (true, block) => !block.is_empty(),
+                        (false, block) => block.is_solid(),
+                    }
+                });
+
+            let next_limit_valid = map.check_area_all(
+                &pos.shifted_by(-(left_limit + 1), -up_limit)?,
+                &pos.shifted_by(-(left_limit + 1), -1)?, // dont check y=0 as freeze expected
+                &BlockType::Empty,
+            )?;
+
+            if no_overhang && next_limit_valid {
+                left_limit += 1;
+            } else {
+                left_locked = true;
+            }
+        }
+
+        // try to expand right
+        if !right_locked {
+            let no_overhang = map.check_position_crit(&pos.shifted_by(right_limit + 1, 1)?, |b| {
+                match (gen_config.plat_soft_overhang, b) {
+                    (true, block) => !block.is_empty(),
+                    (false, block) => block.is_solid(),
+                }
+            });
+            let next_limit_valid = map.check_area_all(
+                &pos.shifted_by(right_limit + 1, -up_limit)?,
+                &pos.shifted_by(right_limit + 1, -1)?, // dont check y=0 as freeze expected
+                &BlockType::Empty,
+            )?;
+
+            if no_overhang && next_limit_valid {
+                right_limit += 1;
+            } else {
+                right_locked = true;
+            }
+        }
+
+        // early abort if x or y dimension is already locked, but lower bound isnt reached
+        if up_locked
+            && (((up_limit + 1) as usize)
+                < gen_config.plat_height_bounds.0 + gen_config.plat_min_empty_height)
+        {
+            return Err("not enough y space");
+        } else if left_locked
+            && right_locked
+            && (((left_limit + right_limit + 1) as usize) < gen_config.plat_width_bounds.0)
+        {
+            return Err("not enough x space");
+        }
+        if ((up_limit + 1) as usize)
+            >= (gen_config.plat_height_bounds.1 + gen_config.plat_min_empty_height)
+        {
+            up_locked = true;
+        }
+        if ((left_limit + right_limit + 1) as usize) >= gen_config.plat_width_bounds.1 {
+            left_locked = true;
+            right_locked = true;
+        }
+    }
+
+    Ok(Platform {
+        pos: pos.clone(),
+        width_left: left_limit as usize,
+        width_right: right_limit as usize,
+        available_height: (up_limit + 1) as usize,
+    })
+}
+
+pub fn gen_all_platform_candidates(
+    walker_pos_history: &Vec<Position>,
+    flood_fill: &Array2<Option<usize>>,
+    map: &mut Map,
+    gen_config: &GenerationConfig,
+    debug_layers: &mut HashMap<&'static str, DebugLayer>,
+) {
+    let mut platform_candidates: Vec<Platform> = Vec::new();
+    let mut last_platform_level_distance = 0;
+
+    for pos in walker_pos_history {
+        // skip if initial walker pos is non empty
+        if map.grid[pos.as_index()] != BlockType::Empty {
+            continue;
+        }
+
+        // skip if previous platform is still to close
+        let level_distance = flood_fill[pos.as_index()].unwrap();
+        if level_distance.saturating_sub(last_platform_level_distance)
+            < gen_config.plat_min_distance
+        {
+            continue;
+        }
+
+        // skip if floor pos coulnt be determined
+        let floor_pos = map.shift_pos_until(pos, ShiftDirection::Down, |b| b.is_solid());
+        if floor_pos.is_none() {
+            continue;
+        }
+        let floor_pos = floor_pos.unwrap();
+
+        // try to get optimal platform candidate
+        let platform_pos = floor_pos.shifted_by(0, -1).unwrap();
+        let result = get_optimal_greedy_platform_candidate(&platform_pos, map, gen_config);
+        if let Ok(platform_candidate) = result {
+            // draw debug
+            let platforms_walker_pos = debug_layers.get_mut("platforms_walker_pos").unwrap();
+            platforms_walker_pos.grid[pos.as_index()] = true;
+            let platforms_floor_pos = debug_layers.get_mut("platforms_floor_pos").unwrap();
+            platforms_floor_pos.grid[floor_pos.as_index()] = true;
+            let platforms_pos = debug_layers.get_mut("platforms_pos").unwrap();
+            platforms_pos.grid[platform_pos.as_index()] = true;
+            let platform_debug_layer = debug_layers.get_mut("platforms").unwrap();
+            let mut area = platform_debug_layer.grid.slice_mut(s![
+                platform_pos.x - platform_candidate.width_left
+                    ..=platform_pos.x + platform_candidate.width_right,
+                platform_pos.y - (platform_candidate.available_height - 1)..=platform_pos.y
+            ]);
+            area.fill(true);
+
+            // save platform
+            platform_candidates.push(platform_candidate);
+
+            // update last level distance
+            last_platform_level_distance = level_distance;
+        }
+    }
+
+    // generate platforms
+    for platform_candidate in platform_candidates {
+        let platform_height =
+            platform_candidate.available_height - gen_config.plat_min_empty_height;
+
+        if platform_height > 0 {
+            map.set_area(
+                &platform_candidate
+                    .pos
+                    .shifted_by(
+                        -(platform_candidate.width_left as i32),
+                        -(platform_height as i32),
+                    )
+                    .unwrap(),
+                &platform_candidate
+                    .pos
+                    .shifted_by(platform_candidate.width_right as i32, 0)
+                    .unwrap(),
+                &BlockType::Platform,
+                &Overwrite::Force,
+            );
+        }
+
+        map.set_area(
+            &platform_candidate
+                .pos
+                .shifted_by(
+                    -(platform_candidate.width_left as i32),
+                    -((platform_candidate.available_height - 1) as i32),
+                )
+                .unwrap(),
+            &platform_candidate
+                .pos
+                .shifted_by(
+                    platform_candidate.width_right as i32,
+                    -(platform_height as i32),
+                )
+                .unwrap(),
+            &BlockType::EmptyReserved,
+            &Overwrite::Force,
+        );
     }
 }

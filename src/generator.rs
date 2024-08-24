@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use timing::Timer;
 
 use crate::{
@@ -7,13 +7,20 @@ use crate::{
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::Position,
-    post_processing as post,
+    post_processing::{self as post, get_flood_fill},
     random::{Random, Seed},
     walker::CuteWalker,
 };
 
-pub fn print_time(_timer: &Timer, _message: &str) {
-    // println!("{}: {:?}", message, timer.elapsed());
+use macroquad::color::{colors, Color};
+
+const PRINT_TIMES: bool = false;
+
+pub fn print_time(timer: &Timer, message: &str) {
+    // TODO: add cli flag for this
+    if PRINT_TIMES {
+        println!("{}: {:?}", message, timer.elapsed());
+    }
 }
 
 /// wrapper for all entities that are required for a map generation
@@ -109,14 +116,24 @@ impl Generator {
         enable_debug_viz: bool,
     ) -> Generator {
         let map = Map::new(map_config.width, map_config.height, BlockType::Hookable);
-        let spawn = map_config.waypoints.get(0).unwrap().clone();
-        let init_inner_kernel = Kernel::new(5, 0.0);
-        let init_outer_kernel = Kernel::new(7, 0.0);
+        let spawn = map_config.waypoints.first().unwrap().clone();
+        let mut rnd = Random::new(seed, gen_config);
+
+        let subwaypoints =
+            Generator::generate_sub_waypoints(&map_config.waypoints, gen_config, &mut rnd)
+                .unwrap_or(map_config.waypoints.clone()); // on failure just use initial waypoints
+
+        // initialize walker
+        let inner_kernel_size = rnd.sample_inner_kernel_size();
+        let outer_kernel_size = inner_kernel_size + rnd.sample_outer_kernel_margin();
+        let inner_kernel = Kernel::new(inner_kernel_size, 0.0);
+        let outer_kernel = Kernel::new(outer_kernel_size, 0.0);
         let walker = CuteWalker::new(
             spawn.clone(),
-            init_inner_kernel,
-            init_outer_kernel,
-            map_config,
+            inner_kernel,
+            outer_kernel,
+            subwaypoints,
+            &map,
         );
         let rnd = Random::new(seed, gen_config);
         let debug_layers = match enable_debug_viz {
@@ -133,6 +150,7 @@ impl Generator {
         }
     }
 
+    /// perform one step of the map generation
     pub fn step(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
         // check if walker has reached goal position
         if self.walker.is_goal_reached(&config.waypoint_reached_dist) == Some(true) {
@@ -158,12 +176,16 @@ impl Generator {
             self.walker
                 .probabilistic_step(&mut self.map, config, &mut self.rnd)?;
 
-            // handle platforms
-            self.walker.check_platform(
-                &mut self.map,
-                config.platform_distance_bounds.0,
-                config.platform_distance_bounds.1,
-            )?;
+            // TODO: very imperformant clone here, REVERT REVERT
+            // fuck i want to call this in post procesing aswell -> move to map/generator
+            self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
+
+            // handle platforms TODO: remove once post processing is implemented
+            // self.walker.check_platform(
+            //     &mut self.map,
+            //     config.platform_distance_bounds.0,
+            //     config.platform_distance_bounds.1,
+            // )?;
         }
 
         Ok(())
@@ -172,6 +194,12 @@ impl Generator {
     /// apply various post processing steps, currenly still unstable can panic
     pub fn post_processing(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
         let timer = Timer::start();
+
+        // lock all remaining blocks
+        self.walker
+            .lock_previous_location(&self.map, gen_config, true)?;
+        // TODO: REVERT
+        self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
 
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
         if let Some(ref mut debug_layers) = self.debug_layers {
@@ -191,17 +219,37 @@ impl Generator {
         .expect("start finish room generation");
         print_time(&timer, "place rooms");
 
-        if config.min_freeze_size > 0 {
+        if gen_config.min_freeze_size > 0 {
             // TODO: Maybe add some alternative function for the case of min_freeze_size=1
-            post::remove_freeze_blobs(self, config.min_freeze_size);
+            post::remove_freeze_blobs(self, gen_config.min_freeze_size);
             print_time(&timer, "detect blobs");
         }
 
-        post::fill_open_areas(self, &config.max_distance);
+        let flood_fill = get_flood_fill(self, &self.spawn);
+        print_time(&timer, "flood fill");
+
+        post::gen_all_platform_candidates(
+            &self.walker.position_history,
+            &flood_fill,
+            &mut self.map,
+            gen_config,
+            &mut self.debug_layers,
+        );
+        print_time(&timer, "platforms");
+
+        post::generate_all_skips(
+            self,
+            gen_config.skip_length_bounds,
+            gen_config.skip_min_spacing_sqr,
+            gen_config.max_level_skip,
+            &flood_fill,
+        );
+        print_time(&timer, "generate skips");
+
+        post::fill_open_areas(self, &gen_config.max_distance);
         print_time(&timer, "place obstacles");
 
-        post::generate_all_skips(self, config.skip_length_bounds, config.skip_min_spacing_sqr);
-        print_time(&timer, "generate skips");
+        // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
         Ok(())
     }
@@ -224,7 +272,7 @@ impl Generator {
             gen.step(gen_config)?;
         }
 
-        gen.post_processing(gen_config)?;
+        gen.perform_all_post_processing(gen_config)?;
 
         Ok(gen.map)
     }

@@ -1,9 +1,14 @@
-use crate::{kernel::Kernel, position::Position, twmap_export::TwExport, walker::CuteWalker};
+use crate::{
+    kernel::Kernel,
+    position::{Position, ShiftDirection},
+    twmap_export::TwExport,
+};
 use ndarray::{s, Array2};
 
 use std::path::PathBuf;
 
 const CHUNK_SIZE: usize = 5;
+const MAX_SHIFT_UNTIL_STEPS: usize = 25;
 
 #[derive(PartialEq)]
 pub enum BlockTypeTW {
@@ -18,11 +23,11 @@ pub enum BlockType {
     /// Empty Block that should not be overwritten
     EmptyReserved,
     Hookable,
+    Platform,
     Freeze,
     Spawn,
     Start,
     Finish,
-    Platform,
 }
 
 impl BlockType {
@@ -52,8 +57,13 @@ impl BlockType {
     pub fn is_solid(&self) -> bool {
         matches!(self, BlockType::Hookable | BlockType::Platform)
     }
+
     pub fn is_freeze(&self) -> bool {
         matches!(self, BlockType::Freeze)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        matches!(self, BlockType::Empty)
     }
 }
 
@@ -109,6 +119,8 @@ pub struct Map {
     pub chunk_size: usize,
 }
 
+// TODO: remove this method if not needed
+#[allow(dead_code)]
 fn get_maps_path() -> PathBuf {
     if cfg!(target_os = "windows") {
         dirs::data_dir().unwrap().join("Teeworlds").join("maps")
@@ -140,30 +152,30 @@ impl Map {
 
     pub fn apply_kernel(
         &mut self,
-        walker: &CuteWalker,
+        pos: &Position,
         kernel: &Kernel,
-        block_type: BlockType,
+        new_block_type: BlockType,
     ) -> Result<(), &'static str> {
         let offset: usize = kernel.size / 2; // offset of kernel wrt. position (top/left)
         let extend: usize = kernel.size - offset; // how much kernel extends position (bot/right)
 
-        let exceeds_left_bound = walker.pos.x < offset;
-        let exceeds_upper_bound = walker.pos.y < offset;
-        let exceeds_right_bound = (walker.pos.x + extend) > self.width;
-        let exceeds_lower_bound = (walker.pos.y + extend) > self.height;
+        let exceeds_left_bound = pos.x < offset;
+        let exceeds_upper_bound = pos.y < offset;
+        let exceeds_right_bound = (pos.x + extend) > self.width;
+        let exceeds_lower_bound = (pos.y + extend) > self.height;
 
         if exceeds_left_bound || exceeds_upper_bound || exceeds_right_bound || exceeds_lower_bound {
             return Err("Kernel out of bounds");
         }
 
-        let root_pos = Position::new(walker.pos.x - offset, walker.pos.y - offset);
+        let root_pos = Position::new(pos.x - offset, pos.y - offset);
         for ((kernel_x, kernel_y), kernel_active) in kernel.vector.indexed_iter() {
             let absolute_pos = Position::new(root_pos.x + kernel_x, root_pos.y + kernel_y);
             if *kernel_active {
                 let current_type = &self.grid[absolute_pos.as_index()];
 
                 let new_type = match current_type {
-                    BlockType::Hookable | BlockType::Freeze => Some(block_type.clone()),
+                    BlockType::Hookable | BlockType::Freeze => Some(new_block_type.clone()),
                     _ => None,
                 };
 
@@ -241,6 +253,23 @@ impl Map {
         Ok(area.iter().filter(|&block| block == value).count())
     }
 
+    pub fn check_position_type(&self, pos: &Position, block_type: BlockType) -> bool {
+        match self.grid.get(pos.as_index()) {
+            Some(value) => *value == block_type,
+            None => false,
+        }
+    }
+
+    pub fn check_position_crit<F>(&self, pos: &Position, criterion: F) -> bool
+    where
+        F: Fn(&BlockType) -> bool,
+    {
+        match self.grid.get(pos.as_index()) {
+            Some(value) => criterion(value),
+            None => false,
+        }
+    }
+
     pub fn set_area(
         &mut self,
         top_left: &Position,
@@ -284,5 +313,28 @@ impl Map {
         self.set_area(&top_right, bot_right, value, overwrite);
         self.set_area(top_left, &bot_left, value, overwrite);
         self.set_area(&bot_left, bot_right, value, overwrite);
+    }
+
+    /// shifts position in given direction until block fulfills criterion
+    pub fn shift_pos_until<F>(
+        &self,
+        pos: &Position,
+        dir: ShiftDirection,
+        criterion: F,
+    ) -> Option<Position>
+    where
+        F: Fn(&BlockType) -> bool,
+    {
+        let mut shift_pos = pos.clone();
+        for _ in 0..MAX_SHIFT_UNTIL_STEPS {
+            // shift in given direction
+            if shift_pos.shift_in_direction(&dir, self).is_err() {
+                return None; // fail while shifting -> abort
+            } else if criterion(&self.grid[shift_pos.as_index()]) {
+                return Some(shift_pos); // criterion fulfilled -> return current position
+            }
+        }
+
+        None // criterion was never fulfilled
     }
 }

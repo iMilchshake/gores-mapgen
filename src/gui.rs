@@ -1,4 +1,5 @@
 use std::{env, fmt::Debug, isize};
+use std::{collections::HashMap, env};
 
 use egui::RichText;
 use tinyfiledialogs;
@@ -69,11 +70,10 @@ pub fn random_dist_cfg_edit<T, F>(
                 for index in 0..cfg.probs.len() {
                     ui.horizontal(|ui| {
                         edit_f32_prob(ui, &mut cfg.probs[index]);
-                        if dist_has_values && edit_element.is_some() {
-                            edit_element.as_ref().unwrap()(
-                                ui,
-                                &mut cfg.values.as_mut().unwrap()[index],
-                            );
+                        if dist_has_values {
+                            if let Some(edit_element) = &edit_element {
+                                edit_element(ui, &mut cfg.values.as_mut().unwrap()[index]);
+                            }
                         }
                     });
                 }
@@ -163,12 +163,13 @@ pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
 }
 
 pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
-    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::max_value()));
+    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::MAX));
 }
 
-// TODO: IMAGINE having a dynamic range argument.. imagine, that would be nice
-pub fn edit_f32_wtf(ui: &mut Ui, value: &mut f32) {
-    ui.add(egui::Slider::new(value, 0.0..=15.0));
+pub fn edit_f32_bounded(min: f32, max: f32) -> impl Fn(&mut Ui, &mut f32) {
+    move |ui: &mut Ui, value: &mut f32| {
+        ui.add(egui::Slider::new(value, min..=max));
+    }
 }
 
 pub fn edit_f32_prob(ui: &mut Ui, value: &mut f32) {
@@ -225,9 +226,7 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
         ui.label("min:");
         ui.add(egui::widgets::DragValue::new(&mut values.0).clamp_range(0..=values.1));
         ui.label("max:");
-        ui.add(
-            egui::widgets::DragValue::new(&mut values.1).clamp_range(values.0..=usize::max_value()),
-        );
+        ui.add(egui::widgets::DragValue::new(&mut values.1).clamp_range(values.0..=usize::MAX));
     });
 }
 
@@ -356,18 +355,19 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
         ui.label("load generation config:");
         egui::ComboBox::from_label("")
-            .selected_text(format!("{:}", editor.gen_config.name))
+            .selected_text(editor.gen_config.name.to_string())
             .show_ui(ui, |ui| {
-                for (name, cfg) in editor.init_gen_configs.iter() {
-                    ui.selectable_value(&mut editor.gen_config, cfg.clone(), name);
+                for cfg in editor.init_gen_configs.iter() {
+                    ui.selectable_value(&mut editor.gen_config, cfg.clone(), &cfg.name);
                 }
             });
         ui.label("load map config:");
         egui::ComboBox::from_label(" ")
-            .selected_text(format!("{:}", editor.map_config.name))
+            .selected_text(editor.map_config.name.to_string())
             .show_ui(ui, |ui| {
-                for (name, cfg) in editor.init_map_configs.iter() {
-                    ui.selectable_value(&mut editor.map_config, cfg.clone(), name);
+                for cfg in editor.init_map_configs.iter() {
+                    // TODO: reinitialize generator with new mapconfig! careful with overriding gen config!
+                    ui.selectable_value(&mut editor.map_config, cfg.clone(), &cfg.name);
                 }
             });
 
@@ -442,14 +442,45 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     );
                 });
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.platform_distance_bounds,
-                    edit_range_usize,
-                    "platform distances",
-                    true,
-                );
-
+                CollapsingHeader::new("PLATFORMS")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_min_distance,
+                            edit_usize,
+                            "min distance",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_width_bounds,
+                            edit_range_usize,
+                            "width bounds",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_height_bounds,
+                            edit_range_usize,
+                            "height bounds",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_min_empty_height,
+                            edit_usize,
+                            "min empty height",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_soft_overhang,
+                            edit_bool,
+                            "soft overhang",
+                            true,
+                        );
+                    });
                 field_edit_widget(
                     ui,
                     &mut editor.gen_config.momentum_prob,
@@ -461,7 +492,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 field_edit_widget(
                     ui,
                     &mut editor.gen_config.max_distance,
-                    edit_f32_wtf,
+                    edit_f32_bounded(0.1, 15.0),
                     "max distance",
                     true,
                 );
@@ -478,8 +509,8 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     random_dist_cfg_edit(
                         ui,
                         &mut editor.gen_config.shift_weights,
-                        // TODO: this is stupid wtf, but dont worry, this will be reworked
-                        // with the upcoming dynamic sampling approach anyways
+                        // TODO: this is stupid wtf, but thats fine as this functionality
+                        // will be reworked with the upcoming dynamic weighting for cells anyways
                         None::<fn(&mut Ui, &mut ShiftDirection)>,
                         "step weights",
                         false,
@@ -500,6 +531,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     &mut editor.gen_config.skip_min_spacing_sqr,
                     edit_usize,
                     "skip min spacing sqr",
+                    true,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.max_level_skip,
+                    edit_usize,
+                    "max level skip",
                     true,
                 );
 
@@ -564,6 +603,46 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     &mut editor.gen_config.fade_min_size,
                     edit_usize,
                     "fade min size",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.max_subwaypoint_dist,
+                    edit_f32_bounded(0.1, 100.0),
+                    "subpoint max dist",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.subwaypoint_max_shift_dist,
+                    edit_f32_bounded(0.0, 50.0),
+                    "subpoint max shift",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.pos_lock_max_dist,
+                    edit_f32_bounded(0.0, 150.0),
+                    "pos lock max dist",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.pos_lock_max_delay,
+                    edit_usize,
+                    "pos lock max delay",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.gen_config.lock_kernel_size,
+                    edit_usize,
+                    "",
                     false,
                 );
             }

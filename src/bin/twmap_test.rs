@@ -1,7 +1,8 @@
 use twmap::*;
 
 fn main() {
-    let mut map = TwMap::parse_file("src/test.map").expect("parsing failed");
+    let mut map = TwMap::parse(&std::fs::read("src/test.map").expect("map file couldn't be read"))
+        .expect("parsing failed");
     map.load().expect("loading failed");
 
     // get game layer
@@ -15,5 +16,6 @@ fn main() {
     game_layer[[0, 0]] = GameTile::new(1, TileFlags::empty());
 
     // save map
-    map.save_file("src/test_out.map").expect("saving failed");
+    let mut file = std::fs::File::create("src/test_out.map").expect("Could not create file");
+    map.save(&mut file).expect("saving failed");
 }

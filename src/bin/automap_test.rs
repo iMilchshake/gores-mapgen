@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use gores_mapgen_rust::config::{GenerationConfig, MapConfig};
-use gores_mapgen_rust::generator::Generator;
-use gores_mapgen_rust::random::Seed;
+use gores_mapgen::config::{GenerationConfig, MapConfig};
+use gores_mapgen::generator::Generator;
+use gores_mapgen::random::Seed;
 
 fn main() {
     let map = Generator::generate_map(
