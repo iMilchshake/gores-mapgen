@@ -137,9 +137,7 @@ async fn main() {
         // draw debug layers
         if let Some(ref mut debug_layers) = editor.gen.debug_layers {
             for (_, debug_layer) in debug_layers.iter_mut() {
-                if debug_layer.active {
-                    draw_bool_grid(&debug_layer.grid, &debug_layer.color, &debug_layer.outline)
-                }
+                draw_debug_layer(debug_layer);
             }
         }
 

@@ -466,14 +466,16 @@ pub fn generate_all_skips(
     // add debug visualizations
     if let Some(ref mut debug_layers) = gen.debug_layers {
         for (skip, valid) in skips.iter().zip(skip_status.iter()) {
-            let layer = match *valid {
+            let layer_base = match *valid {
                 SkipStatus::Valid => &mut debug_layers.skips,
                 SkipStatus::Invalid => &mut debug_layers.invalid_skips,
                 SkipStatus::ValidFreezeSkipOnly => &mut debug_layers.freeze_skips,
             };
 
-            layer.grid[skip.start_pos.as_index()] = true;
-            layer.grid[skip.end_pos.as_index()] = true;
+            if let DebugLayer::BoolLayer { grid, .. } = &mut layer_base.debug_layer {
+                grid[skip.start_pos.as_index()] = true;
+                grid[skip.end_pos.as_index()] = true;
+            }
         }
     }
 }
@@ -594,7 +596,11 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
             if blob_unconnected {
                 for visited_pos in blob_visited {
                     if let Some(ref mut debug_layers) = gen.debug_layers {
-                        debug_layers.blobs.grid[visited_pos.as_index()] = true;
+                        if let DebugLayer::BoolLayer { grid, .. } =
+                            &mut debug_layer.layer_base.debug_layer
+                        {
+                            grid[visited_pos.as_index()] = true;
+                        }
                     }
 
                     // remove small blobs

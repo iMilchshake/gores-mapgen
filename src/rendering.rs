@@ -1,3 +1,4 @@
+use crate::debug::{DebugLayer, DebugLayerBase};
 use crate::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
 use macroquad::color::colors;
 use macroquad::color::Color;
@@ -28,14 +29,29 @@ where
 }
 
 /// Drawing of a boolean grid. Only draw cells with true values. Useful for debugging.
-pub fn draw_bool_grid(grid: &Array2<bool>, color: &Color, outline: &bool) {
+pub fn draw_bool_grid(grid: &Array2<bool>, color: &Color, outline: bool) {
     for ((x, y), value) in grid.indexed_iter() {
         if *value {
-            if *outline {
+            if outline {
                 draw_rectangle_lines(x as f32, y as f32, 1.0, 1.0, 0.1, *color);
             } else {
                 draw_rectangle(x as f32, y as f32, 1.0, 1.0, *color);
             }
+        }
+    }
+}
+
+pub fn draw_debug_layer<T>(debug_layer_base: &DebugLayerBase) {
+    if !debug_layer_base.active {
+        return;
+    }
+
+    match &debug_layer_base.debug_layer {
+        DebugLayer::BoolLayer { grid, color } => {
+            draw_bool_grid(grid, color, debug_layer_base.outline)
+        }
+        _ => {
+            todo!()
         }
     }
 }
