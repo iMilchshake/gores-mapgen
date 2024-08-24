@@ -6,23 +6,22 @@ use crate::{
     config::{GenerationConfig, MapConfig},
     generator::Generator,
     gui::{debug_window, sidebar},
-    map::Map,
+    map_camera::MapCamera,
     random::Seed,
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
 use std::env;
 
-use macroquad::camera::{set_camera, Camera2D};
 use macroquad::input::{
-    is_key_pressed, is_mouse_button_down, is_mouse_button_released, mouse_position, mouse_wheel,
+    is_key_pressed, is_mouse_button_down, mouse_delta_position, mouse_position, mouse_wheel,
     KeyCode, MouseButton,
 };
-use macroquad::math::{Rect, Vec2};
 use macroquad::time::get_fps;
-use macroquad::window::{screen_height, screen_width};
-use rand_distr::num_traits::Zero;
+use macroquad::{
+    camera::{set_camera, Camera2D},
+    input::is_mouse_button_pressed,
+};
 
-const ZOOM_FACTOR: f32 = 0.9;
 const AVG_FPS_FACTOR: f32 = 0.025; // how much current fps is weighted into the rolling average
 
 pub fn window_frame() -> Frame {
@@ -67,10 +66,7 @@ pub struct Editor {
     pub gen_config: GenerationConfig,
     pub map_config: MapConfig,
     pub steps_per_frame: usize,
-    zoom: f32,
-    offset: Vec2,
-    cam: Option<Camera2D>,
-    last_mouse: Option<Vec2>,
+    pub cam: Option<Camera2D>,
     pub gen: Generator,
 
     pub user_seed: Seed,
@@ -91,6 +87,9 @@ pub struct Editor {
 
     /// asd
     pub visualize_debug_layers: HashMap<&'static str, bool>,
+
+    /// keeps track of camera for map visualization
+    pub map_cam: MapCamera,
 }
 
 impl Editor {
@@ -115,10 +114,8 @@ impl Editor {
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
-            zoom: 1.0,
-            offset: Vec2::ZERO,
             cam: None,
-            last_mouse: None,
+            map_cam: MapCamera::new(),
             gen_config,
             map_config,
             steps_per_frame: STEPS_PER_FRAME,
@@ -142,16 +139,16 @@ impl Editor {
         self.canvas = None;
     }
 
-    pub fn get_display_factor(&self, map: &Map) -> f32 {
-        let canvas = self
-            .canvas
-            .expect("expect define_egui() to be called before");
-
-        f32::min(
-            canvas.width() / map.width as f32,
-            canvas.height() / map.height as f32,
-        )
-    }
+    // pub fn get_display_factor(&self, map: &Map) -> f32 {
+    //     let canvas = self
+    //         .canvas
+    //         .expect("expect define_egui() to be called before");
+    //
+    //     f32::min(
+    //         canvas.width() / map.width as f32,
+    //         canvas.height() / map.height as f32,
+    //     )
+    // }
 
     pub fn define_egui(&mut self) {
         egui_macroquad::ui(|egui_ctx| {
@@ -226,30 +223,22 @@ impl Editor {
     }
 
     /// this should result in the exact same behaviour as if not using a camera at all
-    pub fn reset_camera() {
-        set_camera(&Camera2D::from_display_rect(Rect::new(
-            0.0,
-            0.0,
-            screen_width(),
-            screen_height(),
-        )));
-    }
+    // pub fn reset_camera() {
+    //     set_camera(&Camera2D::from_display_rect(Rect::new(
+    //         0.0,
+    //         0.0,
+    //         screen_width(),
+    //         screen_height(),
+    //     )));
+    // }
 
-    pub fn set_cam(&mut self) {
-        let map = &self.gen.map;
-        let display_factor = self.get_display_factor(map);
-        let x_view = display_factor * map.width as f32;
-        let y_view = display_factor * map.height as f32;
-        let y_shift = screen_height() - y_view;
-        let map_rect = Rect::new(0.0, 0.0, map.width as f32, map.height as f32);
-        let mut cam = Camera2D::from_display_rect(map_rect);
+    pub fn update_cam(&mut self) {
+        self.map_cam
+            .update_map_size(self.gen.map.width, self.gen.map.height);
+        self.map_cam
+            .update_viewport_from_egui_rect(&self.canvas.unwrap());
 
-        // so i guess this is (x, y, width, height) not two positions?
-        cam.viewport = Some((0, y_shift as i32, x_view as i32, y_view as i32));
-
-        cam.target -= self.offset;
-        cam.zoom *= self.zoom;
-
+        let cam = self.map_cam.get_macroquad_cam();
         set_camera(&cam);
         self.cam = Some(cam);
     }
@@ -263,50 +252,32 @@ impl Editor {
     }
 
     pub fn handle_user_inputs(&mut self) {
-        if is_key_pressed(KeyCode::E) {
-            self.save_map_dialog();
-        }
+        // if is_key_pressed(KeyCode::E) {
+        //     self.save_map_dialog();
+        // }
 
         if is_key_pressed(KeyCode::Space) {
             self.set_playing();
         }
 
         if is_key_pressed(KeyCode::R) {
-            self.zoom = 1.0;
-            self.offset = Vec2::ZERO;
+            self.map_cam.reset();
         }
 
-        // handle mouse inputs
-        let mouse_wheel_y = mouse_wheel().1;
-        if !mouse_wheel_y.is_zero() {
-            if mouse_wheel_y.is_sign_positive() {
-                self.zoom /= ZOOM_FACTOR;
-            } else {
-                self.zoom *= ZOOM_FACTOR;
-            }
+        if mouse_wheel().1.abs() > 0.0 {
+            self.map_cam.zoom(mouse_wheel().1.is_sign_positive());
         }
 
-        let egui_wants_mouse = self
-            .egui_wants_mouse
-            .expect("expect to be set after define_gui()");
+        let egui_wants_mouse = self.egui_wants_mouse.unwrap();
 
+        // handle panning
+        let delta = mouse_delta_position();
         if !egui_wants_mouse
             && is_mouse_button_down(MouseButton::Left)
             && Editor::mouse_in_viewport(self.cam.as_ref().unwrap())
+            && !is_mouse_button_pressed(MouseButton::Left)
         {
-            let mouse = mouse_position();
-
-            if let Some(last_mouse) = self.last_mouse {
-                let display_factor = self.get_display_factor(&self.gen.map);
-                let local_delta = Vec2::new(mouse.0, mouse.1) - last_mouse;
-                self.offset += local_delta / (self.zoom * display_factor);
-            }
-
-            self.last_mouse = Some(mouse.into());
-
-        // mouse pressed for first frame, reset last position
-        } else if is_mouse_button_released(MouseButton::Left) {
-            self.last_mouse = None;
+            self.map_cam.shift(delta);
         }
     }
 
