@@ -100,11 +100,12 @@ impl Editor {
 
         let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
 
-        let debug_layers = Some(DebugLayers::new(
-            true,
-            (map_config.width, map_config.height),
-            0.5,
-        ));
+        let debug_layers = None;
+        // let debug_layers = Some(DebugLayers::new(
+        //     true,
+        //     (map_config.width, map_config.height),
+        //     0.5,
+        // ));
 
         Editor {
             state: EditorState::Paused(PausedState::Setup),
