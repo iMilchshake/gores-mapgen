@@ -106,7 +106,7 @@ async fn main() {
             let _ = panic::catch_unwind(AssertUnwindSafe(|| {
                 editor
                     .gen
-                    .perform_all_post_processing(&editor.gen_config, &editor.debug_layers)
+                    .perform_all_post_processing(&editor.gen_config, &mut editor.debug_layers)
                     .unwrap_or_else(|err| {
                         println!("Post Processing Failed: {:}", err);
                     });
@@ -135,8 +135,12 @@ async fn main() {
         draw_waypoints(&editor.map_config.waypoints, colors::RED);
 
         // draw debug layers
-        for (layer_name, debug_layer) in editor.gen.debug_layers.iter() {
-            if *editor.visualize_debug_layers.get(layer_name).unwrap() {
+        if let Some(ref mut debug_layers) = editor.debug_layers {
+            for (layer_name, debug_layer) in debug_layers.bool_layers.iter() {
+                if !debug_layers.active_layers.get(layer_name).unwrap() {
+                    continue;
+                }
+
                 draw_bool_grid(&debug_layer.grid, &debug_layer.color, &debug_layer.outline)
             }
         }

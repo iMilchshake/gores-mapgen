@@ -166,17 +166,6 @@ impl Generator {
             // perform one step
             self.walker
                 .probabilistic_step(&mut self.map, config, &mut self.rnd)?;
-
-            // TODO: very imperformant clone here, REVERT REVERT
-            // fuck i want to call this in post procesing aswell -> move to map/generator
-            self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
-
-            // handle platforms TODO: remove once post processing is implemented
-            // self.walker.check_platform(
-            //     &mut self.map,
-            //     config.platform_distance_bounds.0,
-            //     config.platform_distance_bounds.1,
-            // )?;
         }
 
         Ok(())
@@ -226,7 +215,7 @@ impl Generator {
     pub fn perform_all_post_processing(
         &mut self,
         gen_config: &GenerationConfig,
-        debug_layers: &Option<DebugLayers>,
+        debug_layers: &mut Option<DebugLayers>,
     ) -> Result<(), &'static str> {
         let timer = Timer::start();
 
@@ -234,13 +223,7 @@ impl Generator {
         self.walker
             .lock_previous_location(&self.map, gen_config, true)?;
 
-        if let Some(ref debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("lock").unwrap().grid =
-                self.walker.locked_positions.clone();
-        }
-
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
-        self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
         print_time(&timer, "fix edge bugs");
 
         generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
@@ -257,7 +240,7 @@ impl Generator {
 
         if gen_config.min_freeze_size > 0 {
             // TODO: Maybe add some alternative function for the case of min_freeze_size=1
-            post::remove_freeze_blobs(self, gen_config.min_freeze_size);
+            post::remove_freeze_blobs(self, gen_config.min_freeze_size, debug_layers);
             print_time(&timer, "detect blobs");
         }
 
@@ -269,7 +252,7 @@ impl Generator {
             &flood_fill,
             &mut self.map,
             gen_config,
-            &mut self.debug_layers,
+            debug_layers,
         );
         print_time(&timer, "platforms");
 
@@ -279,6 +262,7 @@ impl Generator {
             gen_config.skip_min_spacing_sqr,
             gen_config.max_level_skip,
             &flood_fill,
+            debug_layers,
         );
         print_time(&timer, "generate skips");
 
@@ -286,6 +270,13 @@ impl Generator {
         print_time(&timer, "place obstacles");
 
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
+
+        if let Some(debug_layers) = debug_layers {
+            debug_layers.bool_layers.get_mut("lock").unwrap().grid =
+                self.walker.locked_positions.clone();
+            debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
+        }
+        print_time(&timer, "set debug layers");
 
         Ok(())
     }
@@ -310,7 +301,7 @@ impl Generator {
         }
 
         // perform all post processing step without creating any debug layers
-        gen.perform_all_post_processing(gen_config, &None)?;
+        gen.perform_all_post_processing(gen_config, &mut None)?;
 
         Ok(gen.map)
     }

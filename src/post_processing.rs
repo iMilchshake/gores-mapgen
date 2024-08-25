@@ -1,6 +1,6 @@
 use crate::{
     config::GenerationConfig,
-    debug::DebugLayer,
+    debug::DebugLayers,
     generator::Generator,
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
@@ -388,6 +388,7 @@ pub fn generate_all_skips(
     min_spacing_sqr: usize,
     max_level_skip: usize,
     flood_fill: &Array2<Option<usize>>,
+    debug_layers: &mut Option<DebugLayers>,
 ) {
     // get corner candidates
     let corner_candidates = find_corners(gen).expect("corner detection failed");
@@ -463,15 +464,19 @@ pub fn generate_all_skips(
     }
 
     // add debug visualizations
-    for (skip, status) in skips.iter().zip(skip_status.iter()) {
-        let debug_layer = match *status {
-            SkipStatus::Valid => gen.debug_layers.get_mut("skips").unwrap(),
-            SkipStatus::Invalid => gen.debug_layers.get_mut("skips_invalid").unwrap(),
-            SkipStatus::ValidFreezeSkipOnly => gen.debug_layers.get_mut("freeze_skips").unwrap(),
-        };
+    if let Some(debug_layers) = debug_layers {
+        for (skip, status) in skips.iter().zip(skip_status.iter()) {
+            let debug_layer = match *status {
+                SkipStatus::Valid => debug_layers.bool_layers.get_mut("skips").unwrap(),
+                SkipStatus::Invalid => debug_layers.bool_layers.get_mut("skips_invalid").unwrap(),
+                SkipStatus::ValidFreezeSkipOnly => {
+                    debug_layers.bool_layers.get_mut("freeze_skips").unwrap()
+                }
+            };
 
-        debug_layer.grid[skip.start_pos.as_index()] = true;
-        debug_layer.grid[skip.end_pos.as_index()] = true;
+            debug_layer.grid[skip.start_pos.as_index()] = true;
+            debug_layer.grid[skip.end_pos.as_index()] = true;
+        }
     }
 }
 
@@ -488,7 +493,11 @@ pub fn get_window<T>(
 }
 
 /// removes unconnected/isolated that are smaller in size than given minimal threshold
-pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
+pub fn remove_freeze_blobs(
+    gen: &mut Generator,
+    min_freeze_size: usize,
+    debug_layers: &mut Option<DebugLayers>,
+) {
     let width = gen.map.width;
     let height = gen.map.height;
 
@@ -589,12 +598,15 @@ pub fn remove_freeze_blobs(gen: &mut Generator, min_freeze_size: usize) {
 
             // unconnected blob has been found
             if blob_unconnected {
-                for visited_pos in blob_visited {
-                    gen.debug_layers.get_mut("blobs").unwrap().grid[visited_pos.as_index()] = true;
+                if let Some(debug_layers) = debug_layers {
+                    for visited_pos in blob_visited {
+                        debug_layers.bool_layers.get_mut("blobs").unwrap().grid
+                            [visited_pos.as_index()] = true;
 
-                    // remove small blobs
-                    if blob_size < min_freeze_size {
-                        gen.map.grid[visited_pos.as_index()] = BlockType::Empty;
+                        // remove small blobs
+                        if blob_size < min_freeze_size {
+                            gen.map.grid[visited_pos.as_index()] = BlockType::Empty;
+                        }
                     }
                 }
             }
@@ -768,7 +780,7 @@ pub fn gen_all_platform_candidates(
     flood_fill: &Array2<Option<usize>>,
     map: &mut Map,
     gen_config: &GenerationConfig,
-    debug_layers: &mut HashMap<&'static str, DebugLayer>,
+    debug_layers: &mut Option<DebugLayers>,
 ) {
     let mut platform_candidates: Vec<Platform> = Vec::new();
     let mut last_platform_level_distance = 0;
@@ -797,24 +809,19 @@ pub fn gen_all_platform_candidates(
         // try to get optimal platform candidate
         let platform_pos = floor_pos.shifted_by(0, -1).unwrap();
         let result = get_optimal_greedy_platform_candidate(&platform_pos, map, gen_config);
-        if let Ok(platform_candidate) = result {
-            // draw debug
-            let platforms_walker_pos = debug_layers.get_mut("platforms_walker_pos").unwrap();
-            platforms_walker_pos.grid[pos.as_index()] = true;
-            let platforms_floor_pos = debug_layers.get_mut("platforms_floor_pos").unwrap();
-            platforms_floor_pos.grid[floor_pos.as_index()] = true;
-            let platforms_pos = debug_layers.get_mut("platforms_pos").unwrap();
-            platforms_pos.grid[platform_pos.as_index()] = true;
-            let platform_debug_layer = debug_layers.get_mut("platforms").unwrap();
-            let mut area = platform_debug_layer.grid.slice_mut(s![
-                platform_pos.x - platform_candidate.width_left
-                    ..=platform_pos.x + platform_candidate.width_right,
-                platform_pos.y - (platform_candidate.available_height - 1)..=platform_pos.y
-            ]);
-            area.fill(true);
+        if let Ok(platform) = result {
+            // debug visualizations
+            if let Some(debug_layers) = debug_layers {
+                let platform_debug_layer = debug_layers.bool_layers.get_mut("platforms").unwrap();
+                let mut area = platform_debug_layer.grid.slice_mut(s![
+                    platform_pos.x - platform.width_left..=platform_pos.x + platform.width_right,
+                    platform_pos.y - (platform.available_height - 1)..=platform_pos.y
+                ]);
+                area.fill(true);
+            }
 
             // save platform
-            platform_candidates.push(platform_candidate);
+            platform_candidates.push(platform);
 
             // update last level distance
             last_platform_level_distance = level_distance;

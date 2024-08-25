@@ -306,15 +306,17 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         ui.separator();
         // =======================================[ DEBUG LAYERS ]===================================
 
-        hashmap_edit_widget(
-            ui,
-            &mut editor.visualize_debug_layers,
-            edit_bool,
-            "debug layers",
-            true,
-        );
+        if let Some(ref mut debug_layers) = editor.debug_layers {
+            hashmap_edit_widget(
+                ui,
+                &mut debug_layers.active_layers,
+                edit_bool,
+                "debug layers",
+                true,
+            );
 
-        ui.separator();
+            ui.separator();
+        }
         // =======================================[ CONFIG STORAGE ]===================================
         ui.label("save config files:");
         ui.horizontal(|ui| {

@@ -4,7 +4,7 @@ use ndarray::Array2;
 use std::collections::HashMap;
 
 #[derive(Debug)]
-struct FloatLayer {
+pub struct FloatLayer {
     pub grid: Array2<f32>,
     color_min: Color,
     color_max: Color,
@@ -21,10 +21,10 @@ impl FloatLayer {
 }
 
 #[derive(Debug)]
-struct BoolLayer {
+pub struct BoolLayer {
     pub grid: Array2<bool>,
-    color: Color,
-    outline: bool,
+    pub color: Color,
+    pub outline: bool,
 }
 
 impl BoolLayer {
@@ -38,20 +38,20 @@ impl BoolLayer {
 }
 
 pub struct DebugLayers {
-    pub active_layers: HashMap<String, bool>,
-    pub bool_layers: HashMap<String, BoolLayer>,
-    pub float_layers: HashMap<String, FloatLayer>,
+    pub active_layers: HashMap<&'static str, bool>,
+    pub bool_layers: HashMap<&'static str, BoolLayer>,
+    pub float_layers: HashMap<&'static str, FloatLayer>,
 }
 
 impl DebugLayers {
     pub fn new(enable_layers: bool, shape: (usize, usize), default_alpha: f32) -> DebugLayers {
-        let bool_layers: HashMap<String, BoolLayer> = HashMap::from([(
-            "edge_bugs".to_string(),
+        let bool_layers: HashMap<&'static str, BoolLayer> = HashMap::from([(
+            "edge_bugs",
             BoolLayer::new(shape, Color::new(1.0, 0.8, 0.2, default_alpha), true),
         )]);
 
-        let float_layers: HashMap<String, FloatLayer> = HashMap::from([(
-            "flood_fill".to_string(),
+        let float_layers: HashMap<&'static str, FloatLayer> = HashMap::from([(
+            "flood_fill",
             FloatLayer::new(
                 shape,
                 Color::new(1.0, 0.8, 0.2, default_alpha),
@@ -59,10 +59,10 @@ impl DebugLayers {
             ),
         )]);
 
-        let active_layers: HashMap<String, bool> = bool_layers
+        let active_layers: HashMap<&'static str, bool> = bool_layers
             .keys()
             .chain(float_layers.keys())
-            .map(|key| (key.clone(), enable_layers))
+            .map(|key| (*key, enable_layers))
             .collect();
 
         DebugLayers {
