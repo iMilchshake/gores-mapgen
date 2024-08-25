@@ -1,9 +1,10 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
     config::{GenerationConfig, MapConfig},
+    debug::DebugLayers,
     generator::Generator,
     gui::{debug_window, sidebar},
     map_camera::MapCamera,
@@ -85,8 +86,8 @@ pub struct Editor {
     /// whether to show the GenerationConfig settings
     pub edit_map_config: bool,
 
-    /// asd
-    pub visualize_debug_layers: HashMap<&'static str, bool>,
+    ///
+    pub debug_layers: Option<DebugLayers>,
 
     /// keeps track of camera for map visualization
     pub map_cam: MapCamera,
@@ -97,18 +98,17 @@ impl Editor {
         let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
 
-        // TODO: its kinda stupid to initialize this as its literally re-initialized anyways
-        // when starting the first map generation. But i dont wanna bother adding an Option here as
-        // the generator also holds the initial empty map which is used for visualization.
         let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
 
-        let mut visualize_debug_layers: HashMap<&'static str, bool> = HashMap::new();
-        for layer_name in gen.debug_layers.keys() {
-            visualize_debug_layers.insert(layer_name, true);
-        }
+        let debug_layers = Some(DebugLayers::new(
+            true,
+            (map_config.width, map_config.height),
+            0.5,
+        ));
 
         Editor {
             state: EditorState::Paused(PausedState::Setup),
+            debug_layers,
             init_gen_configs,
             init_map_configs,
             canvas: None,
@@ -126,7 +126,6 @@ impl Editor {
             fixed_seed: false,
             edit_gen_config: false,
             edit_map_config: false,
-            visualize_debug_layers,
         }
     }
 
@@ -138,17 +137,6 @@ impl Editor {
         // this value is only valid for each frame after calling define_egui()
         self.canvas = None;
     }
-
-    // pub fn get_display_factor(&self, map: &Map) -> f32 {
-    //     let canvas = self
-    //         .canvas
-    //         .expect("expect define_egui() to be called before");
-    //
-    //     f32::min(
-    //         canvas.width() / map.width as f32,
-    //         canvas.height() / map.height as f32,
-    //     )
-    // }
 
     pub fn define_egui(&mut self) {
         egui_macroquad::ui(|egui_ctx| {
@@ -221,16 +209,6 @@ impl Editor {
             && 0.0 <= mouse_y
             && mouse_y <= cam.viewport.unwrap().3 as f32
     }
-
-    /// this should result in the exact same behaviour as if not using a camera at all
-    // pub fn reset_camera() {
-    //     set_camera(&Camera2D::from_display_rect(Rect::new(
-    //         0.0,
-    //         0.0,
-    //         screen_width(),
-    //         screen_height(),
-    //     )));
-    // }
 
     pub fn update_cam(&mut self) {
         self.map_cam

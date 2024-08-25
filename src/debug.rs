@@ -1,25 +1,103 @@
-use crate::map::Map;
 use macroquad::color::Color;
 use ndarray::Array2;
 
-/// Allows storing various debug information
+use std::collections::HashMap;
+
 #[derive(Debug)]
-pub struct DebugLayer {
-    pub grid: Array2<bool>,
-
-    /// should active blocks be visualized via an outline or filled?
-    pub outline: bool,
-
-    /// Color for visualization of active blocks
-    pub color: Color,
+struct FloatLayer {
+    pub grid: Array2<f32>,
+    color_min: Color,
+    color_max: Color,
 }
 
-impl DebugLayer {
-    pub fn new(outline: bool, color: Color, for_map: &Map) -> Self {
-        DebugLayer {
-            grid: Array2::from_elem(for_map.grid.dim(), false),
-            outline,
-            color,
+impl FloatLayer {
+    pub fn new(shape: (usize, usize), color_min: Color, color_max: Color) -> FloatLayer {
+        FloatLayer {
+            grid: Array2::from_elem(shape, 0.0),
+            color_min,
+            color_max,
         }
     }
 }
+
+#[derive(Debug)]
+struct BoolLayer {
+    pub grid: Array2<bool>,
+    color: Color,
+    outline: bool,
+}
+
+impl BoolLayer {
+    pub fn new(shape: (usize, usize), color: Color, outline: bool) -> BoolLayer {
+        BoolLayer {
+            grid: Array2::from_elem(shape, false),
+            color,
+            outline,
+        }
+    }
+}
+
+pub struct DebugLayers {
+    pub active_layers: HashMap<String, bool>,
+    pub bool_layers: HashMap<String, BoolLayer>,
+    pub float_layers: HashMap<String, FloatLayer>,
+}
+
+impl DebugLayers {
+    pub fn new(enable_layers: bool, shape: (usize, usize), default_alpha: f32) -> DebugLayers {
+        let bool_layers: HashMap<String, BoolLayer> = HashMap::from([(
+            "edge_bugs".to_string(),
+            BoolLayer::new(shape, Color::new(1.0, 0.8, 0.2, default_alpha), true),
+        )]);
+
+        let float_layers: HashMap<String, FloatLayer> = HashMap::from([(
+            "flood_fill".to_string(),
+            FloatLayer::new(
+                shape,
+                Color::new(1.0, 0.8, 0.2, default_alpha),
+                Color::new(0.0, 0.8, 0.2, default_alpha),
+            ),
+        )]);
+
+        let active_layers: HashMap<String, bool> = bool_layers
+            .keys()
+            .chain(float_layers.keys())
+            .map(|key| (key.clone(), enable_layers))
+            .collect();
+
+        DebugLayers {
+            active_layers,
+            bool_layers,
+            float_layers,
+        }
+    }
+}
+
+// let debug_layers = HashMap::from([
+//     ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
+//     ("freeze_skips", DebugLayer::new(true, colors::ORANGE, &map)),
+//     ("skips", DebugLayer::new(true, colors::GREEN, &map)),
+//     ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
+//     ("blobs", DebugLayer::new(false, colors::RED, &map)),
+//     (
+//         "lock",
+//         DebugLayer::new(false, Color::new(1.0, 0.2, 0.2, 0.3), &map),
+//     ),
+//     (
+//         "platforms",
+//         DebugLayer::new(false, Color::new(1.0, 0.0, 0.0, 0.1), &map),
+//     ),
+//     (
+//         "platforms_pos",
+//         DebugLayer::new(false, Color::new(0.0, 1.0, 0.0, 0.8), &map),
+//     ),
+//     (
+//         "platforms_floor_pos",
+//         DebugLayer::new(false, Color::new(0.0, 0.7, 0.7, 0.8), &map),
+//     ),
+//     (
+//         "platforms_walker_pos",
+//         DebugLayer::new(false, Color::new(0.7, 0.7, 0.0, 0.8), &map),
+//     ),
+// ]);
+//

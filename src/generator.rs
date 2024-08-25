@@ -3,7 +3,7 @@ use timing::Timer;
 
 use crate::{
     config::{GenerationConfig, MapConfig},
-    debug::DebugLayer,
+    debug::DebugLayers,
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::Position,
@@ -26,7 +26,6 @@ pub fn print_time(timer: &Timer, message: &str) {
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
-    pub debug_layers: HashMap<&'static str, DebugLayer>,
 
     /// PRNG wrapper
     pub rnd: Random,
@@ -134,45 +133,10 @@ impl Generator {
             &map,
         );
 
-        // let platforms_walker_pos = debug_layers.get_mut("platforms_walker_pos").unwrap();
-        // let platforms_floor_pos = debug_layers.get_mut("platforms_floor_pos").unwrap();
-        // let platforms_pos = debug_layers.get_mut("platforms_pos").unwrap();
-        // let platform_debug_layer = debug_layers.get_mut("platforms").unwrap();
-
-        // TODO: rework shitty debug storage
-        let debug_layers = HashMap::from([
-            ("edge_bugs", DebugLayer::new(true, colors::BLUE, &map)),
-            ("freeze_skips", DebugLayer::new(true, colors::ORANGE, &map)),
-            ("skips", DebugLayer::new(true, colors::GREEN, &map)),
-            ("skips_invalid", DebugLayer::new(true, colors::RED, &map)),
-            ("blobs", DebugLayer::new(false, colors::RED, &map)),
-            (
-                "lock",
-                DebugLayer::new(false, Color::new(1.0, 0.2, 0.2, 0.3), &map),
-            ),
-            (
-                "platforms",
-                DebugLayer::new(false, Color::new(1.0, 0.0, 0.0, 0.1), &map),
-            ),
-            (
-                "platforms_pos",
-                DebugLayer::new(false, Color::new(0.0, 1.0, 0.0, 0.8), &map),
-            ),
-            (
-                "platforms_floor_pos",
-                DebugLayer::new(false, Color::new(0.0, 0.7, 0.7, 0.8), &map),
-            ),
-            (
-                "platforms_walker_pos",
-                DebugLayer::new(false, Color::new(0.7, 0.7, 0.0, 0.8), &map),
-            ),
-        ]);
-
         Generator {
             walker,
             map,
             rnd,
-            debug_layers,
             spawn,
         }
     }
@@ -262,14 +226,18 @@ impl Generator {
     pub fn perform_all_post_processing(
         &mut self,
         gen_config: &GenerationConfig,
+        debug_layers: &Option<DebugLayers>,
     ) -> Result<(), &'static str> {
         let timer = Timer::start();
 
         // lock all remaining blocks
         self.walker
             .lock_previous_location(&self.map, gen_config, true)?;
-        // TODO: REVERT
-        self.debug_layers.get_mut("lock").unwrap().grid = self.walker.locked_positions.clone();
+
+        if let Some(ref debug_layers) = debug_layers {
+            debug_layers.bool_layers.get_mut("lock").unwrap().grid =
+                self.walker.locked_positions.clone();
+        }
 
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
         self.debug_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
@@ -333,6 +301,7 @@ impl Generator {
     ) -> Result<Map, &'static str> {
         let mut gen = Generator::new(gen_config, map_config, seed.clone());
 
+        // perform all walker steps
         for _ in 0..max_steps {
             if gen.walker.finished {
                 break;
@@ -340,7 +309,8 @@ impl Generator {
             gen.step(gen_config)?;
         }
 
-        gen.perform_all_post_processing(gen_config)?;
+        // perform all post processing step without creating any debug layers
+        gen.perform_all_post_processing(gen_config, &None)?;
 
         Ok(gen.map)
     }
