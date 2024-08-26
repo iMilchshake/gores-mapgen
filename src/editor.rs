@@ -88,28 +88,22 @@ pub struct Editor {
 
     ///
     pub debug_layers: Option<DebugLayers>,
+    pub disable_debug_layers: bool,
 
     /// keeps track of camera for map visualization
     pub map_cam: MapCamera,
 }
 
 impl Editor {
-    pub fn new(gen_config: GenerationConfig, map_config: MapConfig) -> Editor {
+    pub fn new(gen_config: GenerationConfig, map_config: MapConfig, disable_debug: bool) -> Editor {
         let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
-
         let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
-
-        let debug_layers = None;
-        // let debug_layers = Some(DebugLayers::new(
-        //     true,
-        //     (map_config.width, map_config.height),
-        //     0.5,
-        // ));
 
         Editor {
             state: EditorState::Paused(PausedState::Setup),
-            debug_layers,
+            debug_layers: None,
+            disable_debug_layers: disable_debug,
             init_gen_configs,
             init_map_configs,
             canvas: None,
@@ -128,6 +122,18 @@ impl Editor {
             edit_gen_config: false,
             edit_map_config: false,
         }
+    }
+
+    pub fn initialize_debug_layers(&mut self) {
+        if self.disable_debug_layers {
+            return;
+        }
+
+        self.debug_layers = Some(DebugLayers::new(
+            false,
+            (self.gen.map.width, self.gen.map.height),
+            0.5,
+        ));
     }
 
     pub fn on_frame_start(&mut self) {
@@ -201,6 +207,7 @@ impl Editor {
         }
 
         self.gen = Generator::new(&self.gen_config, &self.map_config, self.user_seed.clone());
+        self.initialize_debug_layers();
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {

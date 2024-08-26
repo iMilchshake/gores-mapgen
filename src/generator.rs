@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use timing::Timer;
 
 use crate::{
@@ -12,7 +11,6 @@ use crate::{
     walker::CuteWalker,
 };
 
-use macroquad::color::{colors, Color};
 
 const PRINT_TIMES: bool = false;
 

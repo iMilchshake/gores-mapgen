@@ -7,7 +7,7 @@ use crate::{
 };
 
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     f32::consts::SQRT_2,
 };
 

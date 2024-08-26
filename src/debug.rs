@@ -48,31 +48,31 @@ impl DebugLayers {
         let bool_layers: HashMap<&'static str, BoolLayer> = HashMap::from([
             (
                 "edge_bugs",
-                BoolLayer::new(shape, Color::new(1.0, 0.8, 0.2, default_alpha), true),
+                BoolLayer::new(shape, Color::new(0.76, 0.22, 0.39, default_alpha), true),
             ),
             (
                 "blobs",
-                BoolLayer::new(shape, Color::new(1.0, 0.8, 0.2, default_alpha), true),
+                BoolLayer::new(shape, Color::new(0.9, 0.36, 0.31, default_alpha), true),
             ),
             (
                 "platforms",
-                BoolLayer::new(shape, Color::new(1.0, 0.8, 0.2, default_alpha), true),
+                BoolLayer::new(shape, Color::new(0.8, 0.81, 0.52, default_alpha), true),
             ),
             (
                 "skips",
-                BoolLayer::new(shape, Color::new(1.0, 0.8, 0.2, default_alpha), true),
+                BoolLayer::new(shape, Color::new(0.62, 0.83, 0.4, default_alpha), true),
             ),
             (
                 "skips_invalid",
-                BoolLayer::new(shape, Color::new(1.0, 0.8, 0.2, default_alpha), true),
+                BoolLayer::new(shape, Color::new(1.0, 0.61, 0.38, default_alpha), true),
             ),
             (
                 "freeze_skips",
-                BoolLayer::new(shape, Color::new(1.0, 0.8, 0.2, default_alpha), true),
+                BoolLayer::new(shape, Color::new(0.45, 0.53, 0.77, default_alpha), true),
             ),
             (
                 "lock",
-                BoolLayer::new(shape, Color::new(1.0, 0.8, 0.2, default_alpha), true),
+                BoolLayer::new(shape, Color::new(0.43, 0.28, 0.62, default_alpha), false),
             ),
         ]);
 
@@ -80,8 +80,8 @@ impl DebugLayers {
             "flood_fill",
             FloatLayer::new(
                 shape,
-                Color::new(1.0, 0.8, 0.2, default_alpha),
-                Color::new(0.0, 0.8, 0.2, default_alpha),
+                Color::new(1.0, 0.0, 0.0, default_alpha),
+                Color::new(0.0, 0.1, 0.0, default_alpha),
             ),
         )]);
 

@@ -27,6 +27,10 @@ struct Args {
     /// enable instant, auto generate and fixed seed
     #[arg(short, long)]
     testing: bool,
+
+    /// disable all debug visualization calculations for improved performance
+    #[arg(short, long)]
+    disable_debug: bool,
 }
 
 fn window_conf() -> Conf {
@@ -51,6 +55,7 @@ async fn main() {
     let mut editor = Editor::new(
         GenerationConfig::get_initial_gen_config(),
         MapConfig::get_initial_config(),
+        args.disable_debug,
     );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
