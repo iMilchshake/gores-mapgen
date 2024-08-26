@@ -1,6 +1,7 @@
 use egui::Rect as EGuiRect;
 use macroquad::camera::Camera2D;
 use macroquad::color::colors::*;
+use macroquad::input::{mouse_position, mouse_position_local};
 use macroquad::math::{Rect, Vec2};
 use macroquad::shapes::{draw_circle, draw_line, draw_rectangle_lines};
 use macroquad::window::{screen_height, screen_width};
@@ -12,6 +13,7 @@ pub struct MapCamera {
     zoom: f32,
     map_size: Option<Vec2>,
     viewport: Option<Vec2>,
+    viewport_ratio: Option<Vec2>,
 }
 
 impl Default for MapCamera {
@@ -21,6 +23,7 @@ impl Default for MapCamera {
             zoom: 1.0,
             map_size: None,
             viewport: None,
+            viewport_ratio: None,
         }
     }
 }
@@ -31,7 +34,12 @@ impl MapCamera {
     }
 
     pub fn update_viewport_from_egui_rect(&mut self, canvas: &EGuiRect) {
-        self.viewport = Some(Vec2::new(canvas.max.x, canvas.max.y));
+        let viewport = Vec2::new(canvas.max.x, canvas.max.y);
+        self.viewport_ratio = Some(Vec2::new(
+            viewport.x / screen_width(),
+            viewport.y / screen_height(),
+        ));
+        self.viewport = Some(viewport);
     }
 
     /// reset camera transformations
@@ -51,11 +59,8 @@ impl MapCamera {
     /// expects a "local" shift in [-1, +1] range wrt. to the full window size.
     /// if a viewport is used it will be scaled accordingly.
     pub fn shift(&mut self, local_shift: Vec2) {
-        let viewport = self.viewport.expect("viewport not defined!");
-        let x_ratio = viewport.x / screen_width();
-        let y_ratio = viewport.y / screen_height();
-        let local_shift = Vec2::new(local_shift.x / x_ratio, local_shift.y / y_ratio);
-
+        let viewport_ratio = self.viewport_ratio.expect("viewport not defined");
+        let local_shift = local_shift / viewport_ratio;
         self.offset += local_shift / self.zoom;
     }
 
@@ -94,5 +99,19 @@ impl MapCamera {
         draw_rectangle_lines(0.0, 0.0, map_size.x, map_size.y, 2.0, RED);
         draw_circle(map_size.x / 2., map_size.y / 2., 2.0, LIME);
         draw_circle(cam.target.x, cam.target.y, 2.0, DARKBLUE);
+
+        let viewport_ratio = self.viewport_ratio.expect("viewport not defined");
+        let mouse_abs_map =
+            cam.screen_to_world(Vec2::new(mouse_position().0, mouse_position().1) / viewport_ratio);
+        draw_circle(mouse_abs_map.x, mouse_abs_map.y, 0.1, LIME);
+
+        draw_rectangle_lines(
+            mouse_abs_map.x.floor() as f32,
+            mouse_abs_map.y.floor() as f32,
+            1.0,
+            1.0,
+            0.2,
+            RED,
+        );
     }
 }

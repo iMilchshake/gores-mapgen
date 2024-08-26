@@ -162,6 +162,8 @@ async fn main() {
             }
         }
 
+        editor.map_cam.draw_cam_debug(&editor.cam.unwrap());
+
         egui_macroquad::draw();
         fps_ctrl.wait_for_next_frame().await;
     }

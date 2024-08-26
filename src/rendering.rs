@@ -53,7 +53,6 @@ pub fn draw_opt_float_grid(grid: &Array2<Option<f32>>, color_min: &Color, color_
         .min_by(|a, b| a.partial_cmp(b).unwrap());
 
     if min_value.is_none() || max_value.is_none() {
-        dbg!(min_value, max_value);
         return;
     }
 
