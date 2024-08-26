@@ -1,6 +1,6 @@
 use crate::{
     config::GenerationConfig,
-    debug::{self, DebugLayers},
+    debug::{DebugLayers},
     generator::Generator,
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
@@ -655,7 +655,7 @@ pub fn get_flood_fill(
             .float_layers
             .get_mut("flood_fill")
             .unwrap()
-            .grid = distance.map(|v| v.unwrap_or(0) as f32);
+            .grid = distance.map(|v| v.map(|v| v as f32));
     }
 
     distance

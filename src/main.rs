@@ -154,7 +154,7 @@ async fn main() {
                     continue;
                 }
 
-                draw_float_grid(
+                draw_opt_float_grid(
                     &debug_layer.grid,
                     &debug_layer.color_min,
                     &debug_layer.color_max,

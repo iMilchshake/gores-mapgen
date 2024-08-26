@@ -1,6 +1,4 @@
 use crate::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
-use dt::num::Float;
-use macroquad::color;
 use macroquad::color::colors;
 use macroquad::color::Color;
 use macroquad::shapes::*;
@@ -43,21 +41,28 @@ pub fn draw_bool_grid(grid: &Array2<bool>, color: &Color, outline: &bool) {
 }
 
 /// Drawing of a float grid.
-pub fn draw_float_grid(grid: &Array2<f32>, color_min: &Color, color_max: &Color) {
+pub fn draw_opt_float_grid(grid: &Array2<Option<f32>>, color_min: &Color, color_max: &Color) {
     let max_value = grid
         .iter()
-        .max_by(|a, b| a.partial_cmp(b).unwrap())
-        .unwrap();
+        .filter_map(|&x| x)
+        .max_by(|a, b| a.partial_cmp(b).unwrap());
+
     let min_value = grid
         .iter()
-        .min_by(|a, b| a.partial_cmp(b).unwrap())
-        .unwrap();
+        .filter_map(|&x| x)
+        .min_by(|a, b| a.partial_cmp(b).unwrap());
+
+    if min_value.is_none() || max_value.is_none() {
+        dbg!(min_value, max_value);
+        return;
+    }
 
     for ((x, y), value) in grid.indexed_iter() {
-        let relative_value = (value - min_value) / max_value;
+        if value.is_none() {
+            continue;
+        }
 
-        // assert!(relative_value >= 0.);
-        // assert!(relative_value <= 1.);
+        let relative_value = (value.unwrap() - min_value.unwrap()) / max_value.unwrap();
 
         let lerp_color = Color::new(
             (color_min.r * relative_value) + (color_max.r * (1. - relative_value)),

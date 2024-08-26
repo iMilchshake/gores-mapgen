@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct FloatLayer {
-    pub grid: Array2<f32>,
+    pub grid: Array2<Option<f32>>,
     pub color_min: Color,
     pub color_max: Color,
 }
@@ -13,7 +13,7 @@ pub struct FloatLayer {
 impl FloatLayer {
     pub fn new(shape: (usize, usize), color_min: Color, color_max: Color) -> FloatLayer {
         FloatLayer {
-            grid: Array2::from_elem(shape, 0.0),
+            grid: Array2::from_elem(shape, None),
             color_min,
             color_max,
         }
