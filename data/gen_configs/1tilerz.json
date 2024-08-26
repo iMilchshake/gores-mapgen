@@ -9,16 +9,23 @@
   "shift_weights": {
     "values": null,
     "probs": [
-      0.6451612903225806,
-      0.16129032258064516,
-      0.12903225806451613,
-      0.06451612903225806
+      0.6451613,
+      0.16129032,
+      0.12903225,
+      0.06451613
     ]
   },
-  "platform_distance_bounds": [
-    100,
-    100
+  "plat_min_distance": 40,
+  "plat_width_bounds": [
+    3,
+    5
   ],
+  "plat_height_bounds": [
+    0,
+    1
+  ],
+  "plat_min_empty_height": 4,
+  "plat_soft_overhang": false,
   "momentum_prob": 0.72,
   "max_distance": 4.0,
   "waypoint_reached_dist": 300,
@@ -38,11 +45,24 @@
       1.0
     ]
   },
+  "circ_probs": {
+    "values": [
+      0.0,
+      0.6,
+      0.8
+    ],
+    "probs": [
+      0.7894737,
+      0.15789475,
+      0.05263158
+    ]
+  },
   "skip_length_bounds": [
     3,
     25
   ],
   "skip_min_spacing_sqr": 45,
+  "max_level_skip": 90,
   "min_freeze_size": 2,
   "enable_pulse": true,
   "pulse_straight_delay": 20,
@@ -50,5 +70,10 @@
   "pulse_max_kernel_size": 4,
   "fade_steps": 30,
   "fade_max_size": 5,
-  "fade_min_size": 2
+  "fade_min_size": 2,
+  "max_subwaypoint_dist": 50.0,
+  "subwaypoint_max_shift_dist": 5.0,
+  "pos_lock_max_dist": 20.0,
+  "pos_lock_max_delay": 1000,
+  "lock_kernel_size": 9
 }
