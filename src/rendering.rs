@@ -1,4 +1,6 @@
 use crate::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
+use dt::num::Float;
+use macroquad::color;
 use macroquad::color::colors;
 use macroquad::color::Color;
 use macroquad::shapes::*;
@@ -37,6 +39,34 @@ pub fn draw_bool_grid(grid: &Array2<bool>, color: &Color, outline: &bool) {
                 draw_rectangle(x as f32, y as f32, 1.0, 1.0, *color);
             }
         }
+    }
+}
+
+/// Drawing of a float grid.
+pub fn draw_float_grid(grid: &Array2<f32>, color_min: &Color, color_max: &Color) {
+    let max_value = grid
+        .iter()
+        .max_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap();
+    let min_value = grid
+        .iter()
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap();
+
+    for ((x, y), value) in grid.indexed_iter() {
+        let relative_value = (value - min_value) / max_value;
+
+        // assert!(relative_value >= 0.);
+        // assert!(relative_value <= 1.);
+
+        let lerp_color = Color::new(
+            (color_min.r * relative_value) + (color_max.r * (1. - relative_value)),
+            (color_min.g * relative_value) + (color_max.g * (1. - relative_value)),
+            (color_min.b * relative_value) + (color_max.b * (1. - relative_value)),
+            (color_min.a * relative_value) + (color_max.a * (1. - relative_value)),
+        );
+
+        draw_rectangle(x as f32, y as f32, 1.0, 1.0, lerp_color);
     }
 }
 

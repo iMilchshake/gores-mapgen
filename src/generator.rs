@@ -11,7 +11,6 @@ use crate::{
     walker::CuteWalker,
 };
 
-
 const PRINT_TIMES: bool = false;
 
 pub fn print_time(timer: &Timer, message: &str) {
@@ -242,7 +241,7 @@ impl Generator {
             print_time(&timer, "detect blobs");
         }
 
-        let flood_fill = get_flood_fill(self, &self.spawn);
+        let flood_fill = get_flood_fill(self, &self.spawn, debug_layers);
         print_time(&timer, "flood fill");
 
         post::gen_all_platform_candidates(

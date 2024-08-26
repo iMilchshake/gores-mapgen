@@ -1,15 +1,12 @@
 use crate::{
     config::GenerationConfig,
-    debug::DebugLayers,
+    debug::{self, DebugLayers},
     generator::Generator,
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
 };
 
-use std::{
-    collections::VecDeque,
-    f32::consts::SQRT_2,
-};
+use std::{collections::VecDeque, f32::consts::SQRT_2};
 
 use dt::dt_bool;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
@@ -614,7 +611,11 @@ pub fn remove_freeze_blobs(
     }
 }
 
-pub fn get_flood_fill(gen: &Generator, start_pos: &Position) -> Array2<Option<usize>> {
+pub fn get_flood_fill(
+    gen: &Generator,
+    start_pos: &Position,
+    debug_layers: &mut Option<DebugLayers>,
+) -> Array2<Option<usize>> {
     let width = gen.map.width;
     let height = gen.map.height;
     let mut distance = Array2::from_elem((width, height), None);
@@ -647,6 +648,14 @@ pub fn get_flood_fill(gen: &Generator, start_pos: &Position) -> Array2<Option<us
                 queue.push_back((neighbor.clone(), dist + 1));
             }
         }
+    }
+
+    if let Some(debug_layers) = debug_layers {
+        debug_layers
+            .float_layers
+            .get_mut("flood_fill")
+            .unwrap()
+            .grid = distance.map(|v| v.unwrap_or(0) as f32);
     }
 
     distance

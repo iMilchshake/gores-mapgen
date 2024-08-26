@@ -6,8 +6,8 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct FloatLayer {
     pub grid: Array2<f32>,
-    color_min: Color,
-    color_max: Color,
+    pub color_min: Color,
+    pub color_max: Color,
 }
 
 impl FloatLayer {

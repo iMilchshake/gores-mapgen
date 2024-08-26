@@ -148,6 +148,18 @@ async fn main() {
 
                 draw_bool_grid(&debug_layer.grid, &debug_layer.color, &debug_layer.outline)
             }
+
+            for (layer_name, debug_layer) in debug_layers.float_layers.iter() {
+                if !debug_layers.active_layers.get(layer_name).unwrap() {
+                    continue;
+                }
+
+                draw_float_grid(
+                    &debug_layer.grid,
+                    &debug_layer.color_min,
+                    &debug_layer.color_max,
+                );
+            }
         }
 
         egui_macroquad::draw();
