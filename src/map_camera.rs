@@ -1,7 +1,7 @@
 use egui::Rect as EGuiRect;
 use macroquad::camera::Camera2D;
 use macroquad::color::colors::*;
-use macroquad::input::{mouse_position, mouse_position_local};
+use macroquad::input::mouse_position;
 use macroquad::math::{Rect, Vec2};
 use macroquad::shapes::{draw_circle, draw_line, draw_rectangle_lines};
 use macroquad::window::{screen_height, screen_width};

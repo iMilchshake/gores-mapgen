@@ -76,14 +76,24 @@ impl DebugLayers {
             ),
         ]);
 
-        let float_layers: HashMap<&'static str, FloatLayer> = HashMap::from([(
-            "flood_fill",
-            FloatLayer::new(
-                shape,
-                Color::new(1.0, 0.0, 0.0, default_alpha),
-                Color::new(0.0, 0.1, 0.0, default_alpha),
+        let float_layers: HashMap<&'static str, FloatLayer> = HashMap::from([
+            (
+                "flood_fill",
+                FloatLayer::new(
+                    shape,
+                    Color::new(0.0, 1.0, 0.0, default_alpha),
+                    Color::new(0.0, 0.0, 1.0, default_alpha),
+                ),
             ),
-        )]);
+            (
+                "dt",
+                FloatLayer::new(
+                    shape,
+                    Color::new(0.0, 1.0, 0.0, default_alpha),
+                    Color::new(0.0, 0.0, 1.0, default_alpha),
+                ),
+            ),
+        ]);
 
         let active_layers: HashMap<&'static str, bool> = bool_layers
             .keys()

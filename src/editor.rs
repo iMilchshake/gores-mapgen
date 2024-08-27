@@ -69,6 +69,8 @@ pub struct Editor {
     pub steps_per_frame: usize,
     pub cam: Option<Camera2D>,
     pub gen: Generator,
+    pub debug_layers: Option<DebugLayers>,
+    pub disable_debug_layers: bool,
 
     pub user_seed: Seed,
 
@@ -85,10 +87,6 @@ pub struct Editor {
 
     /// whether to show the GenerationConfig settings
     pub edit_map_config: bool,
-
-    ///
-    pub debug_layers: Option<DebugLayers>,
-    pub disable_debug_layers: bool,
 
     /// keeps track of camera for map visualization
     pub map_cam: MapCamera,

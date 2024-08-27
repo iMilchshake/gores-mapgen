@@ -1,6 +1,6 @@
 use crate::{
     config::GenerationConfig,
-    debug::{DebugLayers},
+    debug::DebugLayers,
     generator::Generator,
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
@@ -57,13 +57,22 @@ pub fn fix_edge_bugs(gen: &mut Generator) -> Result<Array2<bool>, &'static str> 
 
 /// Using a distance transform this function will fill up all empty blocks that are too far
 /// from the next solid/non-empty block
-pub fn fill_open_areas(gen: &mut Generator, max_distance: &f32) -> Array2<f32> {
+pub fn fill_open_areas(
+    gen: &mut Generator,
+    max_distance: &f32,
+    debug_layers: &mut Option<DebugLayers>,
+) -> Array2<f32> {
     let grid = gen.map.grid.map(|val| *val != BlockType::Empty);
 
     // euclidean distance transform
     let distance = dt_bool::<f32>(&grid.into_dyn())
         .into_dimensionality::<Ix2>()
         .unwrap();
+
+    if let Some(debug_layers) = debug_layers {
+        debug_layers.float_layers.get_mut("dt").unwrap().grid =
+            distance.map(|v| if *v > 0.0 { Some(*v) } else { None });
+    }
 
     gen.map
         .grid

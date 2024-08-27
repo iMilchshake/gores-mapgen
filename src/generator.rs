@@ -263,7 +263,7 @@ impl Generator {
         );
         print_time(&timer, "generate skips");
 
-        post::fill_open_areas(self, &gen_config.max_distance);
+        post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
         print_time(&timer, "place obstacles");
 
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
