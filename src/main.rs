@@ -132,13 +132,6 @@ async fn main() {
             editor.gen.map.chunk_size,
         );
 
-        // TODO: group in some "debug" visualization call
-        draw_walker_kernel(&editor.gen.walker, KernelType::Outer);
-        draw_walker_kernel(&editor.gen.walker, KernelType::Inner);
-        draw_walker(&editor.gen.walker);
-        draw_waypoints(&editor.gen.walker.waypoints, colors::BLUE);
-        draw_waypoints(&editor.map_config.waypoints, colors::RED);
-
         // draw debug layers
         if let Some(ref mut debug_layers) = editor.debug_layers {
             for (layer_name, debug_layer) in debug_layers.bool_layers.iter() {
@@ -162,7 +155,18 @@ async fn main() {
             }
         }
 
-        editor.map_cam.draw_cam_debug(&editor.cam.unwrap());
+        // TODO: group in some "debug" visualization call
+        draw_walker_kernel(&editor.gen.walker, KernelType::Outer);
+        draw_walker_kernel(&editor.gen.walker, KernelType::Inner);
+        draw_walker(&editor.gen.walker);
+        draw_waypoints(&editor.gen.walker.waypoints, colors::BLUE);
+        draw_waypoints(&editor.map_config.waypoints, colors::RED);
+
+        if macroquad::input::is_key_down(miniquad::KeyCode::D) {
+            draw_mouse_map_cell_pos(&editor.map_cam);
+        }
+
+        // editor.map_cam.draw_cam_debug();
 
         egui_macroquad::draw();
         fps_ctrl.wait_for_next_frame().await;

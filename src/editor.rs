@@ -6,7 +6,7 @@ use crate::{
     config::{GenerationConfig, MapConfig},
     debug::DebugLayers,
     generator::Generator,
-    gui::{debug_window, sidebar},
+    gui::{debug_layers_window, debug_window, sidebar},
     map_camera::MapCamera,
     random::Seed,
 };
@@ -19,7 +19,7 @@ use macroquad::input::{
 };
 use macroquad::time::get_fps;
 use macroquad::{
-    camera::{set_camera, Camera2D},
+    camera::Camera2D,
     input::is_mouse_button_pressed,
 };
 
@@ -67,7 +67,7 @@ pub struct Editor {
     pub gen_config: GenerationConfig,
     pub map_config: MapConfig,
     pub steps_per_frame: usize,
-    pub cam: Option<Camera2D>,
+    // pub cam: Option<Camera2D>,
     pub gen: Generator,
     pub debug_layers: Option<DebugLayers>,
     pub disable_debug_layers: bool,
@@ -107,7 +107,7 @@ impl Editor {
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
-            cam: None,
+            // cam: None,
             map_cam: MapCamera::default(),
             gen_config,
             map_config,
@@ -146,7 +146,12 @@ impl Editor {
     pub fn define_egui(&mut self) {
         egui_macroquad::ui(|egui_ctx| {
             sidebar(egui_ctx, self);
+
             debug_window(egui_ctx, self);
+
+            if macroquad::input::is_key_down(KeyCode::D) {
+                debug_layers_window(egui_ctx, self);
+            }
 
             // store remaining space for macroquad drawing
             self.canvas = Some(egui_ctx.available_rect());
@@ -221,10 +226,7 @@ impl Editor {
             .update_map_size(self.gen.map.width, self.gen.map.height);
         self.map_cam
             .update_viewport_from_egui_rect(&self.canvas.unwrap());
-
-        let cam = self.map_cam.get_macroquad_cam();
-        set_camera(&cam);
-        self.cam = Some(cam);
+        self.map_cam.update_macroquad_cam();
     }
 
     pub fn save_map_dialog(&self) {
@@ -258,7 +260,7 @@ impl Editor {
         let delta = mouse_delta_position();
         if !egui_wants_mouse
             && is_mouse_button_down(MouseButton::Left)
-            && Editor::mouse_in_viewport(self.cam.as_ref().unwrap())
+            && Editor::mouse_in_viewport(self.map_cam.get_macroquad_cam())
             && !is_mouse_button_pressed(MouseButton::Left)
         {
             self.map_cam.shift(delta);

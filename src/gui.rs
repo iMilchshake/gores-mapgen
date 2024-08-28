@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env};
 
-use egui::RichText;
+use egui::{Align2, RichText};
 use tinyfiledialogs;
 
 use crate::{
@@ -698,5 +698,50 @@ pub fn debug_window(ctx: &Context, editor: &mut Editor) {
             ui.add(Label::new(format!("seed: {:?}", editor.user_seed)));
             ui.add(Label::new(format!("config: {:?}", &editor.gen_config)));
             ui.add(Label::new(format!("walker: {:?}", &editor.gen.walker)));
+        });
+}
+
+pub fn debug_layers_window(ctx: &Context, editor: &mut Editor) {
+    if editor.debug_layers.is_none() {
+        return;
+    }
+    let debug_layers = editor.debug_layers.as_ref().unwrap();
+    let map_mouse_pos = editor.map_cam.get_map_mouse_pos();
+    let map_mouse_pos_cell = (
+        map_mouse_pos.x.floor() as usize,
+        map_mouse_pos.y.floor() as usize,
+    );
+
+    egui::Window::new("debug_layers_window")
+        .frame(window_frame())
+        .title_bar(false)
+        .default_open(true)
+        .anchor(Align2::RIGHT_TOP, egui::vec2(-5., 5.))
+        .resizable(false)
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    for (name, _layer) in debug_layers.bool_layers.iter() {
+                        ui.label(*name);
+                    }
+                    for (name, _layer) in debug_layers.float_layers.iter() {
+                        ui.label(*name);
+                    }
+                });
+                ui.vertical(|ui| {
+                    for (_name, _layer) in debug_layers.bool_layers.iter() {
+                        ui.label(format!(
+                            "{:?}",
+                            _layer.grid.get(map_mouse_pos_cell).unwrap()
+                        ));
+                    }
+                    for (_name, _layer) in debug_layers.float_layers.iter() {
+                        ui.label(format!(
+                            "{:?}",
+                            _layer.grid.get(map_mouse_pos_cell).unwrap()
+                        ));
+                    }
+                });
+            })
         });
 }

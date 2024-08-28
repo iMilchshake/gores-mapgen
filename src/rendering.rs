@@ -1,3 +1,4 @@
+use crate::map_camera::MapCamera;
 use crate::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
 use macroquad::color::colors;
 use macroquad::color::Color;
@@ -161,4 +162,16 @@ pub fn draw_waypoints(waypoints: &[Position], color: Color) {
     for pos in waypoints.iter() {
         draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, 0.5, color)
     }
+}
+
+pub fn draw_mouse_map_cell_pos(map_cam: &MapCamera) {
+    let mouse_map_pos = map_cam.get_map_mouse_pos();
+    draw_rectangle_lines(
+        mouse_map_pos.x.floor(),
+        mouse_map_pos.y.floor(),
+        1.0,
+        1.0,
+        0.15,
+        Color::new(1.0, 0.8, 0.2, 0.95),
+    );
 }

@@ -14,6 +14,7 @@ pub struct MapCamera {
     map_size: Option<Vec2>,
     viewport: Option<Vec2>,
     viewport_ratio: Option<Vec2>,
+    cam: Option<Camera2D>,
 }
 
 impl Default for MapCamera {
@@ -24,6 +25,7 @@ impl Default for MapCamera {
             map_size: None,
             viewport: None,
             viewport_ratio: None,
+            cam: None,
         }
     }
 }
@@ -64,7 +66,7 @@ impl MapCamera {
         self.offset += local_shift / self.zoom;
     }
 
-    pub fn get_macroquad_cam(&self) -> Camera2D {
+    pub fn update_macroquad_cam(&mut self) {
         let viewport = self.viewport.expect("viewport not defined!");
         let map_size = self.map_size.expect("map size not defined!");
 
@@ -88,30 +90,33 @@ impl MapCamera {
         cam.zoom *= self.zoom;
         cam.viewport = Some((0, 0, viewport.x as i32, viewport.y as i32));
 
-        cam
+        macroquad::camera::set_camera(&cam);
+        self.cam = Some(cam);
+    }
+
+    pub fn get_macroquad_cam(&self) -> &Camera2D {
+        self.cam.as_ref().unwrap()
+    }
+
+    pub fn get_map_mouse_pos(&self) -> Vec2 {
+        let viewport_ratio = self.viewport_ratio.expect("viewport not defined");
+        let cam = self.cam.expect("macroquad cam not defined");
+
+        let mouse_pos = mouse_position();
+        let mouse_viewport_pos = Vec2::new(mouse_pos.0, mouse_pos.1) / viewport_ratio;
+        
+
+        cam.screen_to_world(mouse_viewport_pos)
     }
 
     /// debug draws
-    pub fn draw_cam_debug(&self, cam: &Camera2D) {
+    pub fn draw_cam_debug(&self) {
         let map_size = self.map_size.expect("map size not defined!");
+        let cam = self.cam.expect("macroquad cam not defined");
 
         draw_line(0.0, 0.0, map_size.x, map_size.y, 2., BLUE);
         draw_rectangle_lines(0.0, 0.0, map_size.x, map_size.y, 2.0, RED);
         draw_circle(map_size.x / 2., map_size.y / 2., 2.0, LIME);
         draw_circle(cam.target.x, cam.target.y, 2.0, DARKBLUE);
-
-        let viewport_ratio = self.viewport_ratio.expect("viewport not defined");
-        let mouse_abs_map =
-            cam.screen_to_world(Vec2::new(mouse_position().0, mouse_position().1) / viewport_ratio);
-        draw_circle(mouse_abs_map.x, mouse_abs_map.y, 0.1, LIME);
-
-        draw_rectangle_lines(
-            mouse_abs_map.x.floor() as f32,
-            mouse_abs_map.y.floor() as f32,
-            1.0,
-            1.0,
-            0.2,
-            RED,
-        );
     }
 }
