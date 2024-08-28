@@ -12,6 +12,9 @@ path = "src/main.rs"
 name = "twmap_test"
 
 [[bin]]
+name = "config_points"
+
+[[bin]]
 name = "automap_test"
 
 [[bin]]

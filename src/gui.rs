@@ -391,6 +391,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
                 field_edit_widget(
                     ui,
+                    &mut editor.gen_config.difficulty,
+                    edit_f32_bounded(0.1, 5.0),
+                    "difficulty",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
                     &mut editor.gen_config.inner_rad_mut_prob,
                     edit_f32_prob,
                     "inner rad mut prob",

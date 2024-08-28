@@ -1,6 +1,7 @@
 {
   "name": "1tilerz",
   "description": null,
+  "difficulty": 3.0,
   "version": "1.0",
   "inner_rad_mut_prob": 1.0,
   "inner_size_mut_prob": 0.2,
@@ -9,10 +10,10 @@
   "shift_weights": {
     "values": null,
     "probs": [
-      0.6451613,
-      0.16129032,
-      0.12903225,
-      0.06451613
+      0.64516133,
+      0.16129033,
+      0.12903227,
+      0.064516135
     ]
   },
   "plat_min_distance": 40,

@@ -76,8 +76,8 @@ pub fn generate_room(
     // set spawns
     if zone_type == Some(&BlockType::Start) {
         map.set_area(
-            &pos.shifted_by(-(room_size - platform_margin), room_size - 1)?,
-            &pos.shifted_by(room_size - platform_margin, room_size - 1)?,
+            &pos.shifted_by(-(room_size - platform_margin), room_size)?,
+            &pos.shifted_by(room_size - platform_margin, room_size)?,
             &BlockType::Spawn,
             &Overwrite::Force,
         );

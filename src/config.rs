@@ -7,6 +7,12 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 
+pub const MAP_LENGTH_BASELINE: f32 = 650.0;
+
+pub fn get_config_points(gen_config: &GenerationConfig, map_config: &MapConfig) -> f32 {
+    gen_config.difficulty * (map_config.get_map_length() / MAP_LENGTH_BASELINE)
+}
+
 #[derive(RustEmbed)]
 #[folder = "data/gen_configs/"]
 pub struct GenerationConfigStorage;
@@ -84,6 +90,9 @@ pub struct GenerationConfig {
 
     /// this can contain any description of the generation preset
     pub description: Option<String>,
+
+    /// difficulty
+    pub difficulty: f32,
 
     /// stores the GenerationConfig version for future migration
     pub version: String,
@@ -260,6 +269,7 @@ impl Default for GenerationConfig {
         GenerationConfig {
             name: "default".to_string(),
             description: None,
+            difficulty: 1.0,
             version: "1.0".to_string(),
             inner_rad_mut_prob: 0.25,
             inner_size_mut_prob: 0.5,

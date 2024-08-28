@@ -1,6 +1,7 @@
 {
   "name": "easy",
   "description": null,
+  "difficulty": 0.5,
   "version": "1.0",
   "inner_rad_mut_prob": 0.8,
   "inner_size_mut_prob": 0.65,
@@ -15,10 +16,17 @@
       0.075
     ]
   },
-  "platform_distance_bounds": [
-    250,
-    500
+  "plat_min_distance": 75,
+  "plat_width_bounds": [
+    3,
+    5
   ],
+  "plat_height_bounds": [
+    1,
+    2
+  ],
+  "plat_min_empty_height": 4,
+  "plat_soft_overhang": false,
   "momentum_prob": 0.625,
   "max_distance": 4.7,
   "waypoint_reached_dist": 250,
@@ -44,11 +52,24 @@
       0.010416667
     ]
   },
+  "circ_probs": {
+    "values": [
+      0.0,
+      0.6,
+      0.8
+    ],
+    "probs": [
+      0.7894737,
+      0.15789475,
+      0.05263158
+    ]
+  },
   "skip_length_bounds": [
     3,
     11
   ],
   "skip_min_spacing_sqr": 45,
+  "max_level_skip": 90,
   "min_freeze_size": 0,
   "enable_pulse": false,
   "pulse_straight_delay": 10,
@@ -56,5 +77,10 @@
   "pulse_max_kernel_size": 4,
   "fade_steps": 90,
   "fade_max_size": 7,
-  "fade_min_size": 6
+  "fade_min_size": 6,
+  "max_subwaypoint_dist": 50.0,
+  "subwaypoint_max_shift_dist": 5.0,
+  "pos_lock_max_dist": 20.0,
+  "pos_lock_max_delay": 1000,
+  "lock_kernel_size": 9
 }

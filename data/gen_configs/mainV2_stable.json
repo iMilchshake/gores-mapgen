@@ -1,6 +1,7 @@
 {
   "name": "mainV2_stable",
   "description": null,
+  "difficulty": 1.0,
   "version": "1.0",
   "inner_rad_mut_prob": 0.67,
   "inner_size_mut_prob": 0.6,
@@ -15,10 +16,17 @@
       0.11904762
     ]
   },
-  "platform_distance_bounds": [
-    400,
-    500
+  "plat_min_distance": 75,
+  "plat_width_bounds": [
+    3,
+    5
   ],
+  "plat_height_bounds": [
+    1,
+    2
+  ],
+  "plat_min_empty_height": 4,
+  "plat_soft_overhang": false,
   "momentum_prob": 0.5,
   "max_distance": 4.0,
   "waypoint_reached_dist": 16,
@@ -61,6 +69,7 @@
     11
   ],
   "skip_min_spacing_sqr": 45,
+  "max_level_skip": 90,
   "min_freeze_size": 0,
   "enable_pulse": false,
   "pulse_straight_delay": 10,
@@ -72,5 +81,6 @@
   "max_subwaypoint_dist": 50.0,
   "subwaypoint_max_shift_dist": 5.0,
   "pos_lock_max_dist": 40.0,
-  "pos_lock_max_delay": 1500
+  "pos_lock_max_delay": 1500,
+  "lock_kernel_size": 9
 }
