@@ -18,10 +18,7 @@ use macroquad::input::{
     KeyCode, MouseButton,
 };
 use macroquad::time::get_fps;
-use macroquad::{
-    camera::Camera2D,
-    input::is_mouse_button_pressed,
-};
+use macroquad::{camera::Camera2D, input::is_mouse_button_pressed};
 
 const AVG_FPS_FACTOR: f32 = 0.025; // how much current fps is weighted into the rolling average
 
@@ -128,7 +125,7 @@ impl Editor {
         }
 
         self.debug_layers = Some(DebugLayers::new(
-            false,
+            true,
             (self.gen.map.width, self.gen.map.height),
             0.5,
         ));

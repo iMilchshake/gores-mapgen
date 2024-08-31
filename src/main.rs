@@ -94,10 +94,13 @@ async fn main() {
                 break;
             }
 
-            editor.gen.step(&editor.gen_config).unwrap_or_else(|err| {
-                println!("Walker Step Failed: {:}", err);
-                editor.set_setup();
-            });
+            editor
+                .gen
+                .step(&editor.gen_config, true, &mut editor.debug_layers)
+                .unwrap_or_else(|err| {
+                    println!("Walker Step Failed: {:}", err);
+                    editor.set_setup();
+                });
 
             // walker did a step using SingleStep -> now pause
             if editor.is_single_setp() {

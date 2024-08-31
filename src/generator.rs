@@ -139,14 +139,21 @@ impl Generator {
     }
 
     /// perform one step of the map generation
-    pub fn step(&mut self, config: &GenerationConfig) -> Result<(), &'static str> {
+    pub fn step(
+        &mut self,
+        config: &GenerationConfig,
+        validate: bool,
+        debug_layers: &mut Option<DebugLayers>,
+    ) -> Result<(), &'static str> {
         // check if walker has reached goal position
         if self.walker.is_goal_reached(&config.waypoint_reached_dist) == Some(true) {
             self.walker.next_waypoint();
         }
 
         if !self.walker.finished {
-            config.validate()?; // TODO: how much does this slow down generation?
+            if validate {
+                config.validate()?;
+            }
 
             // randomly mutate kernel
             if self.walker.steps > config.fade_steps {
@@ -162,7 +169,7 @@ impl Generator {
 
             // perform one step
             self.walker
-                .probabilistic_step(&mut self.map, config, &mut self.rnd)?;
+                .probabilistic_step(&mut self.map, config, &mut self.rnd, debug_layers)?;
         }
 
         Ok(())
@@ -289,12 +296,15 @@ impl Generator {
     ) -> Result<Map, &'static str> {
         let mut gen = Generator::new(gen_config, map_config, seed.clone());
 
-        // perform all walker steps
+        // validate config
+        gen_config.validate()?;
+
+        // perform all walker steps, skip further validation/debugging
         for _ in 0..max_steps {
             if gen.walker.finished {
                 break;
             }
-            gen.step(gen_config)?;
+            gen.step(gen_config, false, &mut None)?;
         }
 
         // perform all post processing step without creating any debug layers

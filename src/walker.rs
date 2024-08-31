@@ -4,6 +4,7 @@ use ndarray::{s, Array2};
 
 use crate::{
     config::GenerationConfig,
+    debug::DebugLayers,
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
@@ -189,6 +190,7 @@ impl CuteWalker {
         map: &mut Map,
         gen_config: &GenerationConfig,
         rnd: &mut Random,
+        debug_layers: &mut Option<DebugLayers>,
     ) -> Result<(), &'static str> {
         if self.finished {
             return Err("Walker is finished");
@@ -241,6 +243,11 @@ impl CuteWalker {
 
         // lock old position
         self.lock_previous_location(map, gen_config, false)?;
+
+        // TODO: this is so imperformant, i dont wanna do this all the time, hmm
+        if let Some(debug_layers) = debug_layers {
+            debug_layers.bool_layers.get_mut("lock").unwrap().grid = self.locked_positions.clone();
+        }
 
         // perform pulse if config constraints allows it
         let perform_pulse = gen_config.enable_pulse
