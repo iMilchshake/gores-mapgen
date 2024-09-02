@@ -1,41 +1,20 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-use clap::{crate_version, Parser};
+use clap::Parser;
 use gores_mapgen::{
+    args::Args,
     config::{GenerationConfig, MapConfig},
     editor::*,
     fps_control::*,
     map::*,
     rendering::*,
 };
-use log::warn;
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
 use simple_logger::SimpleLogger;
 use std::panic::{self, AssertUnwindSafe};
 
 const DISABLE_VSYNC: bool = true;
-
-#[derive(Parser, Debug)]
-#[command(name = "Random Gores Map Generator")]
-#[command(version = crate_version!())]
-#[command(about = "Visual editor for generating maps and customizing the generators presets", long_about = None)]
-struct Args {
-    /// select initial generation config
-    config: Option<String>,
-
-    /// enable instant, auto generate and fixed seed
-    #[arg(short, long)]
-    testing: bool,
-
-    /// disable all debug visualization calculations for improved performance
-    #[arg(short, long)]
-    disable_debug: bool,
-
-    /// comma seperated list of debug layers to enable on startup
-    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-    enable_layers: Option<Vec<String>>,
-}
 
 fn window_conf() -> Conf {
     Conf {
@@ -60,23 +39,12 @@ async fn main() {
         GenerationConfig::get_initial_gen_config(),
         MapConfig::get_initial_config(),
         args.disable_debug,
-        args.enable_layers,
+        &args.enable_layers,
     );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
-    // handle cli args TODO: move all to some editor function
-    if args.testing {
-        editor.instant = true;
-        editor.fixed_seed = true;
-        editor.auto_generate = true;
-        editor.edit_gen_config = true;
-    }
-
-    if let Some(config_name) = args.config {
-        if editor.load_gen_config(&config_name).is_err() {
-            warn!("Coulnt load config {}", config_name);
-        }
-    }
+    // handle cli args
+    editor.handle_cli_args(&args);
 
     // main loop for gui (and step-wise map generation)
     loop {

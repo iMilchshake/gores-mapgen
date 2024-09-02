@@ -3,6 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
+    args::Args,
     config::{GenerationConfig, MapConfig},
     debug::DebugLayers,
     generator::Generator,
@@ -11,6 +12,7 @@ use crate::{
     random::Seed,
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
+use log::warn;
 use std::env;
 
 use macroquad::input::{
@@ -94,7 +96,7 @@ impl Editor {
         gen_config: GenerationConfig,
         map_config: MapConfig,
         disable_debug: bool,
-        enable_layers: Option<Vec<String>>,
+        enable_layers: &Option<Vec<String>>,
     ) -> Editor {
         let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
@@ -124,7 +126,7 @@ impl Editor {
 
         editor.initialize_debug_layers();
 
-        if let Some(enable_layers) = enable_layers {
+        if let Some(ref enable_layers) = enable_layers {
             for layer_name in enable_layers {
                 let layer = editor
                     .debug_layers
@@ -138,6 +140,28 @@ impl Editor {
         }
 
         editor
+    }
+
+    pub fn handle_cli_args(&mut self, args: &Args) {
+        self.instant = args.instant;
+        self.auto_generate = args.auto_generation;
+        self.fixed_seed = args.fixed_seed;
+
+        if let Some(config_name) = &args.gen_config {
+            if self.load_gen_config(config_name).is_err() {
+                warn!("Coulnt load gen config {}", config_name);
+            }
+        }
+
+        if let Some(config_name) = &args.map_config {
+            if self.load_map_config(config_name).is_err() {
+                warn!("Coulnt load map config {}", config_name);
+            }
+        }
+
+        if args.generate {
+            self.set_playing()
+        }
     }
 
     pub fn initialize_debug_layers(&mut self) {
@@ -295,6 +319,19 @@ impl Editor {
             .find(|&c| c.name == config_name)
         {
             self.gen_config = config.clone();
+            Ok(())
+        } else {
+            Err("Generation config not found!")
+        }
+    }
+
+    pub fn load_map_config(&mut self, config_name: &str) -> Result<(), &'static str> {
+        if let Some(config) = self
+            .init_map_configs
+            .iter()
+            .find(|&c| c.name == config_name)
+        {
+            self.map_config = config.clone();
             Ok(())
         } else {
             Err("Generation config not found!")
