@@ -90,7 +90,12 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new(gen_config: GenerationConfig, map_config: MapConfig, disable_debug: bool) -> Editor {
+    pub fn new(
+        gen_config: GenerationConfig,
+        map_config: MapConfig,
+        disable_debug: bool,
+        enable_layers: Option<Vec<String>>,
+    ) -> Editor {
         let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
         let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
@@ -118,6 +123,19 @@ impl Editor {
         };
 
         editor.initialize_debug_layers();
+
+        if let Some(enable_layers) = enable_layers {
+            for layer_name in enable_layers {
+                let layer = editor
+                    .debug_layers
+                    .as_mut()
+                    .unwrap()
+                    .active_layers
+                    .get_mut(layer_name.as_str());
+
+                *layer.unwrap_or_else(|| panic!("layer name '{}' doesnt exist", layer_name)) = true;
+            }
+        }
 
         editor
     }

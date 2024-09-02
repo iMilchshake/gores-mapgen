@@ -31,6 +31,10 @@ struct Args {
     /// disable all debug visualization calculations for improved performance
     #[arg(short, long)]
     disable_debug: bool,
+
+    /// comma seperated list of debug layers to enable on startup
+    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
+    enable_layers: Option<Vec<String>>,
 }
 
 fn window_conf() -> Conf {
@@ -56,6 +60,7 @@ async fn main() {
         GenerationConfig::get_initial_gen_config(),
         MapConfig::get_initial_config(),
         args.disable_debug,
+        args.enable_layers,
     );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
