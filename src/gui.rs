@@ -1,7 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    env,
-};
+use std::{collections::BTreeMap, env};
 
 use egui::{Align2, RichText};
 use tinyfiledialogs;
@@ -70,7 +67,7 @@ pub fn random_dist_cfg_edit<T, F>(
             ui.vertical(|ui| {
                 for index in 0..cfg.probs.len() {
                     ui.horizontal(|ui| {
-                        edit_f32_prob(ui, &mut cfg.probs[index]);
+                        edit_f32_slider_prob(ui, &mut cfg.probs[index]);
                         if dist_has_values {
                             if let Some(edit_element) = &edit_element {
                                 edit_element(ui, &mut cfg.values.as_mut().unwrap()[index]);
@@ -169,13 +166,14 @@ pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
     ui.add(egui::DragValue::new(value).clamp_range(0..=isize::MAX));
 }
 
-pub fn edit_f32_bounded(min: f32, max: f32) -> impl Fn(&mut Ui, &mut f32) {
+pub fn edit_f32_slider_bounded(min: f32, max: f32) -> impl Fn(&mut Ui, &mut f32) {
     move |ui: &mut Ui, value: &mut f32| {
+        ui.spacing_mut().slider_width = 75.0;
         ui.add(egui::Slider::new(value, min..=max));
     }
 }
 
-pub fn edit_f32_prob(ui: &mut Ui, value: &mut f32) {
+pub fn edit_f32_slider_prob(ui: &mut Ui, value: &mut f32) {
     ui.spacing_mut().slider_width = 75.0;
     ui.add(
         egui::Slider::new(value, 0.0..=1.0)
@@ -197,7 +195,7 @@ pub fn edit_probability_usize(ui: &mut Ui, value: &mut (usize, f32)) {
         });
         ui.vertical(|ui| {
             ui.label("prob:");
-            edit_f32_prob(ui, &mut value.1)
+            edit_f32_slider_prob(ui, &mut value.1)
         });
     });
 }
@@ -206,11 +204,11 @@ pub fn edit_probability_f32(ui: &mut Ui, value: &mut (f32, f32)) {
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
             ui.label("value:");
-            edit_f32_prob(ui, &mut value.0);
+            edit_f32_slider_prob(ui, &mut value.0);
         });
         ui.vertical(|ui| {
             ui.label("prob:");
-            edit_f32_prob(ui, &mut value.1)
+            edit_f32_slider_prob(ui, &mut value.1)
         });
     });
 }
@@ -395,71 +393,75 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 field_edit_widget(
                     ui,
                     &mut editor.gen_config.difficulty,
-                    edit_f32_bounded(0.1, 5.0),
+                    edit_f32_slider_bounded(0.1, 5.0),
                     "difficulty",
                     false,
                 );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.inner_rad_mut_prob,
-                    edit_f32_prob,
-                    "inner rad mut prob",
-                    true,
-                );
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.inner_size_mut_prob,
-                    edit_f32_prob,
-                    "inner size mut prob",
-                    true,
-                );
+                CollapsingHeader::new("Kernel Config ")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.inner_rad_mut_prob,
+                            edit_f32_slider_prob,
+                            "inner rad mut prob",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.inner_size_mut_prob,
+                            edit_f32_slider_prob,
+                            "inner size mut prob",
+                            true,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.outer_rad_mut_prob,
-                    edit_f32_prob,
-                    "outer rad mut prob",
-                    true,
-                );
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.outer_size_mut_prob,
-                    edit_f32_prob,
-                    "outer size mut prob",
-                    true,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.outer_rad_mut_prob,
+                            edit_f32_slider_prob,
+                            "outer rad mut prob",
+                            true,
+                        );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.outer_size_mut_prob,
+                            edit_f32_slider_prob,
+                            "outer size mut prob",
+                            true,
+                        );
 
-                ui.add_enabled_ui(editor.is_setup(), |ui| {
-                    random_dist_cfg_edit(
-                        ui,
-                        &mut editor.gen_config.inner_size_probs,
-                        Some(edit_usize),
-                        "inner size probs",
-                        true,
-                        false,
-                    );
+                        ui.add_enabled_ui(editor.is_setup(), |ui| {
+                            random_dist_cfg_edit(
+                                ui,
+                                &mut editor.gen_config.inner_size_probs,
+                                Some(edit_usize),
+                                "inner size probs",
+                                true,
+                                false,
+                            );
 
-                    random_dist_cfg_edit(
-                        ui,
-                        &mut editor.gen_config.outer_margin_probs,
-                        Some(edit_usize),
-                        "outer margin probs",
-                        true,
-                        false,
-                    );
+                            random_dist_cfg_edit(
+                                ui,
+                                &mut editor.gen_config.outer_margin_probs,
+                                Some(edit_usize),
+                                "outer margin probs",
+                                true,
+                                false,
+                            );
 
-                    random_dist_cfg_edit(
-                        ui,
-                        &mut editor.gen_config.circ_probs,
-                        Some(edit_f32_prob),
-                        "circularity probs",
-                        true,
-                        false,
-                    );
-                });
+                            random_dist_cfg_edit(
+                                ui,
+                                &mut editor.gen_config.circ_probs,
+                                Some(edit_f32_slider_prob),
+                                "circularity probs",
+                                true,
+                                false,
+                            );
+                        });
+                    });
 
-                CollapsingHeader::new("PLATFORMS")
+                CollapsingHeader::new("Platforms")
                     .default_open(false)
                     .show(ui, |ui| {
                         field_edit_widget(
@@ -498,29 +500,58 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             true,
                         );
                     });
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.momentum_prob,
-                    edit_f32_prob,
-                    "momentum prob",
-                    true,
-                );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.max_distance,
-                    edit_f32_bounded(0.1, 15.0),
-                    "max distance",
-                    true,
-                );
+                CollapsingHeader::new("Momentum")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.momentum_prob,
+                            edit_f32_slider_prob,
+                            "momentum prob",
+                            true,
+                        );
+                    });
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.waypoint_reached_dist,
-                    edit_usize,
-                    "waypoint reached dist",
-                    true,
-                );
+                CollapsingHeader::new("Obstacles")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.max_distance,
+                            edit_f32_slider_bounded(0.1, 15.0),
+                            "max distance",
+                            true,
+                        );
+                    });
+
+                CollapsingHeader::new("Waypoints")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.waypoint_reached_dist,
+                            edit_usize,
+                            "waypoint reached dist",
+                            true,
+                        );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.max_subwaypoint_dist,
+                            edit_f32_slider_bounded(0.1, 100.0),
+                            "subpoint max dist",
+                            false,
+                        );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.subwaypoint_max_shift_dist,
+                            edit_f32_slider_bounded(0.0, 50.0),
+                            "subpoint max shift",
+                            false,
+                        );
+                    });
 
                 ui.add_enabled_ui(editor.is_setup(), |ui| {
                     random_dist_cfg_edit(
@@ -529,139 +560,142 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                         // TODO: this is stupid wtf, but thats fine as this functionality
                         // will be reworked with the upcoming dynamic weighting for cells anyways
                         None::<fn(&mut Ui, &mut ShiftDirection)>,
-                        "step weights",
-                        false,
+                        "Step Weights",
+                        true,
                         true,
                     );
                 });
+                CollapsingHeader::new("Skips")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.skip_length_bounds,
+                            edit_range_usize,
+                            "skip length bounds",
+                            true,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.skip_length_bounds,
-                    edit_range_usize,
-                    "skip length bounds",
-                    true,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.skip_min_spacing_sqr,
+                            edit_usize,
+                            "skip min spacing sqr",
+                            true,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.skip_min_spacing_sqr,
-                    edit_usize,
-                    "skip min spacing sqr",
-                    true,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.max_level_skip,
+                            edit_usize,
+                            "max level skip",
+                            true,
+                        );
+                    });
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.max_level_skip,
-                    edit_usize,
-                    "max level skip",
-                    true,
-                );
+                CollapsingHeader::new("Blob removal")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.min_freeze_size,
+                            edit_usize,
+                            "min freeze size",
+                            false,
+                        );
+                    });
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.min_freeze_size,
-                    edit_usize,
-                    "min freeze size",
-                    false,
-                );
+                CollapsingHeader::new("Pulse")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.enable_pulse,
+                            edit_bool,
+                            "enable pulse",
+                            false,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.enable_pulse,
-                    edit_bool,
-                    "enable pulse",
-                    false,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.pulse_straight_delay,
+                            edit_usize,
+                            "pulse straight delay",
+                            true,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.pulse_straight_delay,
-                    edit_usize,
-                    "pulse straight delay",
-                    true,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.pulse_corner_delay,
+                            edit_usize,
+                            "pulse corner delay",
+                            false,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.pulse_corner_delay,
-                    edit_usize,
-                    "pulse corner delay",
-                    false,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.pulse_max_kernel_size,
+                            edit_usize,
+                            "pulse max kernel",
+                            false,
+                        );
+                    });
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.pulse_max_kernel_size,
-                    edit_usize,
-                    "pulse max kernel",
-                    false,
-                );
+                CollapsingHeader::new("Fade")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.fade_steps,
+                            edit_usize,
+                            "fade steps",
+                            false,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.fade_steps,
-                    edit_usize,
-                    "fade steps",
-                    false,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.fade_max_size,
+                            edit_usize,
+                            "fade max size",
+                            false,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.fade_max_size,
-                    edit_usize,
-                    "fade max size",
-                    false,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.fade_min_size,
+                            edit_usize,
+                            "fade min size",
+                            false,
+                        );
+                    });
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.fade_min_size,
-                    edit_usize,
-                    "fade min size",
-                    false,
-                );
+                CollapsingHeader::new("Position Locking")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.pos_lock_max_dist,
+                            edit_f32_slider_bounded(0.0, 150.0),
+                            "pos lock max dist",
+                            false,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.max_subwaypoint_dist,
-                    edit_f32_bounded(0.1, 100.0),
-                    "subpoint max dist",
-                    false,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.pos_lock_max_delay,
+                            edit_usize,
+                            "pos lock max delay",
+                            false,
+                        );
 
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.subwaypoint_max_shift_dist,
-                    edit_f32_bounded(0.0, 50.0),
-                    "subpoint max shift",
-                    false,
-                );
-
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.pos_lock_max_dist,
-                    edit_f32_bounded(0.0, 150.0),
-                    "pos lock max dist",
-                    false,
-                );
-
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.pos_lock_max_delay,
-                    edit_usize,
-                    "pos lock max delay",
-                    false,
-                );
-
-                field_edit_widget(
-                    ui,
-                    &mut editor.gen_config.lock_kernel_size,
-                    edit_usize,
-                    "lock kernel size",
-                    false,
-                );
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.lock_kernel_size,
+                            edit_usize,
+                            "lock kernel size",
+                            false,
+                        );
+                    });
             }
 
             // =======================================[ MAP CONFIG EDIT ]===================================
