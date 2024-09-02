@@ -1,4 +1,7 @@
-use std::{collections::HashMap, env};
+use std::{
+    collections::BTreeMap,
+    env,
+};
 
 use egui::{Align2, RichText};
 use tinyfiledialogs;
@@ -100,9 +103,9 @@ pub fn random_dist_cfg_edit<T, F>(
     cfg.normalize_probs();
 }
 
-pub fn hashmap_edit_widget<T, F>(
+pub fn btree_edit_widget<T, F>(
     ui: &mut Ui,
-    hashmap: &mut HashMap<&'static str, T>,
+    hashmap: &mut BTreeMap<&'static str, T>,
     edit_element: F,
     label: &str,
     collapsed: bool,
@@ -307,7 +310,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         // =======================================[ DEBUG LAYERS ]===================================
 
         if let Some(ref mut debug_layers) = editor.debug_layers {
-            hashmap_edit_widget(
+            btree_edit_widget(
                 ui,
                 &mut debug_layers.active_layers,
                 edit_bool,

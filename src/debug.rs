@@ -1,7 +1,7 @@
 use macroquad::color::Color;
 use ndarray::Array2;
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct FloatLayer {
@@ -38,14 +38,18 @@ impl BoolLayer {
 }
 
 pub struct DebugLayers {
-    pub active_layers: HashMap<&'static str, bool>,
-    pub bool_layers: HashMap<&'static str, BoolLayer>,
-    pub float_layers: HashMap<&'static str, FloatLayer>,
+    pub active_layers: BTreeMap<&'static str, bool>,
+    pub bool_layers: BTreeMap<&'static str, BoolLayer>,
+    pub float_layers: BTreeMap<&'static str, FloatLayer>,
 }
 
 impl DebugLayers {
-    pub fn new(enable_layers: bool, shape: (usize, usize), default_alpha: f32) -> DebugLayers {
-        let bool_layers: HashMap<&'static str, BoolLayer> = HashMap::from([
+    pub fn new(
+        shape: (usize, usize),
+        default_alpha: f32,
+        previous_active_layers: Option<BTreeMap<&'static str, bool>>,
+    ) -> DebugLayers {
+        let bool_layers: BTreeMap<&'static str, BoolLayer> = BTreeMap::from([
             (
                 "edge_bugs",
                 BoolLayer::new(shape, Color::new(0.76, 0.22, 0.39, default_alpha), true),
@@ -76,7 +80,7 @@ impl DebugLayers {
             ),
         ]);
 
-        let float_layers: HashMap<&'static str, FloatLayer> = HashMap::from([
+        let float_layers: BTreeMap<&'static str, FloatLayer> = BTreeMap::from([
             (
                 "flood_fill",
                 FloatLayer::new(
@@ -95,11 +99,16 @@ impl DebugLayers {
             ),
         ]);
 
-        let active_layers: HashMap<&'static str, bool> = bool_layers
-            .keys()
-            .chain(float_layers.keys())
-            .map(|key| (*key, enable_layers))
-            .collect();
+        // initialize using keys from all debug layers, or re-use
+        let active_layers = if previous_active_layers.is_none() {
+            bool_layers
+                .keys()
+                .chain(float_layers.keys())
+                .map(|key| (*key, false))
+                .collect()
+        } else {
+            previous_active_layers.unwrap()
+        };
 
         DebugLayers {
             active_layers,

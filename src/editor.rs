@@ -95,7 +95,7 @@ impl Editor {
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
         let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
 
-        Editor {
+        let mut editor = Editor {
             state: EditorState::Paused(PausedState::Setup),
             debug_layers: None,
             disable_debug_layers: disable_debug,
@@ -104,7 +104,6 @@ impl Editor {
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
-            // cam: None,
             map_cam: MapCamera::default(),
             gen_config,
             map_config,
@@ -116,7 +115,11 @@ impl Editor {
             fixed_seed: false,
             edit_gen_config: false,
             edit_map_config: false,
-        }
+        };
+
+        editor.initialize_debug_layers();
+
+        editor
     }
 
     pub fn initialize_debug_layers(&mut self) {
@@ -124,10 +127,13 @@ impl Editor {
             return;
         }
 
+        // if possible, get currently active layers for re-using
+        let previously_active_layers = self.debug_layers.take().map(|d| d.active_layers);
+
         self.debug_layers = Some(DebugLayers::new(
-            true,
             (self.gen.map.width, self.gen.map.height),
             0.5,
+            previously_active_layers,
         ));
     }
 
