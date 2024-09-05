@@ -141,35 +141,45 @@ impl Generator {
     /// perform one step of the map generation
     pub fn step(
         &mut self,
-        config: &GenerationConfig,
+        gen_config: &GenerationConfig,
         validate: bool,
         debug_layers: &mut Option<DebugLayers>,
     ) -> Result<(), &'static str> {
         // check if walker has reached goal position
-        if self.walker.is_goal_reached(&config.waypoint_reached_dist) == Some(true) {
+        if self
+            .walker
+            .is_goal_reached(&gen_config.waypoint_reached_dist)
+            == Some(true)
+        {
             self.walker.next_waypoint();
+            self.walker
+                .update_waypoint_locks(&gen_config.waypoint_lock_distance, debug_layers);
         }
 
         if !self.walker.finished {
             if validate {
-                config.validate()?;
+                gen_config.validate()?;
             }
 
             // randomly mutate kernel
-            if self.walker.steps > config.fade_steps {
-                self.walker.mutate_kernel(config, &mut self.rnd);
+            if self.walker.steps > gen_config.fade_steps {
+                self.walker.mutate_kernel(gen_config, &mut self.rnd);
             } else {
                 self.walker.set_fade_kernel(
                     self.walker.steps,
-                    config.fade_min_size,
-                    config.fade_max_size,
-                    config.fade_steps,
+                    gen_config.fade_min_size,
+                    gen_config.fade_max_size,
+                    gen_config.fade_steps,
                 );
             }
 
             // perform one step
-            self.walker
-                .probabilistic_step(&mut self.map, config, &mut self.rnd, debug_layers)?;
+            self.walker.probabilistic_step(
+                &mut self.map,
+                gen_config,
+                &mut self.rnd,
+                debug_layers,
+            )?;
         }
 
         Ok(())
