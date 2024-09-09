@@ -9,8 +9,12 @@ use twmap::{
 };
 
 #[derive(RustEmbed)]
-#[folder = "automapper/"]
+#[folder = "data/automapper/"]
 pub struct AutoMapperConfigs;
+
+#[derive(RustEmbed)]
+#[folder = "data/basemaps/"]
+pub struct BaseMaps;
 
 impl AutoMapperConfigs {
     pub fn get_config(name: String) -> Automapper {
@@ -19,6 +23,17 @@ impl AutoMapperConfigs {
         let data = std::str::from_utf8(&file.data).unwrap();
 
         Automapper::parse(name, data).expect("failed to parse .rules file")
+    }
+}
+
+impl BaseMaps {
+    // TODO: add support for custom name or random
+    pub fn get_base_map() -> TwMap {
+        let file = BaseMaps::get("grass.map").expect("base map not found");
+        let mut tw_map = TwMap::parse(&file.data).expect("parsing failed");
+        tw_map.load().expect("map loading failed");
+
+        tw_map
     }
 }
 
@@ -36,7 +51,7 @@ impl TwExport {
         automapper_config.clone()
     }
 
-    pub fn process_layer(
+    pub fn process_tile_layer(
         tw_map: &mut TwMap,
         map: &Map,
         layer_index: &usize,
@@ -90,14 +105,12 @@ impl TwExport {
     }
 
     pub fn export(map: &Map, path: &PathBuf) {
-        let mut tw_map =
-            TwMap::parse(&std::fs::read("automap_test.map").expect("map file couldn't be read"))
-                .expect("parsing failed");
-        tw_map.load().expect("loading failed");
+        let mut tw_map = BaseMaps::get_base_map();
 
-        TwExport::process_layer(&mut tw_map, map, &0, "Freeze", &BlockTypeTW::Freeze);
-        TwExport::process_layer(&mut tw_map, map, &1, "Hookable", &BlockTypeTW::Hookable);
+        TwExport::process_tile_layer(&mut tw_map, map, &0, "Freeze", &BlockTypeTW::Freeze);
+        TwExport::process_tile_layer(&mut tw_map, map, &1, "Hookable", &BlockTypeTW::Hookable);
 
+        // TODO: move into function
         // get game layer
         let game_layer = tw_map
             .find_physics_layer_mut::<GameLayer>()
