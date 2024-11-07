@@ -1,0 +1,80 @@
+{
+  "name": "maze",
+  "description": null,
+  "difficulty": 3.0,
+  "version": "1.0",
+  "inner_rad_mut_prob": 1.0,
+  "inner_size_mut_prob": 0.2,
+  "outer_rad_mut_prob": 0.2,
+  "outer_size_mut_prob": 0.2,
+  "shift_weights": {
+    "values": null,
+    "probs": [
+      0.6451613,
+      0.16129032,
+      0.12903225,
+      0.06451613
+    ]
+  },
+  "plat_min_distance": 40,
+  "plat_width_bounds": [
+    3,
+    5
+  ],
+  "plat_height_bounds": [
+    0,
+    1
+  ],
+  "plat_min_empty_height": 4,
+  "plat_soft_overhang": false,
+  "momentum_prob": 0.72,
+  "max_distance": 4.0,
+  "waypoint_reached_dist": 300,
+  "inner_size_probs": {
+    "values": [
+      1
+    ],
+    "probs": [
+      1.0
+    ]
+  },
+  "outer_margin_probs": {
+    "values": [
+      2
+    ],
+    "probs": [
+      1.0
+    ]
+  },
+  "circ_probs": {
+    "values": [
+      0.0,
+      0.6,
+      0.8
+    ],
+    "probs": [
+      0.7894737,
+      0.15789475,
+      0.05263158
+    ]
+  },
+  "skip_length_bounds": [
+    4,
+    15
+  ],
+  "skip_min_spacing_sqr": 45,
+  "max_level_skip": 999,
+  "min_freeze_size": 2,
+  "enable_pulse": true,
+  "pulse_straight_delay": 12,
+  "pulse_corner_delay": 3,
+  "pulse_max_kernel_size": 4,
+  "fade_steps": 30,
+  "fade_max_size": 5,
+  "fade_min_size": 2,
+  "max_subwaypoint_dist": 5.0,
+  "subwaypoint_max_shift_dist": 50.0,
+  "pos_lock_max_dist": 150.0,
+  "pos_lock_max_delay": 9999,
+  "lock_kernel_size": 1
+}
