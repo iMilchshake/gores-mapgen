@@ -152,8 +152,10 @@ impl Generator {
             == Some(true)
         {
             self.walker.next_waypoint();
-            self.walker
-                .update_waypoint_locks(gen_config.waypoint_lock_distance, debug_layers);
+            if gen_config.waypoint_lock_distance > 0 {
+                self.walker
+                    .update_waypoint_locks(gen_config.waypoint_lock_distance, debug_layers);
+            }
         }
 
         if !self.walker.finished {

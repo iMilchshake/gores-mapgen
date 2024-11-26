@@ -76,5 +76,6 @@
   "subwaypoint_max_shift_dist": 50.0,
   "pos_lock_max_dist": 150.0,
   "pos_lock_max_delay": 9999,
-  "lock_kernel_size": 1
+  "lock_kernel_size": 1,
+  "waypoint_lock_distance": 0
 }
