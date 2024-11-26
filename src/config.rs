@@ -67,7 +67,7 @@ impl MapConfig {
 
     /// This function defines the initial default config for actual map generator
     pub fn get_initial_config() -> MapConfig {
-        let file = MapConfigStorage::get("small_s.json").unwrap();
+        let file = MapConfigStorage::get("small_s_tight.json").unwrap();
         let data = std::str::from_utf8(&file.data).unwrap();
         let config: MapConfig = serde_json::from_str(data).unwrap();
         config
