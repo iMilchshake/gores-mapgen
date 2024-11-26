@@ -699,7 +699,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                         field_edit_widget(
                             ui,
                             &mut editor.gen_config.waypoint_lock_distance,
-                            edit_position,
+                            edit_usize,
                             "waypoint lock dist",
                             false,
                         );

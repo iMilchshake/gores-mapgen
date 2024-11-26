@@ -153,7 +153,7 @@ impl Generator {
         {
             self.walker.next_waypoint();
             self.walker
-                .update_waypoint_locks(&gen_config.waypoint_lock_distance, debug_layers);
+                .update_waypoint_locks(gen_config.waypoint_lock_distance, debug_layers);
         }
 
         if !self.walker.finished {

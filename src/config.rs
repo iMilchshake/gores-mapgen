@@ -188,10 +188,9 @@ pub struct GenerationConfig {
     /// size of area that is locked
     pub lock_kernel_size: usize,
 
-    /// (x, y) dimension of how far waypoints except current target waypoint lock blocks around
-    /// them to ensure they arent blocked before having to actually be reached
-    /// im using "Position" as x/y bounds here lol TODO: change?
-    pub waypoint_lock_distance: Position,
+    /// how far future waypoints lock blocks around them to ensure
+    /// they arent blocked before having to actually be reached
+    pub waypoint_lock_distance: usize,
 }
 
 impl GenerationConfig {
@@ -308,7 +307,7 @@ impl Default for GenerationConfig {
             pos_lock_max_delay: 1000,
             pos_lock_max_dist: 20.0,
             lock_kernel_size: 9,
-            waypoint_lock_distance: Position::new(1, 1),
+            waypoint_lock_distance: 10,
         }
     }
 }

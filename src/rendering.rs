@@ -158,9 +158,20 @@ pub fn draw_walker_kernel(walker: &CuteWalker, kernel_type: KernelType) {
     }
 }
 
-pub fn draw_waypoints(waypoints: &[Position], color: Color) {
-    for pos in waypoints.iter() {
-        draw_circle(pos.x as f32 + 0.5, pos.y as f32 + 0.5, 0.5, color)
+pub fn draw_waypoints(walker: &CuteWalker, color: Color, color_next: Color) {
+    for (waypoint_index, waypoint_pos) in walker.waypoints.iter().enumerate() {
+        let color = if waypoint_index == walker.goal_index {
+            color_next
+        } else {
+            color
+        };
+
+        draw_circle(
+            waypoint_pos.x as f32 + 0.5,
+            waypoint_pos.y as f32 + 0.5,
+            0.5,
+            color,
+        )
     }
 }
 

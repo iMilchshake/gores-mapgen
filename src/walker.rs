@@ -99,7 +99,7 @@ impl CuteWalker {
 
     pub fn update_waypoint_locks(
         &mut self,
-        lock_distance: &Position,
+        lock_distance: usize,
         debug_layers: &mut Option<DebugLayers>,
     ) {
         self.locked_waypoint_positions.fill(false); // unlock all blocks
@@ -109,8 +109,8 @@ impl CuteWalker {
             let waypoint = self.waypoints.get(waypoint_index).unwrap();
 
             let mut lock_area = self.locked_waypoint_positions.slice_mut(s![
-                waypoint.x - lock_distance.x..=waypoint.x + lock_distance.x,
-                waypoint.y - lock_distance.y..=waypoint.y + lock_distance.y
+                waypoint.x - lock_distance..=waypoint.x + lock_distance,
+                waypoint.y - lock_distance..=waypoint.y + lock_distance
             ]);
             lock_area.fill(true);
         }

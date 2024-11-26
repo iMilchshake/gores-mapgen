@@ -135,8 +135,7 @@ async fn main() {
         draw_walker_kernel(&editor.gen.walker, KernelType::Outer);
         draw_walker_kernel(&editor.gen.walker, KernelType::Inner);
         draw_walker(&editor.gen.walker);
-        draw_waypoints(&editor.gen.walker.waypoints, colors::BLUE);
-        draw_waypoints(&editor.map_config.waypoints, colors::RED);
+        draw_waypoints(&editor.gen.walker, colors::BLUE, colors::RED);
 
         if macroquad::input::is_key_down(miniquad::KeyCode::D) {
             draw_mouse_map_cell_pos(&editor.map_cam);
