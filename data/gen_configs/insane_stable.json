@@ -1,59 +1,55 @@
 {
-  "name": "hard_stable2",
+  "name": "insane_stable",
   "description": null,
-  "difficulty": 2.0,
+  "difficulty": 4.0,
   "version": "1.0",
-  "inner_rad_mut_prob": 1.0,
-  "inner_size_mut_prob": 0.75,
-  "outer_rad_mut_prob": 0.85,
-  "outer_size_mut_prob": 0.65,
+  "inner_rad_mut_prob": 0.6,
+  "inner_size_mut_prob": 1.0,
+  "outer_rad_mut_prob": 0.45,
+  "outer_size_mut_prob": 0.9,
   "shift_weights": {
     "values": null,
     "probs": [
-      0.39215687,
-      0.27450982,
-      0.25490198,
-      0.078431375
+      0.35087723,
+      0.3157895,
+      0.29824564,
+      0.035087723
     ]
   },
-  "plat_min_distance": 75,
+  "plat_min_distance": 40,
   "plat_width_bounds": [
-    3,
+    2,
     5
   ],
   "plat_height_bounds": [
-    1,
-    2
+    0,
+    0
   ],
-  "plat_min_empty_height": 4,
+  "plat_min_empty_height": 3,
   "plat_soft_overhang": false,
-  "momentum_prob": 0.6,
-  "max_distance": 4.0,
-  "waypoint_reached_dist": 100,
+  "momentum_prob": 0.7,
+  "max_distance": 2.2,
+  "waypoint_reached_dist": 300,
   "inner_size_probs": {
     "values": [
       1,
-      2,
       3,
       4
     ],
     "probs": [
-      0.061715517,
-      0.7115598,
-      0.2,
-      0.026724687
+      0.9398248,
+      0.0497585,
+      0.010416667
     ]
   },
   "outer_margin_probs": {
     "values": [
       2,
-      4,
-      6
+      4
     ],
     "probs": [
-      0.97118473,
-      0.025719268,
-      0.0030960215
+      0.94736844,
+      0.052631583
     ]
   },
   "circ_probs": {
@@ -69,22 +65,23 @@
     ]
   },
   "skip_length_bounds": [
-    3,
-    11
+    4,
+    12
   ],
-  "skip_min_spacing_sqr": 45,
+  "skip_min_spacing_sqr": 21,
   "max_level_skip": 90,
-  "min_freeze_size": 2,
-  "enable_pulse": false,
+  "min_freeze_size": 10,
+  "enable_pulse": true,
   "pulse_straight_delay": 10,
-  "pulse_corner_delay": 5,
-  "pulse_max_kernel_size": 4,
+  "pulse_corner_delay": 3,
+  "pulse_max_kernel_size": 1,
   "fade_steps": 60,
   "fade_max_size": 6,
   "fade_min_size": 3,
-  "max_subwaypoint_dist": 40.0,
+  "max_subwaypoint_dist": 50.0,
   "subwaypoint_max_shift_dist": 5.0,
   "pos_lock_max_dist": 20.0,
   "pos_lock_max_delay": 1000,
-  "lock_kernel_size": 5
+  "lock_kernel_size": 5,
+  "waypoint_lock_distance": 10
 }

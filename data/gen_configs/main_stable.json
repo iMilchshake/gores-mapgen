@@ -1,5 +1,5 @@
 {
-  "name": "mainV2_stable",
+  "name": "main_stable",
   "description": null,
   "difficulty": 1.0,
   "version": "1.0",
@@ -82,5 +82,6 @@
   "subwaypoint_max_shift_dist": 5.0,
   "pos_lock_max_dist": 40.0,
   "pos_lock_max_delay": 1500,
-  "lock_kernel_size": 10
+  "lock_kernel_size": 10,
+  "waypoint_lock_distance": 10
 }
