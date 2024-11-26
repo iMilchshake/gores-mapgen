@@ -33,8 +33,11 @@ pub struct CuteWalker {
     /// counts how many steps the pulse constraints have been fulfilled
     pub pulse_counter: usize,
 
-    /// keeps track on which positions can no longer be visited
+    /// keeps track on which positions can no longer be visited due to locking
     pub locked_positions: Array2<bool>,
+
+    /// keeps track on which positions can no longer be visited due to waypoints
+    pub locked_waypoint_positions: Array2<bool>,
 
     /// keeps track of all positions the walker has visited so far
     pub position_history: Vec<Position>,
@@ -45,6 +48,7 @@ pub struct CuteWalker {
 
 const NUM_SHIFT_SAMPLE_RETRIES: usize = 25;
 
+// TODO: somewhere else i used a cool crate for this -> replace
 impl fmt::Debug for CuteWalker {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CuteWalker")
@@ -87,8 +91,36 @@ impl CuteWalker {
             last_shift: None,
             pulse_counter: 0,
             locked_positions: Array2::from_elem((map.width, map.height), false),
+            locked_waypoint_positions: Array2::from_elem((map.width, map.height), false),
             locked_position_step: 0,
             position_history: Vec::new(),
+        }
+    }
+
+    pub fn update_waypoint_locks(
+        &mut self,
+        lock_distance: usize,
+        debug_layers: &mut Option<DebugLayers>,
+    ) {
+        self.locked_waypoint_positions.fill(false); // unlock all blocks
+
+        // lock all following waypoints
+        for waypoint_index in (self.goal_index + 1)..self.waypoints.len() {
+            let waypoint = self.waypoints.get(waypoint_index).unwrap();
+
+            let mut lock_area = self.locked_waypoint_positions.slice_mut(s![
+                waypoint.x - lock_distance..=waypoint.x + lock_distance,
+                waypoint.y - lock_distance..=waypoint.y + lock_distance
+            ]);
+            lock_area.fill(true);
+        }
+
+        if let Some(debug_layers) = debug_layers {
+            debug_layers
+                .bool_layers
+                .get_mut("waypoint_lock")
+                .unwrap()
+                .grid = self.locked_waypoint_positions.clone();
         }
     }
 
@@ -218,7 +250,8 @@ impl CuteWalker {
         // if target pos is locked, re-sample until a valid one is found
         let mut invalid = false;
         for _ in 0..NUM_SHIFT_SAMPLE_RETRIES {
-            invalid = self.locked_positions[current_target_pos.as_index()];
+            invalid = self.locked_positions[current_target_pos.as_index()]
+                || self.locked_waypoint_positions[current_target_pos.as_index()];
 
             if invalid {
                 current_shift = rnd.sample_shift(&shifts);

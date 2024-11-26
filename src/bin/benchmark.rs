@@ -12,12 +12,20 @@ use gores_mapgen::random::Seed;
 #[derive(Parser, Debug)]
 /// Benchmarks map generation with the specified options. Default is seeds 0 to 99.
 pub struct Args {
-    #[arg(short, long, default_value = "200000")]
     /// The maximum amount of generation steps before generation stops
+    #[arg(short = 's', long, default_value = "200000")]
     pub max_generation_steps: usize,
 
-    #[command(subcommand)]
+    /// Generation presets to use (comma-separated values)
+    #[arg(short, long, value_delimiter = ',')]
+    pub gen_preset_names: Option<Vec<String>>,
+
+    /// Map presets to use (comma-separated values)
+    #[arg(short, long, value_delimiter = ',')]
+    pub map_preset_names: Option<Vec<String>>,
+
     /// Specify which seed/seeds to use. Default 0 to 99
+    #[command(subcommand)]
     pub seeds: Option<Seeds>,
 }
 
@@ -36,15 +44,44 @@ fn get_seed_iter(args: &Args) -> SeedIter {
 fn main() {
     let args = Args::parse();
 
-    // disable panic hook so they no longer get printed
-    panic::set_hook(Box::new(|_info| {}));
+    dbg!(&args);
 
     // determine seed count
     // TODO: iterates over one entire seed_gen once.. -> implement size_hint()?
     let seed_count = get_seed_iter(&args).count();
 
-    let init_gen_configs = GenerationConfig::get_all_configs();
-    let init_map_configs = MapConfig::get_all_configs();
+    let init_map_configs = match &args.map_preset_names {
+        Some(map_preset_names) => MapConfig::get_all_configs()
+            .into_iter()
+            .filter(|map_config| map_preset_names.contains(&map_config.name))
+            .collect(),
+        None => MapConfig::get_all_configs(),
+    };
+
+    if init_map_configs.len() == 0 {
+        panic!(
+            "no map config defined, map_preset_names={:?}",
+            args.map_preset_names
+        );
+    }
+
+    let init_gen_configs = match &args.gen_preset_names {
+        Some(gen_preset_names) => GenerationConfig::get_all_configs()
+            .into_iter()
+            .filter(|gen_config| gen_preset_names.contains(&gen_config.name))
+            .collect(),
+        None => GenerationConfig::get_all_configs(),
+    };
+
+    if init_gen_configs.len() == 0 {
+        panic!(
+            "no generation config defined, gen_preset_names={:?}",
+            args.gen_preset_names
+        );
+    }
+
+    // disable panic hook so they no longer get printed
+    panic::set_hook(Box::new(|_info| {}));
 
     for map_config in init_map_configs.iter() {
         println!(

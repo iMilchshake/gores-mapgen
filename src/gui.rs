@@ -695,6 +695,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             "lock kernel size",
                             false,
                         );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.waypoint_lock_distance,
+                            edit_usize,
+                            "waypoint lock dist",
+                            false,
+                        );
                     });
             }
 
