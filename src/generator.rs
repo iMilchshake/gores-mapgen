@@ -144,7 +144,7 @@ impl Generator {
 
     pub fn preprocessing(&mut self) {
         let spawn_width = 30;
-        let spawn_height = 20;
+        let spawn_height = 24;
         assert!(spawn_height % 2 == 0, "spawn height not even");
 
         // test locking for spawn
@@ -158,35 +158,55 @@ impl Generator {
     pub fn generate_spawn(&mut self) {
         let margin = 3;
         let spawn_width = 30;
-        let spawn_height = 20;
-        let start_line_offset = 2;
+        let spawn_height = 24;
+        let platform_width = 12;
+        assert!(spawn_height % 2 == 0, "spawn height not even");
 
+        let top_left = self
+            .spawn
+            .shifted_by(-spawn_width + margin, -(spawn_height / 2) + margin)
+            .unwrap();
+
+        let bot_right = self
+            .spawn
+            .shifted_by(0, (spawn_height / 2) - margin)
+            .unwrap();
+
+        // carve empty area
         self.map.set_area(
-            &self
-                .spawn
-                .shifted_by(-spawn_width + margin, -(spawn_height / 2) + margin)
-                .unwrap(),
-            &self
-                .spawn
-                .shifted_by(-margin, (spawn_height / 2) - margin)
-                .unwrap(),
+            &top_left,
+            &bot_right,
             &BlockType::EmptyReserved,
             &Overwrite::Force,
         );
 
+        // set start line
         self.map.set_area_border(
-            &self
-                .spawn
-                .shifted_by(-spawn_width + margin - 1, -(spawn_height / 2) + margin - 1)
-                .unwrap(),
-            &self
-                .spawn
-                .shifted_by(
-                    -margin + 1 + start_line_offset,
-                    (spawn_height / 2) - margin + 1,
-                )
-                .unwrap(),
+            &top_left.shifted_by(-1, -1).unwrap(),
+            &bot_right.shifted_by(1, 1).unwrap(),
             &BlockType::Start,
+            &Overwrite::ReplaceNonSolidForce,
+        );
+
+        // set elevated platform
+        self.map.set_area(
+            &Position::new(top_left.x, self.spawn.y - 1),
+            &Position::new(top_left.x + platform_width, self.spawn.y + 1),
+            &BlockType::Hookable,
+            &Overwrite::ReplaceNonSolidForce,
+        );
+
+        // set spawns
+        self.map.set_area(
+            &Position::new(top_left.x, self.spawn.y - 2),
+            &Position::new(top_left.x + platform_width, self.spawn.y - 2),
+            &BlockType::Spawn,
+            &Overwrite::ReplaceNonSolidForce,
+        );
+        self.map.set_area(
+            &Position::new(top_left.x, bot_right.y),
+            &Position::new(top_left.x + platform_width, bot_right.y),
+            &BlockType::Spawn,
             &Overwrite::ReplaceNonSolidForce,
         );
     }
@@ -299,14 +319,14 @@ impl Generator {
 
         // generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
         //     .expect("start room generation failed");
-        // generate_room(
-        //     &mut self.map,
-        //     &self.walker.pos.clone(),
-        //     4,
-        //     3,
-        //     Some(&BlockType::Finish),
-        // )
-        // .expect("start finish room generation");
+        generate_room(
+            &mut self.map,
+            &self.walker.pos.clone(),
+            4,
+            3,
+            Some(&BlockType::Finish),
+        )
+        .expect("start finish room generation");
         print_time(&timer, "place rooms");
 
         if gen_config.min_freeze_size > 0 {
