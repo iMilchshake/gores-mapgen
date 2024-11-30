@@ -103,16 +103,14 @@ impl DebugLayers {
             ),
         ]);
 
-        // initialize using keys from all debug layers, or re-use
-        let active_layers = if previous_active_layers.is_none() {
+        // initialize using keys from all debug layers, or re-use if possible
+        let active_layers = previous_active_layers.unwrap_or_else(|| {
             bool_layers
                 .keys()
                 .chain(float_layers.keys())
                 .map(|key| (*key, false))
                 .collect()
-        } else {
-            previous_active_layers.unwrap()
-        };
+        });
 
         DebugLayers {
             active_layers,

@@ -1,5 +1,5 @@
 use crate::map_camera::MapCamera;
-use crate::{map::BlockType, map::KernelType, position::Position, walker::CuteWalker};
+use crate::{map::BlockType, map::KernelType, walker::CuteWalker};
 use macroquad::color::colors;
 use macroquad::color::Color;
 use macroquad::shapes::*;

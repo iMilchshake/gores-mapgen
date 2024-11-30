@@ -44,8 +44,6 @@ fn get_seed_iter(args: &Args) -> SeedIter {
 fn main() {
     let args = Args::parse();
 
-    dbg!(&args);
-
     // determine seed count
     // TODO: iterates over one entire seed_gen once.. -> implement size_hint()?
     let seed_count = get_seed_iter(&args).count();
@@ -58,7 +56,7 @@ fn main() {
         None => MapConfig::get_all_configs(),
     };
 
-    if init_map_configs.len() == 0 {
+    if init_map_configs.is_empty() {
         panic!(
             "no map config defined, map_preset_names={:?}",
             args.map_preset_names
@@ -73,7 +71,7 @@ fn main() {
         None => GenerationConfig::get_all_configs(),
     };
 
-    if init_gen_configs.len() == 0 {
+    if init_gen_configs.is_empty() {
         panic!(
             "no generation config defined, gen_preset_names={:?}",
             args.gen_preset_names
