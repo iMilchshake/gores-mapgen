@@ -1,3 +1,4 @@
+use ndarray::s;
 use timing::Timer;
 
 use crate::{
@@ -130,12 +131,64 @@ impl Generator {
             &map,
         );
 
-        Generator {
+        let mut gen = Generator {
             walker,
             map,
             rnd,
             spawn,
-        }
+        };
+
+        gen.preprocessing();
+        gen
+    }
+
+    pub fn preprocessing(&mut self) {
+        let spawn_width = 30;
+        let spawn_height = 20;
+        assert!(spawn_height % 2 == 0, "spawn height not even");
+
+        // test locking for spawn
+        let mut view = self.walker.locked_positions.slice_mut(s![
+            self.spawn.x - spawn_width..=self.spawn.x,
+            self.spawn.y - spawn_height / 2..=self.spawn.y + spawn_height / 2
+        ]);
+        view.fill(true);
+    }
+
+    pub fn generate_spawn(&mut self) {
+        let margin = 3;
+        let spawn_width = 30;
+        let spawn_height = 20;
+        let start_line_offset = 2;
+
+        self.map.set_area(
+            &self
+                .spawn
+                .shifted_by(-spawn_width + margin, -(spawn_height / 2) + margin)
+                .unwrap(),
+            &self
+                .spawn
+                .shifted_by(-margin, (spawn_height / 2) - margin)
+                .unwrap(),
+            &BlockType::EmptyReserved,
+            &Overwrite::Force,
+        );
+
+        self.map.set_area_border(
+            &self
+                .spawn
+                .shifted_by(-spawn_width + margin - 1, -(spawn_height / 2) + margin - 1)
+                .unwrap(),
+            &self
+                .spawn
+                .shifted_by(
+                    -margin + 1 + start_line_offset,
+                    (spawn_height / 2) - margin + 1,
+                )
+                .unwrap(),
+            &BlockType::Start,
+            &Overwrite::ReplaceNonSolidForce,
+        );
     }
 
     /// perform one step of the map generation
@@ -242,16 +295,18 @@ impl Generator {
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
         print_time(&timer, "fix edge bugs");
 
-        generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
-            .expect("start room generation failed");
-        generate_room(
-            &mut self.map,
-            &self.walker.pos.clone(),
-            4,
-            3,
-            Some(&BlockType::Finish),
-        )
-        .expect("start finish room generation");
+        self.generate_spawn();
+
+        // generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
+        //     .expect("start room generation failed");
+        // generate_room(
+        //     &mut self.map,
+        //     &self.walker.pos.clone(),
+        //     4,
+        //     3,
+        //     Some(&BlockType::Finish),
+        // )
+        // .expect("start finish room generation");
         print_time(&timer, "place rooms");
 
         if gen_config.min_freeze_size > 0 {

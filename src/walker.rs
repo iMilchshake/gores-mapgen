@@ -42,7 +42,7 @@ pub struct CuteWalker {
     /// keeps track of all positions the walker has visited so far
     pub position_history: Vec<Position>,
 
-    /// keeps track of current position locking step,
+    /// keeps track to which position step is already locked
     pub locked_position_step: usize,
 }
 
