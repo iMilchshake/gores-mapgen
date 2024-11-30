@@ -16,9 +16,9 @@ Procedual random map generator for the _gores_ gamemode in teeworlds/ddnet (see 
 Assuming that you have [rust installed](https://rustup.rs/) just `git clone` and then run `cargo run` inside the project directory. For documentation on all the possible settings check out the docstrings for the `GenerationConfig` struct in `config.rs`.
 
 ### Keybinds
-`e`: Export map
 
-`space`: Generate map
-
-`r`: Refocus camera
+- `space`: Generate map
+- `shift+space`: Generate map (retry on failure)
+- `r`: Refocus camera
+- `d`: View debug layer hover
 

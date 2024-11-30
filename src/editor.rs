@@ -16,8 +16,8 @@ use log::warn;
 use std::env;
 
 use macroquad::input::{
-    is_key_pressed, is_mouse_button_down, mouse_delta_position, mouse_position, mouse_wheel,
-    KeyCode, MouseButton,
+    is_key_down, is_key_pressed, is_mouse_button_down, mouse_delta_position, mouse_position,
+    mouse_wheel, KeyCode, MouseButton,
 };
 use macroquad::time::get_fps;
 use macroquad::{camera::Camera2D, input::is_mouse_button_pressed};
@@ -58,21 +58,34 @@ enum PausedState {
 }
 pub struct Editor {
     state: EditorState,
-    pub init_gen_configs: Vec<GenerationConfig>,
-    pub init_map_configs: Vec<MapConfig>,
-    pub canvas: Option<egui::Rect>,
-    pub egui_wants_mouse: Option<bool>,
-    pub average_fps: f32,
     pub gen_config: GenerationConfig,
     pub map_config: MapConfig,
-    pub steps_per_frame: usize,
-    // pub cam: Option<Camera2D>,
-    pub gen: Generator,
+    pub init_gen_configs: Vec<GenerationConfig>,
+    pub init_map_configs: Vec<MapConfig>,
     pub debug_layers: Option<DebugLayers>,
-    pub disable_debug_layers: bool,
-
+    pub average_fps: f32,
+    pub gen: Generator,
     pub user_seed: Seed,
 
+    /// keeps track of camera for map visualization
+    pub map_cam: MapCamera,
+    pub canvas: Option<egui::Rect>,
+    pub egui_wants_mouse: Option<bool>,
+
+    /// whether to show the GenerationConfig settings
+    pub edit_gen_config: bool,
+
+    /// whether to show the GenerationConfig settings
+    pub edit_map_config: bool,
+
+    /// whether to skip initialization of debug layers
+    pub disable_debug_layers: bool,
+
+    /// how many generation steps are performed in one frame render
+    pub steps_per_frame: usize,
+
+    /// whether to perform entire map generation in one frame render
+    /// if yes, steps_per_frame is ignored
     pub instant: bool,
 
     /// whether to keep generating after a map is generated
@@ -81,23 +94,12 @@ pub struct Editor {
     /// whether to keep using the same seed for next generations
     pub fixed_seed: bool,
 
-    /// whether to show the GenerationConfig settings
-    pub edit_gen_config: bool,
-
-    /// whether to show the GenerationConfig settings
-    pub edit_map_config: bool,
-
-    /// keeps track of camera for map visualization
-    pub map_cam: MapCamera,
+    /// whether to keep using the same seed for next generations
+    pub retry_on_failure: bool,
 }
 
 impl Editor {
-    pub fn new(
-        gen_config: GenerationConfig,
-        map_config: MapConfig,
-        disable_debug: bool,
-        enable_layers: &Option<Vec<String>>,
-    ) -> Editor {
+    pub fn new(gen_config: GenerationConfig, map_config: MapConfig, args: &Args) -> Editor {
         let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
         let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
@@ -105,7 +107,7 @@ impl Editor {
         let mut editor = Editor {
             state: EditorState::Paused(PausedState::Setup),
             debug_layers: None,
-            disable_debug_layers: disable_debug,
+            disable_debug_layers: args.disable_debug,
             init_gen_configs,
             init_map_configs,
             canvas: None,
@@ -117,57 +119,53 @@ impl Editor {
             steps_per_frame: STEPS_PER_FRAME,
             gen,
             user_seed: Seed::from_string(&"iMilchshake".to_string()),
-            instant: false,
-            auto_generate: false,
-            fixed_seed: false,
+            instant: args.instant,
+            auto_generate: args.auto_generation,
+            fixed_seed: args.fixed_seed,
             edit_gen_config: false,
             edit_map_config: false,
+            retry_on_failure: false,
         };
 
-        editor.initialize_debug_layers();
+        // initialize debug layers
+        if !editor.disable_debug_layers {
+            editor.initialize_debug_layers();
+            if let Some(ref enable_layers) = args.enable_layers {
+                for layer_name in enable_layers {
+                    let layer = editor
+                        .debug_layers
+                        .as_mut()
+                        .unwrap()
+                        .active_layers
+                        .get_mut(layer_name.as_str());
 
-        if let Some(ref enable_layers) = enable_layers {
-            for layer_name in enable_layers {
-                let layer = editor
-                    .debug_layers
-                    .as_mut()
-                    .unwrap()
-                    .active_layers
-                    .get_mut(layer_name.as_str());
-
-                *layer.unwrap_or_else(|| panic!("layer name '{}' doesnt exist", layer_name)) = true;
+                    *layer.unwrap_or_else(|| panic!("layer name '{}' doesnt exist", layer_name)) =
+                        true;
+                }
             }
         }
 
-        editor
-    }
-
-    pub fn handle_cli_args(&mut self, args: &Args) {
-        self.instant = args.instant;
-        self.auto_generate = args.auto_generation;
-        self.fixed_seed = args.fixed_seed;
-
+        // load initial gen/map configs
         if let Some(config_name) = &args.gen_config {
-            if self.load_gen_config(config_name).is_err() {
+            if editor.load_gen_config(config_name).is_err() {
                 warn!("Coulnt load gen config {}", config_name);
             }
         }
-
         if let Some(config_name) = &args.map_config {
-            if self.load_map_config(config_name).is_err() {
+            if editor.load_map_config(config_name).is_err() {
                 warn!("Coulnt load map config {}", config_name);
             }
         }
 
         if args.generate {
-            self.set_playing()
+            editor.set_playing()
         }
+
+        editor
     }
 
     pub fn initialize_debug_layers(&mut self) {
-        if self.disable_debug_layers {
-            return;
-        }
+        assert!(!self.disable_debug_layers);
 
         // if possible, get currently active layers for re-using
         let previously_active_layers = self.debug_layers.take().map(|d| d.active_layers);
@@ -194,6 +192,7 @@ impl Editor {
 
             debug_window(egui_ctx, self);
 
+            // TODO: move to key input function!
             if macroquad::input::is_key_down(KeyCode::D) {
                 debug_layers_window(egui_ctx, self);
             }
@@ -283,11 +282,10 @@ impl Editor {
     }
 
     pub fn handle_user_inputs(&mut self) {
-        // if is_key_pressed(KeyCode::E) {
-        //     self.save_map_dialog();
-        // }
+        if is_key_pressed(KeyCode::LeftShift) {}
 
         if is_key_pressed(KeyCode::Space) {
+            self.retry_on_failure = is_key_down(KeyCode::LeftShift);
             self.set_playing();
         }
 

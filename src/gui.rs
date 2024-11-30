@@ -275,6 +275,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             ui.vertical(|ui| {
                 ui.checkbox(&mut editor.instant, "instant");
                 ui.checkbox(&mut editor.auto_generate, "auto generate");
+                ui.checkbox(&mut editor.retry_on_failure, "retry fail");
             });
         });
 

@@ -38,13 +38,9 @@ async fn main() {
     let mut editor = Editor::new(
         GenerationConfig::get_initial_gen_config(),
         MapConfig::get_initial_config(),
-        args.disable_debug,
-        &args.enable_layers,
+        &args,
     );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
-
-    // handle cli args
-    editor.handle_cli_args(&args);
 
     // main loop for gui (and step-wise map generation)
     loop {
@@ -73,6 +69,10 @@ async fn main() {
                 .unwrap_or_else(|err| {
                     println!("Walker Step Failed: {:}", err);
                     editor.set_setup();
+
+                    if editor.retry_on_failure {
+                        editor.set_playing();
+                    }
                 });
 
             // walker did a step using SingleStep -> now pause
@@ -82,6 +82,8 @@ async fn main() {
         }
 
         // this is called ONCE after map was generated
+        // TODO: handling successfull generation via 'setup' state is kinda stupid, i should
+        // just add a new state variable for this, in the generator?
         if editor.gen.walker.finished && !editor.is_setup() {
             // kinda crappy, but ensure that even a panic doesnt crash the program
             let _ = panic::catch_unwind(AssertUnwindSafe(|| {
@@ -137,6 +139,7 @@ async fn main() {
         draw_walker(&editor.gen.walker);
         draw_waypoints(&editor.gen.walker, colors::BLUE, colors::RED);
 
+        // TODO: move to key input function!
         if macroquad::input::is_key_down(miniquad::KeyCode::D) {
             draw_mouse_map_cell_pos(&editor.map_cam);
         }
