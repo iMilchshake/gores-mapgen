@@ -2,6 +2,7 @@ use crate::map::{BlockTypeTW, Map};
 use crate::position::Position;
 use ndarray::Array2;
 use rust_embed::RustEmbed;
+use std::char;
 use std::path::PathBuf;
 use twmap::{
     automapper::{self, Automapper},
@@ -37,7 +38,7 @@ impl BaseMaps {
     }
 }
 
-pub struct TwExport;
+pub struct TwExport {}
 
 impl TwExport {
     pub fn get_automapper_config(rule_name: String, layer: &TilesLayer) -> automapper::Config {
@@ -54,14 +55,13 @@ impl TwExport {
     pub fn process_tile_layer(
         tw_map: &mut TwMap,
         map: &Map,
-        layer_index: &usize,
+        layer_index: usize,
         layer_name: &str,
         layer_type: &BlockTypeTW,
     ) {
         let tile_group = tw_map.groups.get_mut(2).unwrap();
         assert_eq!(tile_group.name, "Tiles");
-
-        if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(*layer_index) {
+        if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(layer_index) {
             assert_eq!(layer.name, layer_name);
 
             let image_name = tw_map.images[layer.image.unwrap() as usize].name();
@@ -104,14 +104,7 @@ impl TwExport {
         };
     }
 
-    pub fn export(map: &Map, path: &PathBuf) {
-        let mut tw_map = BaseMaps::get_base_map();
-
-        TwExport::process_tile_layer(&mut tw_map, map, &0, "Freeze", &BlockTypeTW::Freeze);
-        TwExport::process_tile_layer(&mut tw_map, map, &1, "Hookable", &BlockTypeTW::Hookable);
-
-        // TODO: move into function
-        // get game layer
+    pub fn process_game_layer(tw_map: &mut TwMap, map: &Map) {
         let game_layer = tw_map
             .find_physics_layer_mut::<GameLayer>()
             .unwrap()
@@ -123,14 +116,84 @@ impl TwExport {
             GameTile::new(0, TileFlags::empty()),
         );
 
-        // modify game layer
         for ((x, y), value) in map.grid.indexed_iter() {
             game_layer[[y, x]] = GameTile::new(value.to_tw_game_id(), TileFlags::empty())
         }
+    }
 
-        // save map
+    pub fn char_to_tw_tile_id(ch: char) -> u8 {
+        match ch {
+            ' ' => 0,
+            '.' => 52,
+            ':' => 64,
+
+            // a-Z or A-Z
+            ch if ch.is_ascii_alphabetic() => ch.to_ascii_lowercase() as u8 - b'a' + 1,
+
+            // digits
+            ch if ch.is_ascii_digit() => {
+                if ch == '0' {
+                    63
+                } else {
+                    ch.to_digit(10).unwrap() as u8 + 53
+                }
+            }
+
+            _ => panic!("unsupported character: {:}", ch),
+        }
+    }
+
+    pub fn process_font_tile_layer(
+        tw_map: &mut TwMap,
+        map: &Map,
+        layer_index: usize,
+        layer_name: &str,
+        text: String,
+        start_x: usize,
+        start_y: usize,
+    ) {
+        let tile_group = tw_map.groups.get_mut(2).unwrap();
+        assert_eq!(tile_group.name, "Tiles");
+        if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(layer_index) {
+            assert_eq!(layer.name, layer_name);
+
+            let tiles = layer.tiles_mut().unwrap_mut();
+            *tiles = Array2::<Tile>::default((map.height, map.width));
+
+            let mut x = start_x;
+            let mut y = start_y;
+
+            for ch in text.chars() {
+                if ch == '\n' {
+                    x = start_x;
+                    y += 1;
+                } else {
+                    let tile_id = TwExport::char_to_tw_tile_id(ch);
+                    tiles[[y, x]] = Tile::new(tile_id, TileFlags::empty());
+                    x += 1;
+                }
+            }
+        }
+    }
+
+    pub fn export(map: &Map, path: &PathBuf) {
+        let mut tw_map = BaseMaps::get_base_map();
+
+        TwExport::process_tile_layer(&mut tw_map, map, 0, "Freeze", &BlockTypeTW::Freeze);
+        TwExport::process_tile_layer(&mut tw_map, map, 1, "Hookable", &BlockTypeTW::Hookable);
+        TwExport::process_font_tile_layer(
+            &mut tw_map,
+            map,
+            2,
+            "Font",
+            "RANDOM   GORES\nBY IMILCHSHAKE\nVERSION: 1.0.2".to_string(),
+            50,
+            50,
+        );
+
+        TwExport::process_game_layer(&mut tw_map, map);
+
         println!("exporting map to {:?}", &path);
-
         let mut file = std::fs::File::create(path).unwrap();
         tw_map.save(&mut file).expect("failed to write map file");
     }
