@@ -147,7 +147,7 @@ impl Generator {
         let spawn_height = 24;
         assert!(spawn_height % 2 == 0, "spawn height not even");
 
-        // test locking for spawn
+        // test locking for spawn TODO: add helper
         let mut view = self.walker.locked_positions.slice_mut(s![
             self.spawn.x - spawn_width..=self.spawn.x,
             self.spawn.y - spawn_height / 2..=self.spawn.y + spawn_height / 2
@@ -209,6 +209,49 @@ impl Generator {
             &BlockType::Spawn,
             &Overwrite::ReplaceNonSolidForce,
         );
+
+        // carve area for text
+        let text_margin = 1;
+        let text_width = 14 + (2 * text_margin);
+        let text_height = 3 + (2 * text_margin);
+        let text_top_offset = 3;
+        let text_left_offset = 5;
+
+        assert!(text_width < spawn_width);
+
+        let text_top_left = Position::new(
+            top_left.x + text_left_offset,
+            bot_right.y + text_top_offset + 1,
+        );
+        let text_bot_right = text_top_left
+            .shifted_by(text_width - 1, text_height - 1)
+            .unwrap();
+
+        self.map.set_area(
+            &text_top_left,
+            &text_bot_right,
+            &BlockType::EmptyReserved,
+            &Overwrite::Force,
+        );
+
+        self.write_text(
+            &text_top_left.shifted_by(text_margin, text_margin).unwrap(),
+            &"RANDOM   GORES\nBY IMILCHSHAKE\nVERSION: 1.0.3".to_string(),
+        );
+    }
+
+    pub fn write_text(&mut self, pos: &Position, text: &String) {
+        let mut cursor = pos.clone();
+
+        for ch in text.chars() {
+            if ch == '\n' {
+                cursor.y += 1;
+                cursor.x = pos.x;
+            } else {
+                self.map.font_layer[cursor.as_index()] = ch;
+                cursor.x += 1;
+            }
+        }
     }
 
     /// perform one step of the map generation

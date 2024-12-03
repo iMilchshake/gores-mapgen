@@ -5,7 +5,7 @@ use crate::{
 };
 use ndarray::{s, Array2};
 
-use std::path::PathBuf;
+use std::{char, path::PathBuf};
 
 const CHUNK_SIZE: usize = 5;
 const MAX_SHIFT_UNTIL_STEPS: usize = 25;
@@ -113,6 +113,7 @@ pub enum KernelType {
 #[derive(Debug)]
 pub struct Map {
     pub grid: Array2<BlockType>,
+    pub font_layer: Array2<char>,
     pub height: usize,
     pub width: usize,
     pub chunk_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
@@ -140,6 +141,7 @@ impl Map {
     pub fn new(width: usize, height: usize, default: BlockType) -> Map {
         Map {
             grid: Array2::from_elem((width, height), default),
+            font_layer: Array2::from_elem((width, height), ' '),
             width,
             height,
             chunk_edited: Array2::from_elem(

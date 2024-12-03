@@ -148,30 +148,18 @@ impl TwExport {
         map: &Map,
         layer_index: usize,
         layer_name: &str,
-        text: String,
-        start_x: usize,
-        start_y: usize,
     ) {
         let tile_group = tw_map.groups.get_mut(2).unwrap();
         assert_eq!(tile_group.name, "Tiles");
         if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(layer_index) {
             assert_eq!(layer.name, layer_name);
-
             let tiles = layer.tiles_mut().unwrap_mut();
             *tiles = Array2::<Tile>::default((map.height, map.width));
 
-            let mut x = start_x;
-            let mut y = start_y;
-
-            for ch in text.chars() {
-                if ch == '\n' {
-                    x = start_x;
-                    y += 1;
-                } else {
-                    let tile_id = TwExport::char_to_tw_tile_id(ch);
-                    tiles[[y, x]] = Tile::new(tile_id, TileFlags::empty());
-                    x += 1;
-                }
+            // convert chars to tw tile id's
+            for ((x, y), &ch) in map.font_layer.indexed_iter() {
+                let tw_tile_id = TwExport::char_to_tw_tile_id(ch);
+                tiles[[y, x]] = Tile::new(tw_tile_id, TileFlags::empty());
             }
         }
     }
@@ -181,15 +169,7 @@ impl TwExport {
 
         TwExport::process_tile_layer(&mut tw_map, map, 0, "Freeze", &BlockTypeTW::Freeze);
         TwExport::process_tile_layer(&mut tw_map, map, 1, "Hookable", &BlockTypeTW::Hookable);
-        TwExport::process_font_tile_layer(
-            &mut tw_map,
-            map,
-            2,
-            "Font",
-            "RANDOM   GORES\nBY IMILCHSHAKE\nVERSION: 1.0.2".to_string(),
-            50,
-            50,
-        );
+        TwExport::process_font_tile_layer(&mut tw_map, map, 2, "Font");
 
         TwExport::process_game_layer(&mut tw_map, map);
 
