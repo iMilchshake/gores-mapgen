@@ -378,6 +378,7 @@ impl Generator {
             Some(&BlockType::Finish),
         )
         .expect("start finish room generation");
+        self.write_text(&self.walker.pos.shifted_by(-2, 0)?, &"GG :>".to_string());
         print_time(&timer, "place rooms");
 
         if gen_config.min_freeze_size > 0 {

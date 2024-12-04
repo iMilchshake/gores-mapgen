@@ -126,6 +126,7 @@ impl TwExport {
             ' ' => 0,
             '.' => 52,
             ':' => 64,
+            '>' => 114,
 
             // a-Z or A-Z
             ch if ch.is_ascii_alphabetic() => ch.to_ascii_lowercase() as u8 - b'a' + 1,
