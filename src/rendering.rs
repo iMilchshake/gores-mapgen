@@ -1,8 +1,10 @@
 use crate::map_camera::MapCamera;
 use crate::{map::BlockType, map::KernelType, walker::CuteWalker};
+use egui::plot::Text;
 use macroquad::color::colors;
 use macroquad::color::Color;
 use macroquad::shapes::*;
+use macroquad::text::{draw_text, draw_text_ex, TextParams};
 use ndarray::Array2;
 
 fn blocktype_to_color(value: &BlockType) -> Color {
@@ -185,4 +187,25 @@ pub fn draw_mouse_map_cell_pos(map_cam: &MapCamera) {
         0.15,
         Color::new(1.0, 0.8, 0.2, 0.95),
     );
+}
+
+pub fn draw_font_layer(font_layer: &Array2<char>) {
+    let text_params = TextParams {
+        font_size: 100,
+        font_scale: 0.01,
+        color: colors::BLACK,
+        ..Default::default()
+    };
+    // draw_text_ex("HELLO", 20.0, 20.0, text_params);
+    for ((x, y), ch) in font_layer.indexed_iter() {
+        if *ch == ' ' {
+            continue;
+        }
+        draw_text_ex(
+            &ch.to_string(),
+            x as f32 + 0.25,
+            y as f32 + 0.75,
+            text_params,
+        );
+    }
 }

@@ -9,7 +9,12 @@ use gores_mapgen::{
     map::*,
     rendering::*,
 };
-use macroquad::{color::*, miniquad, window::*};
+use macroquad::{
+    color::*,
+    miniquad,
+    text::{draw_text, draw_text_ex, TextParams},
+    window::*,
+};
 use miniquad::conf::{Conf, Platform};
 use simple_logger::SimpleLogger;
 use std::panic::{self, AssertUnwindSafe};
@@ -109,6 +114,7 @@ async fn main() {
             &editor.gen.map.chunk_edited,
             editor.gen.map.chunk_size,
         );
+        draw_font_layer(&editor.gen.map.font_layer);
 
         // draw debug layers
         if let Some(ref mut debug_layers) = editor.debug_layers {

@@ -1,3 +1,4 @@
+use clap::crate_version;
 use ndarray::s;
 use timing::Timer;
 
@@ -234,9 +235,16 @@ impl Generator {
             &Overwrite::Force,
         );
 
+        let crate_version = crate_version!();
+        assert!(crate_version.len() == 5);
+
         self.write_text(
             &text_top_left.shifted_by(text_margin, text_margin).unwrap(),
-            &"RANDOM   GORES\nBY IMILCHSHAKE\nVERSION: 1.0.3".to_string(),
+            &format!(
+                "RANDOM   GORES\nBY IMILCHSHAKE\nVERSION: {:}",
+                crate_version
+            )
+            .to_string(),
         );
     }
 
