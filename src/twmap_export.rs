@@ -1,8 +1,10 @@
 use crate::map::{BlockTypeTW, Map};
 use crate::position::Position;
+use clap::crate_version;
 use ndarray::Array2;
 use rust_embed::RustEmbed;
 use std::char;
+use std::fmt::format;
 use std::path::PathBuf;
 use twmap::{
     automapper::{self, Automapper},
@@ -167,6 +169,11 @@ impl TwExport {
 
     pub fn export(map: &Map, path: &PathBuf) {
         let mut tw_map = BaseMaps::get_base_map();
+
+        // add map generator information
+        tw_map.info.author = format!("iMilchshake");
+        tw_map.info.version = format!("crate v{}", crate_version!());
+        tw_map.info.credits = format!("https://github.com/iMilchshake/gores-mapgen");
 
         TwExport::process_tile_layer(&mut tw_map, map, 0, "Freeze", &BlockTypeTW::Freeze);
         TwExport::process_tile_layer(&mut tw_map, map, 1, "Hookable", &BlockTypeTW::Hookable);
