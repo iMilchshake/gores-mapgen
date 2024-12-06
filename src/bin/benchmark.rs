@@ -5,7 +5,7 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use seed_gen::cli::{SeedIter, Seeds};
 
-use gores_mapgen::config::{GenerationConfig, MapConfig};
+use gores_mapgen::config::{get_filtered_configs, GenerationConfig, MapConfig, MapConfigStorage};
 use gores_mapgen::generator::Generator;
 use gores_mapgen::random::Seed;
 
@@ -49,34 +49,16 @@ fn main() {
     let seed_count = get_seed_iter(&args).count();
 
     let init_map_configs = match &args.map_preset_names {
-        Some(map_preset_names) => MapConfig::get_all_configs()
-            .into_iter()
-            .filter(|map_config| map_preset_names.contains(&map_config.name))
-            .collect(),
+        Some(preset_names) => get_filtered_configs(&MapConfig::get_all_configs(), preset_names),
         None => MapConfig::get_all_configs(),
     };
 
-    if init_map_configs.is_empty() {
-        panic!(
-            "no map config defined, map_preset_names={:?}",
-            args.map_preset_names
-        );
-    }
-
     let init_gen_configs = match &args.gen_preset_names {
-        Some(gen_preset_names) => GenerationConfig::get_all_configs()
-            .into_iter()
-            .filter(|gen_config| gen_preset_names.contains(&gen_config.name))
-            .collect(),
+        Some(preset_names) => {
+            get_filtered_configs(&GenerationConfig::get_all_configs(), preset_names)
+        }
         None => GenerationConfig::get_all_configs(),
     };
-
-    if init_gen_configs.is_empty() {
-        panic!(
-            "no generation config defined, gen_preset_names={:?}",
-            args.gen_preset_names
-        );
-    }
 
     // disable panic hook so they no longer get printed
     panic::set_hook(Box::new(|_info| {}));

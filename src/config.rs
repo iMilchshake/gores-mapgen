@@ -21,6 +21,42 @@ pub struct GenerationConfigStorage;
 #[folder = "data/map_configs/"]
 pub struct MapConfigStorage;
 
+pub trait Config {
+    fn get_name(&self) -> &String;
+}
+
+impl Config for MapConfig {
+    fn get_name(&self) -> &String {
+        &self.name
+    }
+}
+
+impl Config for GenerationConfig {
+    fn get_name(&self) -> &String {
+        &self.name
+    }
+}
+
+pub fn get_filtered_configs<T>(configs: &Vec<T>, preset_names: &[String]) -> Vec<T>
+where
+    T: Config + Clone + std::fmt::Debug,
+{
+    let filtered_configs: Vec<_> = configs
+        .iter()
+        .filter(|config| preset_names.contains(config.get_name()))
+        .cloned()
+        .collect();
+
+    if filtered_configs.is_empty() {
+        panic!(
+            "no configs left after filtering, preset_names={:?}",
+            preset_names
+        );
+    }
+
+    filtered_configs
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct MapConfig {
     /// name of the map config
