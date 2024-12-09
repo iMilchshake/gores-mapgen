@@ -82,6 +82,10 @@ impl DebugLayers {
                 "waypoint_lock",
                 BoolLayer::new(shape, Color::new(0.53, 0.18, 0.52, default_alpha), false),
             ),
+            (
+                "noise",
+                BoolLayer::new(shape, Color::new(0.0, 1.0, 0.0, default_alpha), false),
+            ),
         ]);
 
         let float_layers: BTreeMap<&'static str, FloatLayer> = BTreeMap::from([

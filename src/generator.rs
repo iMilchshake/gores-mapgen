@@ -1,5 +1,6 @@
 use clap::crate_version;
-use ndarray::s;
+use ndarray::{s, Array2};
+use noiselib::{perlin::perlin_noise_2d, uniform::UniformRandomGen};
 use timing::Timer;
 
 use crate::{
@@ -420,6 +421,25 @@ impl Generator {
             debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
         }
         print_time(&timer, "set debug layers");
+
+        let mut rng = UniformRandomGen::new(42);
+        let noise = Array2::from_shape_fn((self.map.width, self.map.height), |(x, y)| {
+            perlin_noise_2d(
+                &mut rng,
+                x as f32 * gen_config.noise_scale,
+                y as f32 * gen_config.noise_scale,
+                42,
+            )
+        });
+
+        let noise_threshold = noise.mapv(|v| {
+            let value = if gen_config.noise_invert { -v } else { v };
+            value > gen_config.noise_threshold
+        });
+
+        if let Some(debug_layers) = debug_layers {
+            debug_layers.bool_layers.get_mut("noise").unwrap().grid = noise_threshold;
+        }
 
         Ok(())
     }

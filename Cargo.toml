@@ -48,6 +48,7 @@ simple_logger = "5.0.0"
 base64 = "0.22.1"
 seed_gen = "1.1.0"
 indicatif = "0.17.8"
+noiselib = "0.2.4"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
