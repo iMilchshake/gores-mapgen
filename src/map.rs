@@ -7,7 +7,10 @@ use ndarray::{s, Array2};
 
 use std::{char, path::PathBuf};
 
-use noise::utils::{NoiseMapBuilder, PlaneMapBuilder};
+use noise::{
+    utils::{NoiseMapBuilder, PlaneMapBuilder},
+    Worley,
+};
 use noise::{Fbm, Perlin};
 
 const CHUNK_SIZE: usize = 5;
@@ -335,7 +338,8 @@ impl Map {
         noise_threshold: f64,
         seed: u32,
     ) {
-        let noise_fn = Fbm::<Perlin>::new(seed);
+        // let noise_fn = Fbm::<Perlin>::new(seed);
+        let noise_fn = Fbm::<Worley>::new(seed);
 
         let aspect_ratio = self.width as f64 / self.height as f64;
         let noise_scale_x = noise_scale;
