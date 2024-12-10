@@ -7,6 +7,9 @@ use ndarray::{s, Array2};
 
 use std::{char, path::PathBuf};
 
+use noise::utils::{NoiseMapBuilder, PlaneMapBuilder};
+use noise::{Fbm, Perlin};
+
 const CHUNK_SIZE: usize = 5;
 const MAX_SHIFT_UNTIL_STEPS: usize = 25;
 
@@ -114,27 +117,11 @@ pub enum KernelType {
 pub struct Map {
     pub grid: Array2<BlockType>,
     pub font_layer: Array2<char>,
+    pub noise_overlay: Array2<bool>,
     pub height: usize,
     pub width: usize,
     pub chunk_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
     pub chunk_size: usize,
-}
-
-// TODO: remove this method if not needed
-#[allow(dead_code)]
-fn get_maps_path() -> PathBuf {
-    if cfg!(target_os = "windows") {
-        dirs::data_dir().unwrap().join("Teeworlds").join("maps")
-    } else if cfg!(target_os = "linux") {
-        dirs::home_dir()
-            .unwrap()
-            .join(".local")
-            .join("share")
-            .join("ddnet")
-            .join("maps")
-    } else {
-        panic!("Unsupported operating system");
-    }
 }
 
 impl Map {
@@ -142,6 +129,7 @@ impl Map {
         Map {
             grid: Array2::from_elem((width, height), default),
             font_layer: Array2::from_elem((width, height), ' '),
+            noise_overlay: Array2::from_elem((width, height), false),
             width,
             height,
             chunk_edited: Array2::from_elem(
@@ -338,5 +326,32 @@ impl Map {
         }
 
         None // criterion was never fulfilled
+    }
+
+    pub fn generate_noise_overlay(
+        &mut self,
+        noise_scale: f64,
+        noise_invert: bool,
+        noise_threshold: f64,
+    ) {
+        let noise_fn = Fbm::<Perlin>::new(42);
+
+        let aspect_ratio = self.width as f64 / self.height as f64;
+        let noise_scale_x = noise_scale;
+        let noise_scale_y = noise_scale / aspect_ratio;
+
+        let noise = PlaneMapBuilder::new(noise_fn)
+            .set_size(self.width, self.height)
+            .set_x_bounds(0., noise_scale_x)
+            .set_y_bounds(0., noise_scale_y)
+            .build();
+
+        self.noise_overlay = Array2::from_shape_fn((self.width, self.height), |(x, y)| {
+            let noise_value = noise.get_value(x, y);
+            let noise_active = (noise_value > noise_threshold) ^ noise_invert;
+            let hookable = self.grid[(x, y)].is_solid();
+
+            noise_active && hookable
+        });
     }
 }

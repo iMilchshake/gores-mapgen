@@ -1,15 +1,17 @@
-use crate::map::{BlockTypeTW, Map};
+use crate::map::{BlockType, BlockTypeTW, Map};
 use crate::position::Position;
 use clap::crate_version;
 use ndarray::Array2;
 use rust_embed::RustEmbed;
 use std::char;
-use std::fmt::format;
 use std::path::PathBuf;
 use twmap::{
     automapper::{self, Automapper},
     GameLayer, GameTile, Layer, Tile, TileFlags, TilemapLayer, TilesLayer, TwMap,
 };
+
+const TILE_GROUP_INDEX: usize = 2;
+const AUTOMAPPER_SEED: u32 = 3777777777; // thanks Tater for the epic **random** seed
 
 #[derive(RustEmbed)]
 #[folder = "data/automapper/"]
@@ -106,6 +108,44 @@ impl TwExport {
         };
     }
 
+    pub fn process_tile_layer_new<F, T>(
+        tw_map: &mut TwMap,
+        layer_index: usize,
+        layer_name: &str,
+        grid: &Array2<T>,
+        set_block: F,
+        use_automap: bool,
+    ) where
+        F: Fn(usize, usize, &T) -> bool,
+    {
+        let tile_group = tw_map.groups.get_mut(TILE_GROUP_INDEX).unwrap();
+        assert_eq!(tile_group.name, "Tiles");
+        if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(layer_index) {
+            assert_eq!(layer.name, layer_name);
+
+            let tiles = layer.tiles_mut().unwrap_mut();
+            *tiles = Array2::<Tile>::default((grid.shape()[1], grid.shape()[0]));
+
+            for ((x, y), block_type) in grid.indexed_iter() {
+                let set_block: bool = set_block(x, y, block_type);
+                if set_block {
+                    tiles[[y, x]] = Tile::new(1, TileFlags::empty())
+                }
+            }
+
+            if use_automap {
+                let mapres_name = tw_map.images[layer.image.unwrap() as usize].name();
+                let automapper_config = TwExport::get_automapper_config(mapres_name.clone(), layer);
+                automapper_config.run(AUTOMAPPER_SEED, layer.tiles_mut().unwrap_mut())
+            }
+        } else {
+            panic!(
+                "coulnt get layer at index {:} ({:})",
+                layer_index, layer_name
+            );
+        };
+    }
+
     pub fn process_game_layer(tw_map: &mut TwMap, map: &Map) {
         let game_layer = tw_map
             .find_physics_layer_mut::<GameLayer>()
@@ -178,8 +218,17 @@ impl TwExport {
         TwExport::process_tile_layer(&mut tw_map, map, 0, "Freeze", &BlockTypeTW::Freeze);
         TwExport::process_tile_layer(&mut tw_map, map, 1, "Hookable", &BlockTypeTW::Hookable);
         TwExport::process_font_tile_layer(&mut tw_map, map, 2, "Font");
-
         TwExport::process_game_layer(&mut tw_map, map);
+
+        // experimental overlay export
+        TwExport::process_tile_layer_new(
+            &mut tw_map,
+            3,
+            "Overlay",
+            &map.noise_overlay,
+            |_, _, &active| active,
+            true,
+        );
 
         println!("exporting map to {:?}", &path);
         let mut file = std::fs::File::create(path).unwrap();

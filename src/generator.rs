@@ -1,9 +1,7 @@
 use clap::crate_version;
 use ndarray::{s, Array2};
-// use noiselib::{perlin::perlin_noise_2d, uniform::UniformRandomGen};
 use noise::utils::{NoiseMapBuilder, PlaneMapBuilder};
 use noise::{Fbm, Perlin};
-use rand_distr::num_traits::Inv;
 use timing::Timer;
 
 use crate::{
@@ -425,28 +423,15 @@ impl Generator {
         }
         print_time(&timer, "set debug layers");
 
-        let noise_fn = Fbm::<Perlin>::new(42);
-        let aspect_ratio = self.map.width as f64 / self.map.height as f64;
-        let noise_scale_x = gen_config.noise_scale as f64;
-        let noise_scale_y = gen_config.noise_scale as f64 / aspect_ratio;
-
-        let noise = PlaneMapBuilder::new(noise_fn)
-            .set_size(self.map.width, self.map.height)
-            .set_x_bounds(0., noise_scale_x)
-            .set_y_bounds(0., noise_scale_y)
-            .build();
-
-        let noise_threshold = Array2::from_shape_fn((self.map.width, self.map.height), |(x, y)| {
-            let noise_value = if gen_config.noise_invert {
-                -noise.get_value(x, y)
-            } else {
-                noise.get_value(x, y)
-            };
-            noise_value > gen_config.noise_threshold as f64
-        });
+        self.map.generate_noise_overlay(
+            gen_config.noise_scale as f64,
+            gen_config.noise_invert,
+            gen_config.noise_threshold as f64,
+        );
 
         if let Some(debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("noise").unwrap().grid = noise_threshold;
+            debug_layers.bool_layers.get_mut("noise").unwrap().grid =
+                self.map.noise_overlay.clone();
         }
 
         Ok(())

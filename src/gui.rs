@@ -712,7 +712,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                         field_edit_widget(
                             ui,
                             &mut editor.gen_config.noise_scale,
-                            edit_f32_slider_bounded(0.0, 10.0),
+                            edit_f32_slider_bounded(0.0, 50.0),
                             "noise scale",
                             false,
                         );
