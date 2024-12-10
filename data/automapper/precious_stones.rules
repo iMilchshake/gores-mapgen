@@ -1,0 +1,711 @@
+[WHOLE MAP]
+
+[• Base Ones]
+
+Index 1
+
+NewRun
+NoLayerCopy
+
+Index 8
+Pos 0 0 INDEX 1
+Pos -1 0 NOTINDEX 8 OR 24
+Pos -1 -1 NOTINDEX 8 OR 24
+Pos 0 -1 NOTINDEX 8 OR 24
+Pos 1 -1 NOTINDEX 8 OR 24
+Random 6
+
+Index 17
+Pos 0 0 INDEX 1
+Random 7
+
+Index 81
+Pos 0 0 INDEX 1
+Random 6
+
+Index 177
+Pos 0 0 INDEX 1
+Random 8
+
+Index 240
+Pos 0 0 INDEX 1
+Random 20
+
+
+#different styles for ID 8
+Index 24
+Pos 0 0 INDEX 8
+Random 2
+
+#different styles for ID 17
+Index 33
+Pos 0 0 INDEX 17
+Random 4
+
+Index 49
+Pos 0 0 INDEX 17
+Random 3
+
+Index 65
+Pos 0 0 INDEX 17
+Random 2
+
+#different styles for ID 81
+Index 97
+Pos 0 0 INDEX 81
+Random 6
+
+Index 113
+Pos 0 0 INDEX 81
+Random 5
+
+Index 129
+Pos 0 0 INDEX 81
+Random 4
+
+Index 145
+Pos 0 0 INDEX 81
+Random 3
+
+Index 161
+Pos 0 0 INDEX 81
+Random 2
+
+#different styles for ID 177
+Index 193
+Pos 0 0 INDEX 177
+Random 4
+
+Index 209
+Pos 0 0 INDEX 177
+Random 3
+
+Index 225
+Pos 0 0 INDEX 177
+Random 2
+
+#try to remove long chains of ID 1
+NewRun
+NoLayerCopy
+Index 40
+Pos 0 0 INDEX 1
+Pos -1 0 INDEX 1
+Pos 1 0 INDEX 1
+Pos -2 0 NOTINDEX 1
+
+NewRun
+NoLayerCopy
+
+Index 40
+Pos 0 0 INDEX 1
+Pos 0 -1 INDEX 1
+Pos 0 1 INDEX 1
+Pos 0 -2 NOTINDEX 1
+
+#different styles for ID 40
+Index 41
+Pos 0 0 INDEX 40
+Random 4
+
+Index 56
+Pos 0 0 INDEX 40
+Random 3
+
+Index 57
+Pos 0 0 INDEX 40
+Random 2
+
+
+
+[• Mixed Ones]
+
+Index 1
+
+NewRun
+NoLayerCopy
+
+#gems
+Index 2
+Pos 0 0 INDEX 1
+Random 14
+
+Index 3
+Pos 0 0 INDEX 1
+Random 12
+
+Index 4
+Pos 0 0 INDEX 1
+Random 10
+
+Index 5
+Pos 0 0 INDEX 1
+Random 8
+
+Index 6
+Pos 0 0 INDEX 1
+Random 6
+
+Index 7
+Pos 0 0 INDEX 1
+Random 4
+
+#base
+Index 17
+Pos 0 0 INDEX 1
+Random 10
+
+Index 81
+Pos 0 0 INDEX 1
+Random 4
+
+Index 177
+Pos 0 0 INDEX 1
+Random 7
+
+Index 240
+Pos 0 0 INDEX 1
+Random 10
+
+Index 8
+Pos 0 0 INDEX 1
+Random 4
+
+
+#different styles for ID 2
+Index 18
+Pos 0 0 INDEX 2
+Random 5
+
+Index 34
+Pos 0 0 INDEX 2
+Random 4
+
+Index 50
+Pos 0 0 INDEX 2
+Random 3
+
+Index 66
+Pos 0 0 INDEX 2
+Random 2
+
+#different styles for ID 3
+Index 19
+Pos 0 0 INDEX 3
+Random 5
+
+Index 35
+Pos 0 0 INDEX 3
+Random 4
+
+Index 51
+Pos 0 0 INDEX 3
+Random 3
+
+Index 67
+Pos 0 0 INDEX 3
+Random 2
+
+#different styles for ID 4
+Index 20
+Pos 0 0 INDEX 4
+Random 5
+
+Index 36
+Pos 0 0 INDEX 4
+Random 4
+
+Index 52
+Pos 0 0 INDEX 4
+Random 3
+
+Index 68
+Pos 0 0 INDEX 4
+Random 2
+
+#different styles for ID 5
+Index 21
+Pos 0 0 INDEX 5
+Random 5
+
+Index 37
+Pos 0 0 INDEX 5
+Random 4
+
+Index 53
+Pos 0 0 INDEX 5
+Random 3
+
+Index 69
+Pos 0 0 INDEX 5
+Random 2
+
+#different styles for ID 6
+Index 22
+Pos 0 0 INDEX 6
+Random 5
+
+Index 38
+Pos 0 0 INDEX 6
+Random 4
+
+Index 54
+Pos 0 0 INDEX 6
+Random 3
+
+Index 70
+Pos 0 0 INDEX 6
+Random 2
+
+#different styles for ID 7
+Index 23
+Pos 0 0 INDEX 7
+Random 5
+
+Index 39
+Pos 0 0 INDEX 7
+Random 4
+
+Index 55
+Pos 0 0 INDEX 7
+Random 3
+
+Index 71
+Pos 0 0 INDEX 7
+Random 2
+
+#different styles for ID 17
+Index 33
+Pos 0 0 INDEX 17
+Random 4
+
+Index 49
+Pos 0 0 INDEX 17
+Random 3
+
+Index 65
+Pos 0 0 INDEX 17
+Random 2
+
+#different styles for ID 81
+Index 97
+Pos 0 0 INDEX 81
+Random 6
+
+Index 113
+Pos 0 0 INDEX 81
+Random 5
+
+Index 129
+Pos 0 0 INDEX 81
+Random 4
+
+Index 145
+Pos 0 0 INDEX 81
+Random 3
+
+Index 161
+Pos 0 0 INDEX 81
+Random 2
+
+#different styles for ID 177
+Index 193
+Pos 0 0 INDEX 177
+Random 4
+
+Index 209
+Pos 0 0 INDEX 177
+Random 3
+
+Index 225
+Pos 0 0 INDEX 177
+Random 2
+
+#try to remove long chains of ID 1
+NewRun
+NoLayerCopy
+Index 40
+Pos 0 0 INDEX 1
+Pos -1 0 INDEX 1
+Pos 1 0 INDEX 1
+Pos -2 0 NOTINDEX 1
+
+NewRun
+NoLayerCopy
+
+Index 40
+Pos 0 0 INDEX 1
+Pos 0 -1 INDEX 1
+Pos 0 1 INDEX 1
+Pos 0 -2 NOTINDEX 1
+
+#different styles for ID 40
+Index 41
+Pos 0 0 INDEX 40
+Random 4
+
+Index 56
+Pos 0 0 INDEX 40
+Random 3
+
+Index 57
+Pos 0 0 INDEX 40
+Random 2
+
+
+
+
+[RANDOMIZE ONES]
+
+[• Base]
+
+
+Index 1
+Pos 0 0 INDEX 1 OR 2 OR 3 OR 4 OR 5 OR 6 OR 7 OR 8 OR 17 OR 18 OR 19 OR 20 OR 21 OR 22 OR 23 OR 24 OR 33 OR 34 OR 35 OR 36 OR 37 OR 38 OR 39 OR 40 OR 41 OR 49 OR 50 OR 51 OR 52 OR 53 OR 54 OR 55 OR 56 OR 57 OR 65 OR 66 OR 67 OR 68 OR 69 OR 70 OR 71 OR 81 OR 97 OR 113 OR 129 OR 145 OR 161 OR 177 OR 193 OR 209 OR 225 OR 240 OR 241 
+
+NewRun
+NoLayerCopy
+
+Index 8
+Pos 0 0 INDEX 1
+Pos -1 0 NOTINDEX 8 OR 24
+Pos -1 -1 NOTINDEX 8 OR 24
+Pos 0 -1 NOTINDEX 8 OR 24
+Pos 1 -1 NOTINDEX 8 OR 24
+Random 6
+
+Index 17
+Pos 0 0 INDEX 1
+Random 7
+
+Index 81
+Pos 0 0 INDEX 1
+Random 6
+
+Index 177
+Pos 0 0 INDEX 1
+Random 8
+
+Index 240
+Pos 0 0 INDEX 1
+Random 20
+
+
+#different styles for ID 8
+Index 24
+Pos 0 0 INDEX 8
+Random 2
+
+#different styles for ID 17
+Index 33
+Pos 0 0 INDEX 17
+Random 4
+
+Index 49
+Pos 0 0 INDEX 17
+Random 3
+
+Index 65
+Pos 0 0 INDEX 17
+Random 2
+
+#different styles for ID 81
+Index 97
+Pos 0 0 INDEX 81
+Random 6
+
+Index 113
+Pos 0 0 INDEX 81
+Random 5
+
+Index 129
+Pos 0 0 INDEX 81
+Random 4
+
+Index 145
+Pos 0 0 INDEX 81
+Random 3
+
+Index 161
+Pos 0 0 INDEX 81
+Random 2
+
+#different styles for ID 177
+Index 193
+Pos 0 0 INDEX 177
+Random 4
+
+Index 209
+Pos 0 0 INDEX 177
+Random 3
+
+Index 225
+Pos 0 0 INDEX 177
+Random 2
+
+#try to remove long chains of ID 1
+NewRun
+NoLayerCopy
+Index 40
+Pos 0 0 INDEX 1
+Pos -1 0 INDEX 1
+Pos 1 0 INDEX 1
+Pos -2 0 NOTINDEX 1
+
+NewRun
+NoLayerCopy
+
+Index 40
+Pos 0 0 INDEX 1
+Pos 0 -1 INDEX 1
+Pos 0 1 INDEX 1
+Pos 0 -2 NOTINDEX 1
+
+#different styles for ID 40
+Index 41
+Pos 0 0 INDEX 40
+Random 4
+
+Index 56
+Pos 0 0 INDEX 40
+Random 3
+
+Index 57
+Pos 0 0 INDEX 40
+Random 2
+
+
+
+[• Mixed]
+
+Index 1
+Pos 0 0 INDEX 1 OR 2 OR 3 OR 4 OR 5 OR 6 OR 7 OR 8 OR 17 OR 18 OR 19 OR 20 OR 21 OR 22 OR 23 OR 24 OR 33 OR 34 OR 35 OR 36 OR 37 OR 38 OR 39 OR 40 OR 41 OR 49 OR 50 OR 51 OR 52 OR 53 OR 54 OR 55 OR 56 OR 57 OR 65 OR 66 OR 67 OR 68 OR 69 OR 70 OR 71 OR 81 OR 97 OR 113 OR 129 OR 145 OR 161 OR 177 OR 193 OR 209 OR 225 OR 240 OR 241 
+
+NewRun
+NoLayerCopy
+
+#gems
+Index 2
+Pos 0 0 INDEX 1
+Random 14
+
+Index 3
+Pos 0 0 INDEX 1
+Random 12
+
+Index 4
+Pos 0 0 INDEX 1
+Random 10
+
+Index 5
+Pos 0 0 INDEX 1
+Random 8
+
+Index 6
+Pos 0 0 INDEX 1
+Random 6
+
+Index 7
+Pos 0 0 INDEX 1
+Random 4
+
+#base
+Index 17
+Pos 0 0 INDEX 1
+Random 10
+
+Index 81
+Pos 0 0 INDEX 1
+Random 4
+
+Index 177
+Pos 0 0 INDEX 1
+Random 7
+
+Index 240
+Pos 0 0 INDEX 1
+Random 10
+
+Index 8
+Pos 0 0 INDEX 1
+Random 4
+
+
+#different styles for ID 2
+Index 18
+Pos 0 0 INDEX 2
+Random 5
+
+Index 34
+Pos 0 0 INDEX 2
+Random 4
+
+Index 50
+Pos 0 0 INDEX 2
+Random 3
+
+Index 66
+Pos 0 0 INDEX 2
+Random 2
+
+#different styles for ID 3
+Index 19
+Pos 0 0 INDEX 3
+Random 5
+
+Index 35
+Pos 0 0 INDEX 3
+Random 4
+
+Index 51
+Pos 0 0 INDEX 3
+Random 3
+
+Index 67
+Pos 0 0 INDEX 3
+Random 2
+
+#different styles for ID 4
+Index 20
+Pos 0 0 INDEX 4
+Random 5
+
+Index 36
+Pos 0 0 INDEX 4
+Random 4
+
+Index 52
+Pos 0 0 INDEX 4
+Random 3
+
+Index 68
+Pos 0 0 INDEX 4
+Random 2
+
+#different styles for ID 5
+Index 21
+Pos 0 0 INDEX 5
+Random 5
+
+Index 37
+Pos 0 0 INDEX 5
+Random 4
+
+Index 53
+Pos 0 0 INDEX 5
+Random 3
+
+Index 69
+Pos 0 0 INDEX 5
+Random 2
+
+#different styles for ID 6
+Index 22
+Pos 0 0 INDEX 6
+Random 5
+
+Index 38
+Pos 0 0 INDEX 6
+Random 4
+
+Index 54
+Pos 0 0 INDEX 6
+Random 3
+
+Index 70
+Pos 0 0 INDEX 6
+Random 2
+
+#different styles for ID 7
+Index 23
+Pos 0 0 INDEX 7
+Random 5
+
+Index 39
+Pos 0 0 INDEX 7
+Random 4
+
+Index 55
+Pos 0 0 INDEX 7
+Random 3
+
+Index 71
+Pos 0 0 INDEX 7
+Random 2
+
+#different styles for ID 17
+Index 33
+Pos 0 0 INDEX 17
+Random 4
+
+Index 49
+Pos 0 0 INDEX 17
+Random 3
+
+Index 65
+Pos 0 0 INDEX 17
+Random 2
+
+#different styles for ID 81
+Index 97
+Pos 0 0 INDEX 81
+Random 6
+
+Index 113
+Pos 0 0 INDEX 81
+Random 5
+
+Index 129
+Pos 0 0 INDEX 81
+Random 4
+
+Index 145
+Pos 0 0 INDEX 81
+Random 3
+
+Index 161
+Pos 0 0 INDEX 81
+Random 2
+
+#different styles for ID 177
+Index 193
+Pos 0 0 INDEX 177
+Random 4
+
+Index 209
+Pos 0 0 INDEX 177
+Random 3
+
+Index 225
+Pos 0 0 INDEX 177
+Random 2
+
+#try to remove long chains of ID 1
+NewRun
+NoLayerCopy
+Index 40
+Pos 0 0 INDEX 1
+Pos -1 0 INDEX 1
+Pos 1 0 INDEX 1
+Pos -2 0 NOTINDEX 1
+
+NewRun
+NoLayerCopy
+
+Index 40
+Pos 0 0 INDEX 1
+Pos 0 -1 INDEX 1
+Pos 0 1 INDEX 1
+Pos 0 -2 NOTINDEX 1
+
+#different styles for ID 40
+Index 41
+Pos 0 0 INDEX 40
+Random 4
+
+Index 56
+Pos 0 0 INDEX 40
+Random 3
+
+Index 57
+Pos 0 0 INDEX 40
+Random 2
