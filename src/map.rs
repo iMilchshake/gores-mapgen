@@ -333,8 +333,9 @@ impl Map {
         noise_scale: f64,
         noise_invert: bool,
         noise_threshold: f64,
+        seed: u32,
     ) {
-        let noise_fn = Fbm::<Perlin>::new(42);
+        let noise_fn = Fbm::<Perlin>::new(seed);
 
         let aspect_ratio = self.width as f64 / self.height as f64;
         let noise_scale_x = noise_scale;

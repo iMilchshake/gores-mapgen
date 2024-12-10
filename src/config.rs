@@ -348,8 +348,8 @@ impl Default for GenerationConfig {
             pos_lock_max_dist: 20.0,
             lock_kernel_size: 9,
             waypoint_lock_distance: 10,
-            noise_threshold: 0.0,
-            noise_scale: 0.1,
+            noise_threshold: 0.25,
+            noise_scale: 10.0,
             noise_invert: false,
         }
     }

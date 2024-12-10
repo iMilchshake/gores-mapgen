@@ -1,10 +1,9 @@
 use crate::map_camera::MapCamera;
 use crate::{map::BlockType, map::KernelType, walker::CuteWalker};
-use egui::plot::Text;
 use macroquad::color::colors;
 use macroquad::color::Color;
 use macroquad::shapes::*;
-use macroquad::text::{draw_text, draw_text_ex, TextParams};
+use macroquad::text::{draw_text_ex, TextParams};
 use ndarray::Array2;
 
 fn blocktype_to_color(value: &BlockType) -> Color {

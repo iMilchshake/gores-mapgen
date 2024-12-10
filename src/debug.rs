@@ -84,7 +84,7 @@ impl DebugLayers {
             ),
             (
                 "noise",
-                BoolLayer::new(shape, Color::new(0.0, 1.0, 0.0, default_alpha), false),
+                BoolLayer::new(shape, Color::new(0.96, 0.28, 0.19, default_alpha), false),
             ),
         ]);
 

@@ -427,6 +427,7 @@ impl Generator {
             gen_config.noise_scale as f64,
             gen_config.noise_invert,
             gen_config.noise_threshold as f64,
+            self.rnd.random_u32(),
         );
 
         if let Some(debug_layers) = debug_layers {

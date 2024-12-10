@@ -180,6 +180,10 @@ impl Random {
         self.gen.next_u64()
     }
 
+    pub fn random_u32(&mut self) -> u32 {
+        self.gen.next_u32()
+    }
+
     pub fn with_probability(&mut self, probability: f32) -> bool {
         if probability == 1.0 {
             self.skip();
