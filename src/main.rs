@@ -3,7 +3,7 @@
 use clap::Parser;
 use gores_mapgen::{
     args::Args,
-    config::{GenerationConfig, MapConfig},
+    config::{GenerationConfig, MapConfig, ThemeConfig},
     editor::*,
     fps_control::*,
     map::*,
@@ -38,6 +38,7 @@ async fn main() {
     let mut editor = Editor::new(
         GenerationConfig::get_initial_gen_config(),
         MapConfig::get_initial_config(),
+        ThemeConfig::default(),
         &args,
     );
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);

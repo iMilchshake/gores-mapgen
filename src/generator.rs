@@ -7,7 +7,7 @@ use crate::{
     debug::DebugLayers,
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
-    noise::{self, Noise},
+    noise::{self},
     position::Position,
     post_processing::{self as post, get_flood_fill},
     random::{Random, Seed},
@@ -111,7 +111,12 @@ pub fn generate_room(
 
 impl Generator {
     /// derive an initial generator state based on a GenerationConfig
-    pub fn new(gen_config: &GenerationConfig, map_config: &MapConfig, seed: Seed) -> Generator {
+    pub fn new(
+        gen_config: &GenerationConfig,
+        map_config: &MapConfig,
+        thm_config: &ThemeConfig,
+        seed: Seed,
+    ) -> Generator {
         let map = Map::new(map_config.width, map_config.height, BlockType::Hookable);
         let spawn = map_config.waypoints.first().unwrap().clone();
         let mut rnd = Random::new(seed, gen_config);
@@ -140,29 +145,27 @@ impl Generator {
             spawn,
         };
 
-        gen.preprocessing();
+        gen.preprocessing(thm_config);
         gen
     }
 
-    pub fn preprocessing(&mut self) {
-        let spawn_width = 30;
-        let spawn_height = 24;
-        assert!(spawn_height % 2 == 0, "spawn height not even");
-
+    pub fn preprocessing(&mut self, thm_config: &ThemeConfig) {
         // test locking for spawn TODO: add helper
         let mut view = self.walker.locked_positions.slice_mut(s![
-            self.spawn.x - spawn_width..=self.spawn.x,
-            self.spawn.y - spawn_height / 2..=self.spawn.y + spawn_height / 2
+            self.spawn.x - thm_config.spawn_width..=self.spawn.x,
+            self.spawn.y - thm_config.spawn_height / 2..=self.spawn.y + thm_config.spawn_height / 2
         ]);
         view.fill(true);
     }
 
-    pub fn generate_spawn(&mut self) {
-        let margin = 3;
-        let spawn_width = 30;
-        let spawn_height = 24;
-        let platform_width = 12;
-        assert!(spawn_height % 2 == 0, "spawn height not even");
+    pub fn generate_spawn(&mut self, thm_config: &ThemeConfig) {
+        assert!(thm_config.spawn_height % 2 == 0, "spawn height not even");
+
+        // TODO: these inconsistent types are annoying xd
+        let spawn_width: i32 = thm_config.spawn_width as i32;
+        let spawn_height: i32 = thm_config.spawn_height as i32;
+        let margin: i32 = thm_config.spawn_margin as i32;
+        let platform_width: usize = thm_config.spawn_platform_width;
 
         let top_left = self
             .spawn
@@ -212,40 +215,43 @@ impl Generator {
             &Overwrite::ReplaceNonSolidForce,
         );
 
-        // carve area for text
-        let text_margin = 1;
-        let text_width = 14 + (2 * text_margin);
-        let text_height = 3 + (2 * text_margin);
-        let text_top_offset = 3;
-        let text_left_offset = 5;
-
-        assert!(text_width < spawn_width);
-
-        let text_top_left = Position::new(
-            top_left.x + text_left_offset,
-            bot_right.y + text_top_offset + 1,
+        let info_text = format!(
+            "RANDOM   GORES\n\
+            BY IMILCHSHAKE\n\
+            VERSION: {:}\n\
+            [BETA]",
+            crate_version!()
         );
-        let text_bot_right = text_top_left
-            .shifted_by(text_width - 1, text_height - 1)
+
+        let text_width = info_text.lines().map(str::len).max().unwrap_or(0) as i32;
+        let text_height = info_text.lines().count() as i32;
+
+        // carve area for text
+        let text_margin = thm_config.text_margin as i32;
+
+        let textbox_top_left = Position::new(
+            top_left.x + thm_config.textbox_left_offset,
+            bot_right.y + thm_config.textbox_top_offset + 1,
+        );
+        let textbox_bot_right = textbox_top_left
+            .shifted_by(
+                text_width - 1 + (2 * text_margin),
+                text_height - 1 + (2 * text_margin),
+            )
             .unwrap();
 
         self.map.set_area(
-            &text_top_left,
-            &text_bot_right,
+            &textbox_top_left,
+            &textbox_bot_right,
             &BlockType::EmptyReserved,
             &Overwrite::Force,
         );
 
-        let crate_version = crate_version!();
-        assert!(crate_version.len() == 5);
-
         self.write_text(
-            &text_top_left.shifted_by(text_margin, text_margin).unwrap(),
-            &format!(
-                "RANDOM   GORES\nBY IMILCHSHAKE\nVERSION: {:}",
-                crate_version
-            )
-            .to_string(),
+            &textbox_top_left
+                .shifted_by(text_margin, text_margin)
+                .unwrap(),
+            &info_text,
         );
     }
 
@@ -368,7 +374,7 @@ impl Generator {
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
         print_time(&timer, "fix edge bugs");
 
-        self.generate_spawn();
+        self.generate_spawn(thm_config);
 
         // generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
         //     .expect("start room generation failed");
@@ -451,7 +457,7 @@ impl Generator {
         map_config: &MapConfig,
         thm_config: &ThemeConfig,
     ) -> Result<Map, &'static str> {
-        let mut gen = Generator::new(gen_config, map_config, seed.clone());
+        let mut gen = Generator::new(gen_config, map_config, thm_config, seed.clone());
 
         // validate config
         gen_config.validate()?;

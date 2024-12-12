@@ -192,10 +192,6 @@ pub struct GenerationConfig {
     /// how far future waypoints lock blocks around them to ensure
     /// they arent blocked before having to actually be reached
     pub waypoint_lock_distance: usize,
-
-    pub noise_scale: f32,
-    pub noise_invert: bool,
-    pub noise_threshold: f32,
 }
 
 impl GenerationConfig {
@@ -313,9 +309,6 @@ impl Default for GenerationConfig {
             pos_lock_max_dist: 20.0,
             lock_kernel_size: 9,
             waypoint_lock_distance: 10,
-            noise_threshold: 0.25,
-            noise_scale: 10.0,
-            noise_invert: false,
         }
     }
 }
@@ -346,14 +339,19 @@ pub struct ThemeConfig {
     /// spawn height (must be even TODO: u sure?)
     pub spawn_height: usize,
 
+    /// how many blocks are reserved outside of spawn (not in starting orientation)
+    pub spawn_margin: usize,
+
+    pub spawn_platform_width: usize,
+
     /// empty blocks around info text
     pub text_margin: usize,
 
     /// text box top offset (relative to bot left spawn corner)
-    pub text_top_offset: usize,
+    pub textbox_top_offset: usize,
 
     /// text box left offset (relative to bot left spawn corner)
-    pub text_left_offset: usize,
+    pub textbox_left_offset: usize,
 
     pub overlay_noise_scale: f32,
     pub overlay_noise_invert: bool,
@@ -366,9 +364,11 @@ impl Default for ThemeConfig {
         ThemeConfig {
             spawn_width: 30,
             spawn_height: 24,
+            spawn_margin: 3,
+            spawn_platform_width: 12,
             text_margin: 1,
-            text_top_offset: 3,
-            text_left_offset: 5,
+            textbox_top_offset: 3,
+            textbox_left_offset: 5,
             overlay_noise_scale: 10.0,
             overlay_noise_invert: false,
             overlay_noise_threshold: 0.25,

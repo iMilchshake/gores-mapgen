@@ -102,10 +102,15 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new(gen_config: GenerationConfig, map_config: MapConfig, args: &Args) -> Editor {
+    pub fn new(
+        gen_config: GenerationConfig,
+        map_config: MapConfig,
+        thm_config: ThemeConfig,
+        args: &Args,
+    ) -> Editor {
         let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
-        let gen = Generator::new(&gen_config, &map_config, Seed::from_u64(0));
+        let gen = Generator::new(&gen_config, &map_config, &thm_config, Seed::from_u64(0));
 
         let mut editor = Editor {
             state: EditorState::Paused(PausedState::Setup),
@@ -257,7 +262,12 @@ impl Editor {
             self.user_seed = Seed::from_random(&mut self.gen.rnd);
         }
 
-        self.gen = Generator::new(&self.gen_config, &self.map_config, self.user_seed.clone());
+        self.gen = Generator::new(
+            &self.gen_config,
+            &self.map_config,
+            &self.thm_config,
+            self.user_seed.clone(),
+        );
         self.initialize_debug_layers();
     }
 

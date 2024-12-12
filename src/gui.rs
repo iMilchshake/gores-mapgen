@@ -705,34 +705,6 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             false,
                         );
                     });
-
-                CollapsingHeader::new("noise")
-                    .default_open(false)
-                    .show(ui, |ui| {
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.noise_scale,
-                            edit_f32_slider_bounded(0.0, 50.0),
-                            "noise scale",
-                            false,
-                        );
-
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.noise_threshold,
-                            edit_f32_slider_bounded(-1.0, 1.0),
-                            "noise threshold",
-                            false,
-                        );
-
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.noise_invert,
-                            edit_bool,
-                            "noise invert",
-                            false,
-                        );
-                    });
             }
 
             // =======================================[ MAP CONFIG EDIT ]===================================
