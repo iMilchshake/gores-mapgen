@@ -219,7 +219,7 @@ impl Generator {
             "RANDOM   GORES\n\
             BY IMILCHSHAKE\n\
             VERSION: {:}\n\
-            [BETA]",
+            !BETA!",
             crate_version!()
         );
 
