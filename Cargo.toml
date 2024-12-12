@@ -15,9 +15,6 @@ name = "twmap_test"
 name = "config_points"
 
 [[bin]]
-name = "automap_test"
-
-[[bin]]
 name = "benchmark"
 
 [dependencies]

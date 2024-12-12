@@ -1,3 +1,4 @@
+use crate::noise::Noise;
 use crate::position::{Position, ShiftDirection};
 use crate::random::RandomDistConfig;
 use log::warn;
@@ -20,42 +21,6 @@ pub struct GenerationConfigStorage;
 #[derive(RustEmbed)]
 #[folder = "data/map_configs/"]
 pub struct MapConfigStorage;
-
-pub trait Config {
-    fn get_name(&self) -> &String;
-}
-
-impl Config for MapConfig {
-    fn get_name(&self) -> &String {
-        &self.name
-    }
-}
-
-impl Config for GenerationConfig {
-    fn get_name(&self) -> &String {
-        &self.name
-    }
-}
-
-pub fn get_filtered_configs<T>(configs: &Vec<T>, preset_names: &[String]) -> Vec<T>
-where
-    T: Config + Clone + std::fmt::Debug,
-{
-    let filtered_configs: Vec<_> = configs
-        .iter()
-        .filter(|config| preset_names.contains(config.get_name()))
-        .cloned()
-        .collect();
-
-    if filtered_configs.is_empty() {
-        panic!(
-            "no configs left after filtering, preset_names={:?}",
-            preset_names
-        );
-    }
-
-    filtered_configs
-}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct MapConfig {
@@ -371,4 +336,79 @@ impl Default for MapConfig {
             height: 300,
         }
     }
+}
+
+/// Configuration for map visuals and appearance, isolated from map and generation config.
+pub struct ThemeConfig {
+    /// spawn width
+    pub spawn_width: usize,
+
+    /// spawn height (must be even TODO: u sure?)
+    pub spawn_height: usize,
+
+    /// empty blocks around info text
+    pub text_margin: usize,
+
+    /// text box top offset (relative to bot left spawn corner)
+    pub text_top_offset: usize,
+
+    /// text box left offset (relative to bot left spawn corner)
+    pub text_left_offset: usize,
+
+    pub overlay_noise_scale: f32,
+    pub overlay_noise_invert: bool,
+    pub overlay_noise_threshold: f32,
+    pub overlay_noise_type: Noise,
+}
+
+impl Default for ThemeConfig {
+    fn default() -> Self {
+        ThemeConfig {
+            spawn_width: 30,
+            spawn_height: 24,
+            text_margin: 1,
+            text_top_offset: 3,
+            text_left_offset: 5,
+            overlay_noise_scale: 10.0,
+            overlay_noise_invert: false,
+            overlay_noise_threshold: 0.25,
+            overlay_noise_type: Noise::Worley,
+        }
+    }
+}
+
+pub trait Config {
+    fn get_name(&self) -> &String;
+}
+
+impl Config for MapConfig {
+    fn get_name(&self) -> &String {
+        &self.name
+    }
+}
+
+impl Config for GenerationConfig {
+    fn get_name(&self) -> &String {
+        &self.name
+    }
+}
+
+pub fn get_filtered_configs<T>(configs: &Vec<T>, preset_names: &[String]) -> Vec<T>
+where
+    T: Config + Clone + std::fmt::Debug,
+{
+    let filtered_configs: Vec<_> = configs
+        .iter()
+        .filter(|config| preset_names.contains(config.get_name()))
+        .cloned()
+        .collect();
+
+    if filtered_configs.is_empty() {
+        panic!(
+            "no configs left after filtering, preset_names={:?}",
+            preset_names
+        );
+    }
+
+    filtered_configs
 }

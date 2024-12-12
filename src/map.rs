@@ -7,12 +7,6 @@ use ndarray::{s, Array2};
 
 use std::{char, path::PathBuf};
 
-use noise::{
-    utils::{NoiseMapBuilder, PlaneMapBuilder},
-    Worley,
-};
-use noise::{Fbm, Perlin};
-
 const CHUNK_SIZE: usize = 5;
 const MAX_SHIFT_UNTIL_STEPS: usize = 25;
 
@@ -329,34 +323,5 @@ impl Map {
         }
 
         None // criterion was never fulfilled
-    }
-
-    pub fn generate_noise_overlay(
-        &mut self,
-        noise_scale: f64,
-        noise_invert: bool,
-        noise_threshold: f64,
-        seed: u32,
-    ) {
-        // let noise_fn = Fbm::<Perlin>::new(seed);
-        let noise_fn = Fbm::<Worley>::new(seed);
-
-        let aspect_ratio = self.width as f64 / self.height as f64;
-        let noise_scale_x = noise_scale;
-        let noise_scale_y = noise_scale / aspect_ratio;
-
-        let noise = PlaneMapBuilder::new(noise_fn)
-            .set_size(self.width, self.height)
-            .set_x_bounds(0., noise_scale_x)
-            .set_y_bounds(0., noise_scale_y)
-            .build();
-
-        self.noise_overlay = Array2::from_shape_fn((self.width, self.height), |(x, y)| {
-            let noise_value = noise.get_value(x, y);
-            let noise_active = (noise_value > noise_threshold) ^ noise_invert;
-            let hookable = self.grid[(x, y)].is_solid();
-
-            noise_active && hookable
-        });
     }
 }

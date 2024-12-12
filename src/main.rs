@@ -9,12 +9,7 @@ use gores_mapgen::{
     map::*,
     rendering::*,
 };
-use macroquad::{
-    color::*,
-    miniquad,
-    text::{draw_text, draw_text_ex, TextParams},
-    window::*,
-};
+use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
 use simple_logger::SimpleLogger;
 use std::panic::{self, AssertUnwindSafe};
@@ -94,7 +89,11 @@ async fn main() {
             let _ = panic::catch_unwind(AssertUnwindSafe(|| {
                 editor
                     .gen
-                    .perform_all_post_processing(&editor.gen_config, &mut editor.debug_layers)
+                    .perform_all_post_processing(
+                        &editor.gen_config,
+                        &editor.thm_config,
+                        &mut editor.debug_layers,
+                    )
                     .unwrap_or_else(|err| {
                         println!("Post Processing Failed: {:}", err);
                     });

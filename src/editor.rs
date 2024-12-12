@@ -4,7 +4,7 @@ const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
     args::Args,
-    config::{GenerationConfig, MapConfig},
+    config::{GenerationConfig, MapConfig, ThemeConfig},
     debug::DebugLayers,
     generator::Generator,
     gui::{debug_layers_window, debug_window, sidebar},
@@ -58,8 +58,11 @@ enum PausedState {
 }
 pub struct Editor {
     state: EditorState,
+    // TODO: shouldnt these be part of generator??
     pub gen_config: GenerationConfig,
     pub map_config: MapConfig,
+    pub thm_config: ThemeConfig,
+
     pub init_gen_configs: Vec<GenerationConfig>,
     pub init_map_configs: Vec<MapConfig>,
     pub debug_layers: Option<DebugLayers>,
@@ -116,6 +119,7 @@ impl Editor {
             map_cam: MapCamera::default(),
             gen_config,
             map_config,
+            thm_config: ThemeConfig::default(), // TODO: add gui
             steps_per_frame: STEPS_PER_FRAME,
             gen,
             user_seed: Seed::from_string(&"iMilchshake".to_string()),

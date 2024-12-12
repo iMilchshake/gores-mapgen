@@ -1,14 +1,13 @@
 use clap::crate_version;
-use ndarray::{s, Array2};
-use noise::utils::{NoiseMapBuilder, PlaneMapBuilder};
-use noise::{Fbm, Perlin};
+use ndarray::s;
 use timing::Timer;
 
 use crate::{
-    config::{GenerationConfig, MapConfig},
+    config::{GenerationConfig, MapConfig, ThemeConfig},
     debug::DebugLayers,
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
+    noise::{self, Noise},
     position::Position,
     post_processing::{self as post, get_flood_fill},
     random::{Random, Seed},
@@ -357,6 +356,7 @@ impl Generator {
     pub fn perform_all_post_processing(
         &mut self,
         gen_config: &GenerationConfig,
+        thm_config: &ThemeConfig,
         debug_layers: &mut Option<DebugLayers>,
     ) -> Result<(), &'static str> {
         let timer = Timer::start();
@@ -423,10 +423,13 @@ impl Generator {
         }
         print_time(&timer, "set debug layers");
 
-        self.map.generate_noise_overlay(
-            gen_config.noise_scale as f64,
-            gen_config.noise_invert,
-            gen_config.noise_threshold as f64,
+        self.map.noise_overlay = noise::generate_noise_array(
+            &self.map,
+            thm_config.overlay_noise_scale,
+            thm_config.overlay_noise_invert,
+            thm_config.overlay_noise_threshold,
+            thm_config.overlay_noise_type,
+            true,
             self.rnd.random_u32(),
         );
 
@@ -446,6 +449,7 @@ impl Generator {
         seed: &Seed,
         gen_config: &GenerationConfig,
         map_config: &MapConfig,
+        thm_config: &ThemeConfig,
     ) -> Result<Map, &'static str> {
         let mut gen = Generator::new(gen_config, map_config, seed.clone());
 
@@ -461,7 +465,7 @@ impl Generator {
         }
 
         // perform all post processing step without creating any debug layers
-        gen.perform_all_post_processing(gen_config, &mut None)?;
+        gen.perform_all_post_processing(gen_config, thm_config, &mut None)?;
 
         Ok(gen.map)
     }
