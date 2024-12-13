@@ -7,7 +7,7 @@ use crate::{
     debug::DebugLayers,
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
-    noise::{self},
+    noise::{self, Noise},
     position::Position,
     post_processing::{self as post, get_flood_fill},
     random::{Random, Seed},
@@ -440,8 +440,23 @@ impl Generator {
         );
 
         if let Some(debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("noise").unwrap().grid =
+            debug_layers.bool_layers.get_mut("noise_o").unwrap().grid =
                 self.map.noise_overlay.clone();
+        }
+
+        self.map.noise_background = noise::generate_noise_array(
+            &self.map,
+            thm_config.overlay_noise_scale,
+            thm_config.overlay_noise_invert,
+            thm_config.overlay_noise_threshold,
+            Noise::Perlin,
+            false,
+            self.rnd.random_u32(),
+        );
+
+        if let Some(debug_layers) = debug_layers {
+            debug_layers.bool_layers.get_mut("noise_b").unwrap().grid =
+                self.map.noise_background.clone();
         }
 
         Ok(())

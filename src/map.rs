@@ -115,6 +115,7 @@ pub struct Map {
     pub grid: Array2<BlockType>,
     pub font_layer: Array2<char>,
     pub noise_overlay: Array2<bool>,
+    pub noise_background: Array2<bool>,
     pub height: usize,
     pub width: usize,
     pub chunk_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
@@ -127,6 +128,7 @@ impl Map {
             grid: Array2::from_elem((width, height), default),
             font_layer: Array2::from_elem((width, height), ' '),
             noise_overlay: Array2::from_elem((width, height), false),
+            noise_background: Array2::from_elem((width, height), false),
             width,
             height,
             chunk_edited: Array2::from_elem(

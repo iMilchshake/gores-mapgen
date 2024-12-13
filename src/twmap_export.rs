@@ -216,15 +216,24 @@ impl TwExport {
         tw_map.info.version = format!("crate v{}", crate_version!());
         tw_map.info.credits = format!("https://github.com/iMilchshake/gores-mapgen");
 
-        TwExport::process_tile_layer(&mut tw_map, map, 0, "Freeze", &BlockTypeTW::Freeze);
-        TwExport::process_tile_layer(&mut tw_map, map, 1, "Hookable", &BlockTypeTW::Hookable);
-        TwExport::process_font_tile_layer(&mut tw_map, map, 2, "Font");
+        TwExport::process_tile_layer_new(
+            &mut tw_map,
+            0,
+            "Background",
+            &map.noise_background,
+            |_, _, &active| active,
+            true,
+        );
+
+        TwExport::process_tile_layer(&mut tw_map, map, 1, "Freeze", &BlockTypeTW::Freeze);
+        TwExport::process_tile_layer(&mut tw_map, map, 2, "Hookable", &BlockTypeTW::Hookable);
+        TwExport::process_font_tile_layer(&mut tw_map, map, 3, "Font");
         TwExport::process_game_layer(&mut tw_map, map);
 
         // experimental overlay export
         TwExport::process_tile_layer_new(
             &mut tw_map,
-            3,
+            4,
             "Overlay",
             &map.noise_overlay,
             |_, _, &active| active,
