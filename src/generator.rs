@@ -1,5 +1,5 @@
 use clap::crate_version;
-use ndarray::s;
+use ndarray::{s, Axis};
 use timing::Timer;
 
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
     debug::DebugLayers,
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
-    noise::{self, Noise},
+    noise,
     position::Position,
     post_processing::{self as post, get_flood_fill},
     random::{Random, Seed},
@@ -436,6 +436,7 @@ impl Generator {
             thm_config.overlay_noise_threshold,
             thm_config.overlay_noise_type,
             true,
+            false,
             self.rnd.random_u32(),
         );
 
@@ -444,15 +445,18 @@ impl Generator {
                 self.map.noise_overlay.clone();
         }
 
-        self.map.noise_background = noise::generate_noise_array(
+        let noise_background = noise::generate_noise_array(
             &self.map,
-            thm_config.overlay_noise_scale,
-            thm_config.overlay_noise_invert,
-            thm_config.overlay_noise_threshold,
-            Noise::Perlin,
+            thm_config.background_noise_scale,
+            thm_config.background_noise_invert,
+            thm_config.background_noise_threshold,
+            thm_config.background_noise_type,
             false,
+            true,
             self.rnd.random_u32(),
         );
+
+        self.map.noise_background = noise::opening(&noise::closing(&noise_background));
 
         if let Some(debug_layers) = debug_layers {
             debug_layers.bool_layers.get_mut("noise_b").unwrap().grid =

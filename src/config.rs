@@ -357,6 +357,11 @@ pub struct ThemeConfig {
     pub overlay_noise_invert: bool,
     pub overlay_noise_threshold: f32,
     pub overlay_noise_type: Noise,
+
+    pub background_noise_scale: f32,
+    pub background_noise_invert: bool,
+    pub background_noise_threshold: f32,
+    pub background_noise_type: Noise,
 }
 
 impl Default for ThemeConfig {
@@ -373,6 +378,10 @@ impl Default for ThemeConfig {
             overlay_noise_invert: false,
             overlay_noise_threshold: 0.25,
             overlay_noise_type: Noise::Worley,
+            background_noise_scale: 30.0,
+            background_noise_invert: false,
+            background_noise_threshold: 0.00,
+            background_noise_type: Noise::Perlin,
         }
     }
 }

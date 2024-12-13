@@ -1,9 +1,9 @@
+use ndarray::prelude::*;
+use ndarray::Array2;
 use noise::{
-    utils::{NoiseFnWrapper, NoiseMapBuilder, PlaneMapBuilder},
+    utils::{NoiseMapBuilder, PlaneMapBuilder},
     Fbm, Perlin, Worley,
 };
-
-use ndarray::Array2;
 
 use crate::map::Map;
 
@@ -20,6 +20,7 @@ pub fn generate_noise_array(
     noise_threshold: f32,
     noise_type: Noise,
     only_solid_overlay: bool,
+    add_solid_background: bool,
     seed: u32,
 ) -> Array2<bool> {
     let aspect_ratio = map.width as f64 / map.height as f64;
@@ -44,11 +45,51 @@ pub fn generate_noise_array(
     let noise_bool_array = Array2::from_shape_fn((map.width, map.height), |(x, y)| {
         let noise_value = noise_map.get_value(x, y);
         let noise_active = (noise_value > noise_threshold as f64) ^ noise_invert;
-        let valid_overlay = !only_solid_overlay || map.grid[(x, y)].is_solid();
+        let is_solid = map.grid[(x, y)].is_solid();
+        // if enabled, block MUST be solid for active output
+        let valid_overlay = !only_solid_overlay || is_solid;
+        // if enabled, output will be active for every solid block
+        let valid_background = add_solid_background && is_solid;
         let at_border = x == 0 || y == 0 || x == map.width - 1 || y == map.height - 1;
 
-        noise_active && !at_border && valid_overlay
+        (noise_active || valid_background) && !at_border && valid_overlay
     });
 
     noise_bool_array
+}
+
+pub fn dilate(input: &Array2<bool>) -> Array2<bool> {
+    let mut result = Array2::from_elem(input.dim(), false);
+
+    for y in 1..input.nrows() - 1 {
+        for x in 1..input.ncols() - 1 {
+            let window = input.slice(s![y - 1..=y + 1, x - 1..=x + 1]);
+            result[[y, x]] = window.iter().any(|&val| val);
+        }
+    }
+
+    result
+}
+
+pub fn erode(input: &Array2<bool>) -> Array2<bool> {
+    let mut result = Array2::from_elem(input.dim(), true);
+
+    for y in 1..input.nrows() - 1 {
+        for x in 1..input.ncols() - 1 {
+            let window = input.slice(s![y - 1..=y + 1, x - 1..=x + 1]);
+            result[[y, x]] = window.iter().all(|&val| val);
+        }
+    }
+
+    result
+}
+
+pub fn opening(input: &Array2<bool>) -> Array2<bool> {
+    let eroded = erode(input);
+    dilate(&eroded)
+}
+
+pub fn closing(input: &Array2<bool>) -> Array2<bool> {
+    let dilated = dilate(input);
+    erode(&dilated)
 }
