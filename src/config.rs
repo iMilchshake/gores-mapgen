@@ -340,6 +340,7 @@ pub struct ThemeConfig {
     pub spawn_height: usize,
 
     /// how many blocks are reserved outside of spawn (not in starting orientation)
+    /// TODO: is technically a padding, not a margin as it is reduced from width/height
     pub spawn_margin: usize,
 
     pub spawn_platform_width: usize,
@@ -367,9 +368,9 @@ pub struct ThemeConfig {
 impl Default for ThemeConfig {
     fn default() -> Self {
         ThemeConfig {
-            spawn_width: 30,
-            spawn_height: 24,
-            spawn_margin: 3,
+            spawn_width: 32,
+            spawn_height: 26,
+            spawn_margin: 4,
             spawn_platform_width: 12,
             text_margin: 1,
             textbox_top_offset: 3,

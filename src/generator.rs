@@ -14,7 +14,7 @@ use crate::{
     walker::CuteWalker,
 };
 
-const PRINT_TIMES: bool = false;
+const PRINT_TIMES: bool = true;
 
 pub fn print_time(timer: &Timer, message: &str) {
     // TODO: add cli flag for this
@@ -439,11 +439,13 @@ impl Generator {
             false,
             self.rnd.random_u32(),
         );
+        print_time(&timer, "noise overlay");
 
         if let Some(debug_layers) = debug_layers {
             debug_layers.bool_layers.get_mut("noise_o").unwrap().grid =
                 self.map.noise_overlay.clone();
         }
+        print_time(&timer, "noise overlay (DEBUG)");
 
         let noise_background = noise::generate_noise_array(
             &self.map,
@@ -455,13 +457,19 @@ impl Generator {
             true,
             self.rnd.random_u32(),
         );
+        print_time(&timer, "noise background");
 
         self.map.noise_background = noise::opening(&noise::closing(&noise_background));
+
+        print_time(&timer, "noise background (MORPH)");
 
         if let Some(debug_layers) = debug_layers {
             debug_layers.bool_layers.get_mut("noise_b").unwrap().grid =
                 self.map.noise_background.clone();
         }
+
+        print_time(&timer, "noise background (DEBUG)");
+        print_time(&timer, "test");
 
         Ok(())
     }
