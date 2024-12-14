@@ -1,7 +1,8 @@
-use std::{collections::BTreeMap, env};
+use std::{collections::BTreeMap, env, process::exit};
 
 use egui::{Align2, RichText};
 use tinyfiledialogs;
+use twmap::edit;
 
 use crate::{
     editor::{window_frame, Editor},
@@ -9,6 +10,7 @@ use crate::{
     random::{RandomDistConfig, Seed},
 };
 use egui::Context;
+use egui::{menu, Button};
 use egui::{CollapsingHeader, Label, Ui};
 use macroquad::time::get_fps;
 
@@ -233,6 +235,34 @@ pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
 
 pub fn edit_bool(ui: &mut Ui, value: &mut bool) {
     ui.add(egui::Checkbox::new(value, ""));
+}
+
+pub fn menu(ctx: &Context, editor: &mut Editor) {
+    egui::TopBottomPanel::top("top_menu").show(ctx, |ui| {
+        egui::menu::bar(ui, |ui| {
+            ui.menu_button("File", |ui| {
+                if ui.button("Save Map").clicked() {
+                    editor.save_map_dialog();
+                }
+                if ui.button("Exit").clicked() {
+                    exit(0)
+                }
+            });
+
+            ui.menu_button("Tools", |ui| {
+                ui.checkbox(&mut editor.show_debug_layers, "debug layers");
+                ui.checkbox(&mut editor.show_debug_widget, "debug widget");
+                ui.checkbox(&mut editor.show_theme_widget, "theme widget");
+            });
+
+            ui.menu_button("View", |ui| {
+                if ui.button("Reset Zoom").clicked() {
+                    editor.map_cam.reset();
+                }
+            });
+            ui.menu_button("Help", |ui| if ui.button("About").clicked() {});
+        });
+    });
 }
 
 pub fn sidebar(ctx: &Context, editor: &mut Editor) {
@@ -755,7 +785,47 @@ pub fn debug_window(ctx: &Context, editor: &mut Editor) {
         });
 }
 
-pub fn debug_layers_window(ctx: &Context, editor: &mut Editor) {
+pub fn theme_widget(ctx: &Context, editor: &mut Editor) {
+    if editor.debug_layers.is_none() {
+        return;
+    }
+
+    egui::Window::new("theme_widget")
+        .frame(window_frame())
+        .title_bar(false)
+        .default_open(true)
+        .anchor(Align2::LEFT_TOP, egui::vec2(5., 5.))
+        .resizable(false)
+        .show(ctx, |ui| {
+            ui.vertical(|ui| {
+                field_edit_widget(
+                    ui,
+                    &mut editor.thm_config.background_noise_scale,
+                    edit_f32_slider_bounded(0.0, 50.0),
+                    "background noise scale",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.thm_config.background_noise_invert,
+                    edit_bool,
+                    "background noise invert",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.thm_config.background_noise_threshold,
+                    edit_f32_slider_bounded(-1.0, 1.0),
+                    "background nosie threshold",
+                    false,
+                );
+            });
+        });
+}
+
+pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
     if editor.debug_layers.is_none() {
         return;
     }

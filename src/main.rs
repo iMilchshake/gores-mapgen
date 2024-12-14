@@ -18,7 +18,7 @@ const DISABLE_VSYNC: bool = true;
 
 fn window_conf() -> Conf {
     Conf {
-        window_title: "egui with macroquad".to_owned(),
+        window_title: "gores-mapgen".to_owned(),
         platform: Platform {
             swap_interval: match DISABLE_VSYNC {
                 true => Some(0), // set swap_interval to 0 to disable vsync

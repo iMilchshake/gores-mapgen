@@ -7,7 +7,7 @@ use crate::{
     config::{GenerationConfig, MapConfig, ThemeConfig},
     debug::DebugLayers,
     generator::Generator,
-    gui::{debug_layers_window, debug_window, sidebar},
+    gui,
     map_camera::MapCamera,
     random::Seed,
 };
@@ -74,6 +74,9 @@ pub struct Editor {
     pub map_cam: MapCamera,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
+    pub show_debug_layers: bool,
+    pub show_debug_widget: bool,
+    pub show_theme_widget: bool,
 
     /// whether to show the GenerationConfig settings
     pub edit_gen_config: bool,
@@ -124,7 +127,7 @@ impl Editor {
             map_cam: MapCamera::default(),
             gen_config,
             map_config,
-            thm_config: ThemeConfig::default(), // TODO: add gui
+            thm_config: ThemeConfig::default(),
             steps_per_frame: STEPS_PER_FRAME,
             gen,
             user_seed: Seed::from_string(&"iMilchshake".to_string()),
@@ -134,6 +137,9 @@ impl Editor {
             edit_gen_config: false,
             edit_map_config: false,
             retry_on_failure: false,
+            show_theme_widget: true,
+            show_debug_widget: false,
+            show_debug_layers: false,
         };
 
         // initialize debug layers
@@ -197,13 +203,20 @@ impl Editor {
 
     pub fn define_egui(&mut self) {
         egui_macroquad::ui(|egui_ctx| {
-            sidebar(egui_ctx, self);
+            gui::menu(egui_ctx, self);
+            gui::sidebar(egui_ctx, self);
 
-            debug_window(egui_ctx, self);
+            if self.show_debug_widget {
+                gui::debug_window(egui_ctx, self);
+            }
 
             // TODO: move to key input function!
-            if macroquad::input::is_key_down(KeyCode::D) {
-                debug_layers_window(egui_ctx, self);
+            if self.show_debug_layers || macroquad::input::is_key_down(KeyCode::D) {
+                gui::theme_widget(egui_ctx, self);
+            }
+
+            if self.show_theme_widget {
+                gui::theme_widget(egui_ctx, self);
             }
 
             // store remaining space for macroquad drawing
