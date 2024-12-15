@@ -1,4 +1,4 @@
-use crate::map::{BlockType, BlockTypeTW, Map};
+use crate::map::{BlockTypeTW, Map};
 use crate::position::Position;
 use clap::crate_version;
 use ndarray::Array2;
@@ -10,7 +10,6 @@ use twmap::{
     GameLayer, GameTile, Layer, Tile, TileFlags, TilemapLayer, TilesLayer, TwMap,
 };
 
-const TILE_GROUP_INDEX: usize = 2;
 const AUTOMAPPER_SEED: u32 = 3777777777; // thanks Tater for the epic **random** seed
 
 #[derive(RustEmbed)]
@@ -42,6 +41,36 @@ impl BaseMaps {
     }
 }
 
+/// place a tile with id=1 for each true value
+pub fn set_bool_active(_: usize, _: usize, active: &bool) -> u8 {
+    *active as u8
+}
+
+/// place a tile with matching id for each char
+pub fn set_char_id(_: usize, _: usize, char: &char) -> u8 {
+    match *char {
+        ' ' => 0,
+        '.' => 52,
+        ':' => 64,
+        '>' => 114,
+        '!' => 48,
+
+        // a-Z or A-Z
+        ch if ch.is_ascii_alphabetic() => ch.to_ascii_lowercase() as u8 - b'a' + 1,
+
+        // digits
+        ch if ch.is_ascii_digit() => {
+            if ch == '0' {
+                63
+            } else {
+                ch.to_digit(10).unwrap() as u8 + 53
+            }
+        }
+
+        _ => panic!("unsupported character: {:}", char),
+    }
+}
+
 pub struct TwExport {}
 
 impl TwExport {
@@ -63,8 +92,8 @@ impl TwExport {
         layer_name: &str,
         layer_type: &BlockTypeTW,
     ) {
-        let tile_group = tw_map.groups.get_mut(2).unwrap();
-        assert_eq!(tile_group.name, "Tiles");
+        let tile_group = tw_map.groups.get_mut(3).unwrap();
+        assert_eq!(tile_group.name, "FG_Tiles");
         if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(layer_index) {
             assert_eq!(layer.name, layer_name);
 
@@ -110,39 +139,37 @@ impl TwExport {
 
     pub fn process_tile_layer_new<F, T>(
         tw_map: &mut TwMap,
-        layer_index: usize,
-        layer_name: &str,
+        group: (usize, &str),
+        layer: (usize, &str),
         grid: &Array2<T>,
-        set_block: F,
+        set_tile_id: F,
         use_automap: bool,
     ) where
-        F: Fn(usize, usize, &T) -> bool,
+        F: Fn(usize, usize, &T) -> u8,
     {
-        let tile_group = tw_map.groups.get_mut(TILE_GROUP_INDEX).unwrap();
-        assert_eq!(tile_group.name, "Tiles");
-        if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(layer_index) {
-            assert_eq!(layer.name, layer_name);
+        let tile_group = tw_map.groups.get_mut(group.0).unwrap();
+        assert_eq!(tile_group.name, group.1);
+        if let Some(Layer::Tiles(tiles_layer)) = tile_group.layers.get_mut(layer.0) {
+            assert_eq!(tiles_layer.name, layer.1);
 
-            let tiles = layer.tiles_mut().unwrap_mut();
+            let tiles = tiles_layer.tiles_mut().unwrap_mut();
             *tiles = Array2::<Tile>::default((grid.shape()[1], grid.shape()[0]));
 
             for ((x, y), block_type) in grid.indexed_iter() {
-                let set_block: bool = set_block(x, y, block_type);
-                if set_block {
-                    tiles[[y, x]] = Tile::new(1, TileFlags::empty())
+                let tile_id = set_tile_id(x, y, block_type);
+                if tile_id != 0 {
+                    tiles[[y, x]] = Tile::new(tile_id, TileFlags::empty())
                 }
             }
 
             if use_automap {
-                let mapres_name = tw_map.images[layer.image.unwrap() as usize].name();
-                let automapper_config = TwExport::get_automapper_config(mapres_name.clone(), layer);
-                automapper_config.run(AUTOMAPPER_SEED, layer.tiles_mut().unwrap_mut())
+                let mapres_name = tw_map.images[tiles_layer.image.unwrap() as usize].name();
+                let automapper_config =
+                    TwExport::get_automapper_config(mapres_name.clone(), tiles_layer);
+                automapper_config.run(AUTOMAPPER_SEED, tiles_layer.tiles_mut().unwrap_mut())
             }
         } else {
-            panic!(
-                "coulnt get layer at index {:} ({:})",
-                layer_index, layer_name
-            );
+            panic!("coulnt get layer at index {:} ({:})", layer.0, layer.1);
         };
     }
 
@@ -163,51 +190,6 @@ impl TwExport {
         }
     }
 
-    pub fn char_to_tw_tile_id(ch: char) -> u8 {
-        match ch {
-            ' ' => 0,
-            '.' => 52,
-            ':' => 64,
-            '>' => 114,
-            '!' => 48,
-
-            // a-Z or A-Z
-            ch if ch.is_ascii_alphabetic() => ch.to_ascii_lowercase() as u8 - b'a' + 1,
-
-            // digits
-            ch if ch.is_ascii_digit() => {
-                if ch == '0' {
-                    63
-                } else {
-                    ch.to_digit(10).unwrap() as u8 + 53
-                }
-            }
-
-            _ => panic!("unsupported character: {:}", ch),
-        }
-    }
-
-    pub fn process_font_tile_layer(
-        tw_map: &mut TwMap,
-        map: &Map,
-        layer_index: usize,
-        layer_name: &str,
-    ) {
-        let tile_group = tw_map.groups.get_mut(2).unwrap();
-        assert_eq!(tile_group.name, "Tiles");
-        if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(layer_index) {
-            assert_eq!(layer.name, layer_name);
-            let tiles = layer.tiles_mut().unwrap_mut();
-            *tiles = Array2::<Tile>::default((map.height, map.width));
-
-            // convert chars to tw tile id's
-            for ((x, y), &ch) in map.font_layer.indexed_iter() {
-                let tw_tile_id = TwExport::char_to_tw_tile_id(ch);
-                tiles[[y, x]] = Tile::new(tw_tile_id, TileFlags::empty());
-            }
-        }
-    }
-
     pub fn export(map: &Map, path: &PathBuf) {
         let mut tw_map = BaseMaps::get_base_map();
 
@@ -218,27 +200,40 @@ impl TwExport {
 
         TwExport::process_tile_layer_new(
             &mut tw_map,
-            0,
-            "Background",
+            (1, "BG_Tiles"),
+            (0, "Background"),
             &map.noise_background,
-            |_, _, &active| active,
+            set_bool_active,
             true,
         );
-
-        TwExport::process_tile_layer(&mut tw_map, map, 1, "Freeze", &BlockTypeTW::Freeze);
-        TwExport::process_tile_layer(&mut tw_map, map, 2, "Hookable", &BlockTypeTW::Hookable);
-        TwExport::process_font_tile_layer(&mut tw_map, map, 3, "Font");
-        TwExport::process_game_layer(&mut tw_map, map);
-
-        // experimental overlay export
+        // TODO: replace with new
+        TwExport::process_tile_layer(&mut tw_map, map, 0, "Freeze", &BlockTypeTW::Freeze);
         TwExport::process_tile_layer_new(
             &mut tw_map,
-            4,
-            "Overlay",
-            &map.noise_overlay,
-            |_, _, &active| active,
+            (3, "FG_Tiles"),
+            (1, "Hookable"),
+            &map.grid,
+            |_, _, block_type| block_type.is_solid() as u8,
             true,
         );
+        TwExport::process_tile_layer_new(
+            &mut tw_map,
+            (3, "FG_Tiles"),
+            (2, "Font"),
+            &map.font_layer,
+            set_char_id,
+            false,
+        );
+        TwExport::process_tile_layer_new(
+            &mut tw_map,
+            (3, "FG_Tiles"),
+            (3, "Overlay"),
+            &map.noise_overlay,
+            set_bool_active,
+            true,
+        );
+
+        TwExport::process_game_layer(&mut tw_map, map);
 
         println!("exporting map to {:?}", &path);
         let mut file = std::fs::File::create(path).unwrap();
