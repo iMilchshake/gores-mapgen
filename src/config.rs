@@ -1,6 +1,6 @@
 use crate::noise::Noise;
 use crate::position::{Position, ShiftDirection};
-use crate::random::RandomDistConfig;
+use crate::random::{Random, RandomDistConfig};
 use log::warn;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
@@ -215,6 +215,46 @@ impl GenerationConfig {
         }
 
         Ok(())
+    }
+
+    pub fn random(rnd: &mut Random) -> GenerationConfig {
+        GenerationConfig {
+            name: "Random".to_string(),
+            inner_rad_mut_prob: rnd.random_fraction(),
+            inner_size_mut_prob: rnd.random_fraction(),
+            outer_rad_mut_prob: rnd.random_fraction(),
+            outer_size_mut_prob: rnd.random_fraction(),
+            // shift_weights: RandomDistConfig::new(None, vec![0.4, 0.22, 0.2, 0.18]),
+            plat_min_distance: rnd.in_range_inclusive(0, 500),
+            // plat_width_bounds: (3, 5),
+            // plat_height_bounds: (1, 2),
+            plat_min_empty_height: rnd.in_range_inclusive(0, 5),
+            plat_soft_overhang: rnd.with_probability(0.5),
+            momentum_prob: rnd.random_fraction(),
+            // max_distanc: 3.0,
+            waypoint_reached_dist: rnd.in_range_inclusive(5, 500),
+            // inner_size_probs: RandomDistConfig::new(Some(vec![3, 5]), vec![0.25, 0.75]),
+            // outer_margin_probs: RandomDistConfig::new(Some(vec![0, 2]), vec![0.5, 0.5]),
+            // circ_probs: RandomDistConfig::new(Some(vec![0.0, 0.6, 0.8]), vec![0.75, 0.15, 0.05]),
+            skip_min_spacing_sqr: rnd.in_range_inclusive(0, 1000),
+            // skip_length_bounds: (3, 11),
+            max_level_skip: rnd.in_range_inclusive(5, 1000),
+            // min_freeze_size: 0,
+            enable_pulse: rnd.with_probability(0.5),
+            pulse_corner_delay: rnd.in_range_inclusive(0, 15),
+            pulse_straight_delay: rnd.in_range_inclusive(0, 15),
+            pulse_max_kernel_size: rnd.in_range_inclusive(0, 5),
+            fade_steps: rnd.in_range_inclusive(0, 200),
+            // fade_max_size: 6,
+            // fade_min_size: 3,
+            // max_subwaypoint_dist: 50.0,
+            // subwaypoint_max_shift_dist: 5.0,
+            // pos_lock_max_delay: 1000,
+            // pos_lock_max_dist: 20.0,
+            // lock_kernel_size: 9,
+            // waypoint_lock_distance: 10,
+            ..Default::default()
+        }
     }
 
     pub fn save(&self, path: &str) {
