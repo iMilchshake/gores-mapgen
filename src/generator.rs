@@ -284,8 +284,11 @@ impl Generator {
         {
             self.walker.next_waypoint();
             if gen_config.waypoint_lock_distance > 0 {
-                self.walker
-                    .update_waypoint_locks(gen_config.waypoint_lock_distance, debug_layers);
+                self.walker.update_waypoint_locks(
+                    gen_config.waypoint_lock_distance,
+                    &self.map,
+                    debug_layers,
+                )?;
             }
         }
 
@@ -437,7 +440,7 @@ impl Generator {
             thm_config.overlay_noise_type,
             true,
             false,
-            self.rnd.random_u32(),
+            self.rnd.get_u32(),
         );
         print_time(&timer, "noise overlay");
 
@@ -455,7 +458,7 @@ impl Generator {
             thm_config.background_noise_type,
             false,
             true,
-            self.rnd.random_u32(),
+            self.rnd.get_u32(),
         );
         print_time(&timer, "noise background");
 

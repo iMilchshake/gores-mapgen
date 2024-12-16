@@ -186,6 +186,9 @@ pub struct GenerationConfig {
     /// how many steps the locking may lack behind until the generation is considered "stuck"
     pub pos_lock_max_delay: usize,
 
+    /// whether kernel locking should be used
+    pub enable_kernel_lock: bool,
+
     /// size of area that is locked
     pub lock_kernel_size: usize,
 
@@ -218,41 +221,92 @@ impl GenerationConfig {
     }
 
     pub fn random(rnd: &mut Random) -> GenerationConfig {
+        let use_locking = rnd.get_bool_with_prob(0.5);
+
+        let (max_subwaypoint_dist, subwaypoint_max_shift_dist, lock_kernel_size) = if use_locking {
+            (
+                rnd.get_f32_in_range(20.0, 50.0), // greatly reduce number of sub-waypoints
+                rnd.get_f32_in_range(0.0, 5.0),   // greatly reduce waypoint shift
+                rnd.get_usize_in_range(1, 9),
+            )
+        } else {
+            (
+                rnd.get_f32_in_range(1.0, 100.0),
+                rnd.get_f32_in_range(0.0, 50.0),
+                0, // disable locking
+            )
+        };
+
+        // as shift_weights always requires exactly 4 values, i just generate it like this..
+        let mut shift_weights = RandomDistConfig::new(
+            None,
+            vec![
+                rnd.get_unit_ratio(),
+                rnd.get_unit_ratio(),
+                rnd.get_unit_ratio(),
+                rnd.get_unit_ratio(),
+            ],
+        );
+        shift_weights.normalize_probs();
+
+        let mut circ_probs = RandomDistConfig::new(
+            Some(vec![0.0, 0.6, 0.8]),
+            vec![
+                rnd.get_unit_ratio(),
+                rnd.get_unit_ratio(),
+                rnd.get_unit_ratio(),
+            ],
+        );
+        circ_probs.normalize_probs();
+
+        let outer_margin_ratio = rnd.get_unit_ratio();
+        let outer_margin_probs = RandomDistConfig::new(
+            Some(vec![0, 2, 4]),
+            vec![
+                1. - outer_margin_ratio,
+                outer_margin_ratio,
+                (outer_margin_ratio * outer_margin_ratio),
+            ],
+        );
+
         GenerationConfig {
             name: "Random".to_string(),
-            inner_rad_mut_prob: rnd.random_fraction(),
-            inner_size_mut_prob: rnd.random_fraction(),
-            outer_rad_mut_prob: rnd.random_fraction(),
-            outer_size_mut_prob: rnd.random_fraction(),
-            // shift_weights: RandomDistConfig::new(None, vec![0.4, 0.22, 0.2, 0.18]),
-            plat_min_distance: rnd.in_range_inclusive(0, 500),
-            // plat_width_bounds: (3, 5),
-            // plat_height_bounds: (1, 2),
-            plat_min_empty_height: rnd.in_range_inclusive(0, 5),
-            plat_soft_overhang: rnd.with_probability(0.5),
-            momentum_prob: rnd.random_fraction(),
-            // max_distanc: 3.0,
-            waypoint_reached_dist: rnd.in_range_inclusive(5, 500),
+            inner_rad_mut_prob: rnd.get_unit_ratio(),
+            inner_size_mut_prob: rnd.get_unit_ratio(),
+            outer_rad_mut_prob: rnd.get_unit_ratio(),
+            outer_size_mut_prob: rnd.get_unit_ratio(),
+            shift_weights,
+            plat_min_distance: rnd.get_usize_in_range(0, 500),
+            plat_width_bounds: rnd.get_bounds(1, 8),
+            plat_height_bounds: rnd.get_bounds(0, 3),
+            plat_min_empty_height: rnd.get_usize_in_range(0, 5),
+            plat_soft_overhang: rnd.get_bool_with_prob(0.5),
+            momentum_prob: rnd.get_unit_ratio(),
+            max_distance: rnd.get_f32_in_range(1.42, 5.0),
+            waypoint_reached_dist: rnd.get_usize_in_range(5, 500),
             // inner_size_probs: RandomDistConfig::new(Some(vec![3, 5]), vec![0.25, 0.75]),
-            // outer_margin_probs: RandomDistConfig::new(Some(vec![0, 2]), vec![0.5, 0.5]),
-            // circ_probs: RandomDistConfig::new(Some(vec![0.0, 0.6, 0.8]), vec![0.75, 0.15, 0.05]),
-            skip_min_spacing_sqr: rnd.in_range_inclusive(0, 1000),
-            // skip_length_bounds: (3, 11),
-            max_level_skip: rnd.in_range_inclusive(5, 1000),
-            // min_freeze_size: 0,
-            enable_pulse: rnd.with_probability(0.5),
-            pulse_corner_delay: rnd.in_range_inclusive(0, 15),
-            pulse_straight_delay: rnd.in_range_inclusive(0, 15),
-            pulse_max_kernel_size: rnd.in_range_inclusive(0, 5),
-            fade_steps: rnd.in_range_inclusive(0, 200),
+            inner_size_probs: rnd.get_random_usize_dist_config(6, Some((1, 8))),
+            outer_margin_probs,
+            circ_probs,
+            skip_min_spacing_sqr: rnd.get_usize_in_range(1, 10) * rnd.pick_from_slice(&[1, 10]),
+            skip_length_bounds: rnd.get_bounds(1, 50),
+            max_level_skip: rnd.get_usize_in_range(5, 1000),
+            min_freeze_size: 0, // disable blob removal for now?
+            enable_pulse: rnd.get_bool_with_prob(0.5),
+            pulse_corner_delay: rnd.get_usize_in_range(0, 15),
+            pulse_straight_delay: rnd.get_usize_in_range(0, 15),
+            pulse_max_kernel_size: rnd.get_usize_in_range(0, 5),
+            fade_steps: rnd.get_usize_in_range(0, 200),
             // fade_max_size: 6,
             // fade_min_size: 3,
-            // max_subwaypoint_dist: 50.0,
-            // subwaypoint_max_shift_dist: 5.0,
-            // pos_lock_max_delay: 1000,
-            // pos_lock_max_dist: 20.0,
-            // lock_kernel_size: 9,
-            // waypoint_lock_distance: 10,
+            max_subwaypoint_dist,
+            subwaypoint_max_shift_dist,
+            pos_lock_max_delay: rnd.get_usize_in_range(1, 10_000),
+            pos_lock_max_dist: rnd.get_f32_in_range(1.0, 100.0),
+            lock_kernel_size,
+            // waypoint locking can make generation more stable, but for random
+            // configs it mostly screws stuff up, so im just disabling it :)
+            waypoint_lock_distance: 0,
             ..Default::default()
         }
     }
@@ -348,6 +402,7 @@ impl Default for GenerationConfig {
             pos_lock_max_delay: 1000,
             pos_lock_max_dist: 20.0,
             lock_kernel_size: 9,
+            enable_kernel_lock: true,
             waypoint_lock_distance: 10,
         }
     }

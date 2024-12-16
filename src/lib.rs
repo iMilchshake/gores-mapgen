@@ -14,4 +14,5 @@ pub mod post_processing;
 pub mod random;
 pub mod rendering;
 pub mod twmap_export;
+pub mod utils;
 pub mod walker;

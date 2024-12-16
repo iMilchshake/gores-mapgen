@@ -313,6 +313,8 @@ impl Editor {
 
         if is_key_pressed(KeyCode::Space) {
             self.retry_on_failure = is_key_down(KeyCode::LeftShift);
+            // TODO: REVERT LOL
+            self.gen_config = GenerationConfig::random(&mut self.gen.rnd);
             self.set_playing();
         }
 

@@ -9,6 +9,7 @@ use crate::{
     map::{BlockType, Map, Overwrite},
     position::{Position, ShiftDirection},
     random::Random,
+    utils::safe_slice_mut,
 };
 
 // this walker is indeed very cute
@@ -100,18 +101,23 @@ impl CuteWalker {
     pub fn update_waypoint_locks(
         &mut self,
         lock_distance: usize,
+        map: &Map,
         debug_layers: &mut Option<DebugLayers>,
-    ) {
+    ) -> Result<(), &'static str> {
         self.locked_waypoint_positions.fill(false); // unlock all blocks
+
+        let lock_distance: i32 = lock_distance as i32;
 
         // lock all following waypoints
         for waypoint_index in (self.goal_index + 1)..self.waypoints.len() {
             let waypoint = self.waypoints.get(waypoint_index).unwrap();
 
-            let mut lock_area = self.locked_waypoint_positions.slice_mut(s![
-                waypoint.x - lock_distance..=waypoint.x + lock_distance,
-                waypoint.y - lock_distance..=waypoint.y + lock_distance
-            ]);
+            let mut lock_area = safe_slice_mut(
+                &mut self.locked_waypoint_positions,
+                &waypoint.shifted_by(-lock_distance, -lock_distance)?,
+                &waypoint.shifted_by(lock_distance, lock_distance)?,
+                map,
+            )?;
             lock_area.fill(true);
         }
 
@@ -122,6 +128,8 @@ impl CuteWalker {
                 .unwrap()
                 .grid = self.locked_waypoint_positions.clone();
         }
+
+        Ok(())
     }
 
     pub fn is_goal_reached(&self, waypoint_reached_dist: &usize) -> Option<bool> {
@@ -239,7 +247,7 @@ impl CuteWalker {
 
         // Momentum: re-use last shift direction with certain probability
         if let Some(last_shift) = self.last_shift {
-            if rnd.with_probability(gen_config.momentum_prob) {
+            if rnd.get_bool_with_prob(gen_config.momentum_prob) {
                 current_shift = last_shift;
             }
         }
@@ -275,11 +283,14 @@ impl CuteWalker {
         self.steps += 1;
 
         // lock old position
-        self.lock_previous_location(map, gen_config, false)?;
+        if gen_config.enable_kernel_lock {
+            self.lock_previous_location(map, gen_config, false)?;
 
-        // TODO: this is so imperformant, i dont wanna do this all the time, hmm
-        if let Some(debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("lock").unwrap().grid = self.locked_positions.clone();
+            // TODO: this is so imperformant, i dont wanna do this all the time, hmm
+            if let Some(debug_layers) = debug_layers {
+                debug_layers.bool_layers.get_mut("lock").unwrap().grid =
+                    self.locked_positions.clone();
+            }
         }
 
         // perform pulse if config constraints allows it
@@ -349,28 +360,28 @@ impl CuteWalker {
         let mut outer_margin = outer_size - inner_size;
         let mut modified = false;
 
-        if rnd.with_probability(config.inner_size_mut_prob) {
+        if rnd.get_bool_with_prob(config.inner_size_mut_prob) {
             inner_size = rnd.sample_inner_kernel_size();
             modified = true;
         } else {
             rnd.skip_n(2); // for some reason sampling requires two values?
         }
 
-        if rnd.with_probability(config.outer_size_mut_prob) {
+        if rnd.get_bool_with_prob(config.outer_size_mut_prob) {
             outer_margin = rnd.sample_outer_kernel_margin();
             modified = true;
         } else {
             rnd.skip_n(2);
         }
 
-        if rnd.with_probability(config.inner_rad_mut_prob) {
+        if rnd.get_bool_with_prob(config.inner_rad_mut_prob) {
             inner_circ = rnd.sample_circularity();
             modified = true;
         } else {
             rnd.skip_n(2);
         }
 
-        if rnd.with_probability(config.outer_rad_mut_prob) {
+        if rnd.get_bool_with_prob(config.outer_rad_mut_prob) {
             outer_circ = rnd.sample_circularity();
             modified = true;
         } else {

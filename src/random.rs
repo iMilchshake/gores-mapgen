@@ -92,7 +92,7 @@ impl Seed {
     }
 
     pub fn from_random(rnd: &mut Random) -> Seed {
-        Seed::from_u64(rnd.random_u64())
+        Seed::from_u64(rnd.get_u64())
     }
 
     pub fn from_base64(base64_str: String) -> Seed {
@@ -109,7 +109,7 @@ impl Seed {
     }
 
     pub fn random() -> Seed {
-        Seed::from_u64(Random::get_random_u64())
+        Seed::from_u64(Random::get_u64_from_entropy())
     }
 
     pub fn str_to_u64(seed_str: &String) -> u64 {
@@ -155,12 +155,12 @@ impl Random {
     }
 
     /// derive a u64 seed from entropy
-    pub fn get_random_u64() -> u64 {
+    pub fn get_u64_from_entropy() -> u64 {
         let mut tmp_rng = SmallRng::from_entropy();
         tmp_rng.next_u64()
     }
 
-    pub fn in_range_inclusive(&mut self, low: usize, high: usize) -> usize {
+    pub fn get_usize_in_range(&mut self, low: usize, high: usize) -> usize {
         assert!(high >= low, "no valid range");
         let n = (high - low) + 1;
         let rnd_value = self.gen.next_u64() as usize;
@@ -168,23 +168,21 @@ impl Random {
         low + (rnd_value % n)
     }
 
-    pub fn in_range_exclusive(&mut self, low: usize, high: usize) -> usize {
-        assert!(high > low, "no valid range");
-        let n = high - low;
-        let rnd_value = self.gen.next_u64() as usize;
-
-        low + (rnd_value % n)
+    pub fn get_f32_in_range(&mut self, low: f32, high: f32) -> f32 {
+        assert!(high >= low, "no valid range");
+        let ratio = self.get_unit_ratio();
+        low + (high - low) * ratio
     }
 
-    pub fn random_u64(&mut self) -> u64 {
+    pub fn get_u64(&mut self) -> u64 {
         self.gen.next_u64()
     }
 
-    pub fn random_u32(&mut self) -> u32 {
+    pub fn get_u32(&mut self) -> u32 {
         self.gen.next_u32()
     }
 
-    pub fn with_probability(&mut self, probability: f32) -> bool {
+    pub fn get_bool_with_prob(&mut self, probability: f32) -> bool {
         if probability == 1.0 {
             self.skip();
             true
@@ -208,11 +206,48 @@ impl Random {
         }
     }
 
-    pub fn pick_element<'a, T>(&'a mut self, values: &'a [T]) -> &T {
-        &values[self.in_range_exclusive(0, values.len())]
+    /// uniformly pick one element from a given slice
+    pub fn pick_from_slice<'a, T>(&'a mut self, values: &'a [T]) -> &T {
+        &values[self.get_usize_in_range(0, values.len() - 1)]
     }
 
-    pub fn random_fraction(&mut self) -> f32 {
+    /// generate a f32 in range [0, 1]
+    pub fn get_unit_ratio(&mut self) -> f32 {
         self.gen.next_u64() as f32 / u64::MAX as f32
+    }
+
+    /// generate valid "sub" bounds inside provided bounds
+    pub fn get_bounds(&mut self, min: usize, max: usize) -> (usize, usize) {
+        let bound1 = self.get_usize_in_range(min, max);
+        let bound2 = self.get_usize_in_range(min, max);
+        if bound1 <= bound2 {
+            (bound1, bound2)
+        } else {
+            (bound2, bound1)
+        }
+    }
+
+    pub fn get_random_usize_dist_config(
+        &mut self,
+        max_elements: usize,
+        value_bounds: Option<(usize, usize)>,
+    ) -> RandomDistConfig<usize> {
+        let element_count = self.get_usize_in_range(1, max_elements);
+
+        let values = if let Some(value_bounds) = value_bounds {
+            Some(
+                (0..element_count)
+                    .map(|_| self.get_usize_in_range(value_bounds.0, value_bounds.1))
+                    .collect(),
+            )
+        } else {
+            None
+        };
+
+        let probs = (0..element_count).map(|_| self.get_unit_ratio()).collect();
+
+        let mut random_dist_config = RandomDistConfig::new(values, probs);
+        random_dist_config.normalize_probs();
+        random_dist_config
     }
 }

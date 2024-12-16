@@ -78,8 +78,8 @@ impl Position {
         rnd: &mut Random,
         max_distance: f32,
     ) -> Result<Position, &'static str> {
-        let direction_radians = rnd.random_fraction() * 2.0 * PI;
-        let distance = rnd.random_fraction() * max_distance;
+        let direction_radians = rnd.get_unit_ratio() * 2.0 * PI;
+        let distance = rnd.get_unit_ratio() * max_distance;
 
         let delta_x = distance * direction_radians.cos();
         let delta_y = distance * direction_radians.sin();

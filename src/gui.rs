@@ -2,7 +2,6 @@ use std::{collections::BTreeMap, env, process::exit};
 
 use egui::{Align2, RichText};
 use tinyfiledialogs;
-use twmap::edit;
 
 use crate::{
     editor::{window_frame, Editor},
@@ -10,7 +9,6 @@ use crate::{
     random::{RandomDistConfig, Seed},
 };
 use egui::Context;
-use egui::{menu, Button};
 use egui::{CollapsingHeader, Label, Ui};
 use macroquad::time::get_fps;
 
@@ -705,27 +703,37 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     .show(ui, |ui| {
                         field_edit_widget(
                             ui,
-                            &mut editor.gen_config.pos_lock_max_dist,
-                            edit_f32_slider_bounded(0.0, 150.0),
-                            "pos lock max dist",
+                            &mut editor.gen_config.enable_kernel_lock,
+                            edit_bool,
+                            "enable kernel lock",
                             false,
                         );
 
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.pos_lock_max_delay,
-                            edit_usize,
-                            "pos lock max delay",
-                            false,
-                        );
+                        ui.add_enabled_ui(editor.gen_config.enable_kernel_lock, |ui| {
+                            field_edit_widget(
+                                ui,
+                                &mut editor.gen_config.pos_lock_max_dist,
+                                edit_f32_slider_bounded(0.0, 150.0),
+                                "pos lock max dist",
+                                false,
+                            );
 
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.lock_kernel_size,
-                            edit_usize,
-                            "lock kernel size",
-                            false,
-                        );
+                            field_edit_widget(
+                                ui,
+                                &mut editor.gen_config.pos_lock_max_delay,
+                                edit_usize,
+                                "pos lock max delay",
+                                false,
+                            );
+
+                            field_edit_widget(
+                                ui,
+                                &mut editor.gen_config.lock_kernel_size,
+                                edit_usize,
+                                "lock kernel size",
+                                false,
+                            );
+                        });
 
                         field_edit_widget(
                             ui,
