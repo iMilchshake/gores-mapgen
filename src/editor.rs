@@ -314,7 +314,13 @@ impl Editor {
         if is_key_pressed(KeyCode::Space) {
             self.retry_on_failure = is_key_down(KeyCode::LeftShift);
             // TODO: REVERT LOL
-            self.gen_config = GenerationConfig::random(&mut self.gen.rnd);
+            let mut new_config;
+            while let Err(_) = {
+                new_config = GenerationConfig::random(&mut self.gen.rnd);
+                new_config.validate()
+            } {}
+
+            self.gen_config = new_config;
             self.set_playing();
         }
 

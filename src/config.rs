@@ -200,19 +200,45 @@ pub struct GenerationConfig {
 impl GenerationConfig {
     /// returns an error if the configuration would result in a crash
     pub fn validate(&self) -> Result<(), &'static str> {
-        // 1. Check that there is no inner kernel size of 0
+        // check that there is no inner kernel size of 0
         for inner_size in self.inner_size_probs.values.as_ref().unwrap().iter() {
             if *inner_size == 0 {
                 return Err("Invalid Config! (inner_size = 0)");
             }
         }
 
-        // 2. Check fade config
+        // check that even in worse case, after fixing edge bugs, still at least 1x1 empty is left
+        let min_inner_size = self
+            .inner_size_probs
+            .values
+            .as_ref()
+            .unwrap()
+            .iter()
+            .min()
+            .unwrap();
+        let min_outer_margin = self
+            .outer_margin_probs
+            .values
+            .as_ref()
+            .unwrap()
+            .iter()
+            .min()
+            .unwrap();
+        if (min_inner_size + min_outer_margin) <= 3 {
+            return Err("kernel inner+outer must be at least 3");
+        }
+
+        // check that shift_prob[0] > shift_prob[3], otherwise walker will diverge
+        if self.shift_weights.probs[0] < self.shift_weights.probs[3] {
+            return Err("shift_prob[0] must be larger than shift_prob[4], walker will diverge");
+        }
+
+        // check fade config
         if self.fade_max_size == 0 || self.fade_min_size == 0 {
             return Err("fade kernel sizes must be larger than zero");
         }
 
-        // 3. Check subwaypoint config
+        // check subwaypoint config
         if self.max_subwaypoint_dist <= 0.0 {
             return Err("max subwaypoint distance must be >0");
         }
