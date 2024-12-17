@@ -320,16 +320,14 @@ impl Editor {
 
         if is_key_pressed(KeyCode::Space) {
             self.retry_on_failure = is_key_down(KeyCode::LeftShift);
-            // TODO: REVERT LOL
-            let mut new_config;
-            while {
-                new_config = GenerationConfig::random(&mut self.gen.rnd);
-                new_config.validate()
-            }
-            .is_err()
-            {}
-
-            self.gen_config = new_config;
+            // let mut new_config;
+            // while {
+            //     new_config = GenerationConfig::random(&mut self.gen.rnd);
+            //     new_config.validate()
+            // }
+            // .is_err()
+            // {}
+            // self.gen_config = new_config;
             self.set_playing();
         }
 

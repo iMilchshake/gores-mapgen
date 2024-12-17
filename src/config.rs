@@ -224,7 +224,7 @@ impl GenerationConfig {
             .iter()
             .min()
             .unwrap();
-        if (min_inner_size + min_outer_margin) <= 3 {
+        if (min_inner_size + min_outer_margin) < 3 {
             return Err("kernel inner+outer must be at least 3");
         }
 
@@ -375,7 +375,7 @@ impl GenerationConfig {
 
     /// This function defines the initial default config for actual map generator
     pub fn get_initial_gen_config() -> GenerationConfig {
-        if let Some(file) = GenerationConfigStorage::get("hardV2.json") {
+        if let Some(file) = GenerationConfigStorage::get("hard_stable.json") {
             if let Ok(data) = std::str::from_utf8(&file.data) {
                 if let Ok(config) = serde_json::from_str(data) {
                     return config;

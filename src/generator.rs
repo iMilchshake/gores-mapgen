@@ -14,7 +14,7 @@ use crate::{
     walker::CuteWalker,
 };
 
-const PRINT_TIMES: bool = true;
+const PRINT_TIMES: bool = false;
 
 pub fn print_time(timer: &Timer, message: &str) {
     // TODO: add cli flag for this
