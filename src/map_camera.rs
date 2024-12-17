@@ -15,6 +15,7 @@ pub struct MapCamera {
     map_size: Option<Vec2>,
     viewport: Option<Vec2>,
     viewport_ratio: Option<Vec2>,
+    viewport_y_offset: Option<f32>,
     cam: Option<Camera2D>,
 }
 
@@ -26,6 +27,7 @@ impl Default for MapCamera {
             map_size: None,
             viewport: None,
             viewport_ratio: None,
+            viewport_y_offset: None,
             cam: None,
         }
     }
@@ -37,12 +39,14 @@ impl MapCamera {
     }
 
     pub fn update_viewport_from_egui_rect(&mut self, canvas: &EGuiRect) {
+        assert!(canvas.min.x == 0., "only top y offset is supported");
         let viewport = Vec2::new(canvas.max.x - canvas.min.x, canvas.max.y - canvas.min.y);
         self.viewport_ratio = Some(Vec2::new(
             viewport.x / screen_width(),
             viewport.y / screen_height(),
         ));
         self.viewport = Some(viewport);
+        self.viewport_y_offset = Some(canvas.min.y);
     }
 
     /// reset camera transformations
@@ -102,9 +106,13 @@ impl MapCamera {
     pub fn get_map_mouse_pos(&self) -> Vec2 {
         let viewport_ratio = self.viewport_ratio.expect("viewport not defined");
         let cam = self.cam.expect("macroquad cam not defined");
+        let viewport_y_offset = self
+            .viewport_y_offset
+            .expect("viewport y offset not defined");
 
-        let mouse_pos = mouse_position();
-        let mouse_viewport_pos = (Vec2::new(mouse_pos.0, mouse_pos.1)) / viewport_ratio;
+        let (mouse_x, mut mouse_y) = mouse_position();
+        mouse_y -= viewport_y_offset;
+        let mouse_viewport_pos = (Vec2::new(mouse_x, mouse_y)) / viewport_ratio;
 
         cam.screen_to_world(mouse_viewport_pos)
     }
@@ -113,6 +121,9 @@ impl MapCamera {
     pub fn draw_cam_debug(&self) {
         let map_size = self.map_size.expect("map size not defined!");
         let cam = self.cam.expect("macroquad cam not defined");
+        let mouse_pos = self.get_map_mouse_pos();
+
+        draw_circle(mouse_pos.x, mouse_pos.y, 1.0, BLUE);
 
         draw_line(0.0, 0.0, map_size.x, map_size.y, 2., BLUE);
         draw_rectangle_lines(0.0, 0.0, map_size.x, map_size.y, 2.0, RED);

@@ -864,13 +864,13 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
                     for (_name, _layer) in debug_layers.bool_layers.iter() {
                         ui.label(format!(
                             "{:?}",
-                            _layer.grid.get(map_mouse_pos_cell).unwrap()
+                            _layer.grid.get(map_mouse_pos_cell).unwrap_or(&false)
                         ));
                     }
                     for (_name, _layer) in debug_layers.float_layers.iter() {
                         ui.label(format!(
                             "{:?}",
-                            _layer.grid.get(map_mouse_pos_cell).unwrap()
+                            _layer.grid.get(map_mouse_pos_cell).unwrap_or(&None)
                         ));
                     }
                 });

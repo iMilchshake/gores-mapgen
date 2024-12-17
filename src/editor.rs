@@ -215,7 +215,7 @@ impl Editor {
 
             // TODO: move to key input function!
             if self.show_debug_layers || macroquad::input::is_key_down(KeyCode::D) {
-                gui::theme_widget(egui_ctx, self);
+                gui::debug_layers_widget(egui_ctx, self);
             }
 
             if self.show_theme_widget {
