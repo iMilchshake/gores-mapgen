@@ -5,9 +5,7 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use seed_gen::cli::{SeedIter, Seeds};
 
-use gores_mapgen::config::{
-    get_filtered_configs, GenerationConfig, MapConfig, MapConfigStorage, ThemeConfig,
-};
+use gores_mapgen::config::{get_filtered_configs, GenerationConfig, MapConfig, ThemeConfig};
 use gores_mapgen::generator::Generator;
 use gores_mapgen::random::Seed;
 

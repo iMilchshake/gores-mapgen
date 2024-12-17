@@ -524,7 +524,7 @@ impl Config for GenerationConfig {
     }
 }
 
-pub fn get_filtered_configs<T>(configs: &Vec<T>, preset_names: &[String]) -> Vec<T>
+pub fn get_filtered_configs<T>(configs: &[T], preset_names: &[String]) -> Vec<T>
 where
     T: Config + Clone + std::fmt::Debug,
 {

@@ -1,5 +1,5 @@
 use clap::crate_version;
-use ndarray::{s, Axis};
+use ndarray::s;
 use timing::Timer;
 
 use crate::{
@@ -255,7 +255,7 @@ impl Generator {
         );
     }
 
-    pub fn write_text(&mut self, pos: &Position, text: &String) {
+    pub fn write_text(&mut self, pos: &Position, text: &str) {
         let mut cursor = pos.clone();
 
         for ch in text.chars() {
@@ -389,7 +389,7 @@ impl Generator {
             Some(&BlockType::Finish),
         )
         .expect("start finish room generation");
-        self.write_text(&self.walker.pos.shifted_by(-2, 0)?, &"GG :>".to_string());
+        self.write_text(&self.walker.pos.shifted_by(-2, 0)?, "GG :>");
         print_time(&timer, "place rooms");
 
         if gen_config.min_freeze_size > 0 {

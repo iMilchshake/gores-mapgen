@@ -194,9 +194,9 @@ impl TwExport {
         let mut tw_map = BaseMaps::get_base_map();
 
         // add map generator information
-        tw_map.info.author = format!("iMilchshake");
+        tw_map.info.author = "iMilchshake".to_string();
         tw_map.info.version = format!("crate v{}", crate_version!());
-        tw_map.info.credits = format!("https://github.com/iMilchshake/gores-mapgen");
+        tw_map.info.credits = "https://github.com/iMilchshake/gores-mapgen".to_string();
 
         TwExport::process_tile_layer_new(
             &mut tw_map,

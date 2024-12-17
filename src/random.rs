@@ -234,15 +234,11 @@ impl Random {
     ) -> RandomDistConfig<usize> {
         let element_count = self.get_usize_in_range(1, max_elements);
 
-        let values = if let Some(value_bounds) = value_bounds {
-            Some(
-                (0..element_count)
-                    .map(|_| self.get_usize_in_range(value_bounds.0, value_bounds.1))
-                    .collect(),
-            )
-        } else {
-            None
-        };
+        let values = value_bounds.map(|value_bounds| {
+            (0..element_count)
+                .map(|_| self.get_usize_in_range(value_bounds.0, value_bounds.1))
+                .collect()
+        });
 
         let probs = (0..element_count).map(|_| self.get_unit_ratio()).collect();
 

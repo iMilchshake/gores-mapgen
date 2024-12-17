@@ -292,12 +292,11 @@ impl Editor {
         mouse_y = screen_height() - mouse_y; // invert mouse_y, as cameras are flipped D:
 
         // this assumes that the viewport is bottom_left aligned and starts at (0, 0)!
-        let in_viewport = 0.0 <= mouse_x
+
+        0.0 <= mouse_x
             && mouse_x <= cam.viewport.unwrap().2 as f32
             && 0.0 <= mouse_y
-            && mouse_y <= cam.viewport.unwrap().3 as f32;
-
-        in_viewport
+            && mouse_y <= cam.viewport.unwrap().3 as f32
     }
 
     pub fn update_cam(&mut self) {
@@ -317,16 +316,18 @@ impl Editor {
     }
 
     pub fn handle_user_inputs(&mut self) {
-        if is_key_pressed(KeyCode::LeftShift) {}
+        is_key_pressed(KeyCode::LeftShift);
 
         if is_key_pressed(KeyCode::Space) {
             self.retry_on_failure = is_key_down(KeyCode::LeftShift);
             // TODO: REVERT LOL
             let mut new_config;
-            while let Err(_) = {
+            while {
                 new_config = GenerationConfig::random(&mut self.gen.rnd);
                 new_config.validate()
-            } {}
+            }
+            .is_err()
+            {}
 
             self.gen_config = new_config;
             self.set_playing();

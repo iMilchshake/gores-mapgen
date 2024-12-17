@@ -13,6 +13,7 @@ pub enum Noise {
     Worley,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate_noise_array(
     map: &Map,
     noise_scale: f32,
@@ -42,7 +43,7 @@ pub fn generate_noise_array(
             .build(),
     };
 
-    let noise_bool_array = Array2::from_shape_fn((map.width, map.height), |(x, y)| {
+    Array2::from_shape_fn((map.width, map.height), |(x, y)| {
         let noise_value = noise_map.get_value(x, y);
         let noise_active = (noise_value > noise_threshold as f64) ^ noise_invert;
         let is_solid = map.grid[(x, y)].is_solid();
@@ -53,9 +54,7 @@ pub fn generate_noise_array(
         let at_border = x == 0 || y == 0 || x == map.width - 1 || y == map.height - 1;
 
         (noise_active || valid_background) && !at_border && valid_overlay
-    });
-
-    noise_bool_array
+    })
 }
 
 pub fn dilate(input: &Array2<bool>) -> Array2<bool> {
