@@ -15,12 +15,15 @@ use egui::{epaint::Shadow, Color32, Frame, Margin};
 use log::warn;
 use std::env;
 
-use macroquad::input::{
-    is_key_down, is_key_pressed, is_mouse_button_down, mouse_delta_position, mouse_position,
-    mouse_wheel, KeyCode, MouseButton,
-};
 use macroquad::time::get_fps;
 use macroquad::{camera::Camera2D, input::is_mouse_button_pressed};
+use macroquad::{
+    input::{
+        is_key_down, is_key_pressed, is_mouse_button_down, mouse_delta_position, mouse_position,
+        mouse_wheel, KeyCode, MouseButton,
+    },
+    window::screen_height,
+};
 
 const AVG_FPS_FACTOR: f32 = 0.025; // how much current fps is weighted into the rolling average
 
@@ -137,7 +140,7 @@ impl Editor {
             edit_gen_config: false,
             edit_map_config: false,
             retry_on_failure: false,
-            show_theme_widget: true,
+            show_theme_widget: false,
             show_debug_widget: false,
             show_debug_layers: false,
         };
@@ -285,11 +288,16 @@ impl Editor {
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {
-        let (mouse_x, mouse_y) = mouse_position();
-        0.0 <= mouse_x
+        let (mouse_x, mut mouse_y) = mouse_position();
+        mouse_y = screen_height() - mouse_y; // invert mouse_y, as cameras are flipped D:
+
+        // this assumes that the viewport is bottom_left aligned and starts at (0, 0)!
+        let in_viewport = 0.0 <= mouse_x
             && mouse_x <= cam.viewport.unwrap().2 as f32
             && 0.0 <= mouse_y
-            && mouse_y <= cam.viewport.unwrap().3 as f32
+            && mouse_y <= cam.viewport.unwrap().3 as f32;
+
+        in_viewport
     }
 
     pub fn update_cam(&mut self) {

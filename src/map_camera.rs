@@ -8,6 +8,7 @@ use macroquad::window::{screen_height, screen_width};
 
 const ZOOM_FACTOR: f32 = 0.9;
 
+// currently assumes that viewport for map camera is bottom-left aligned and start at (0, 0)!
 pub struct MapCamera {
     offset: Vec2,
     zoom: f32,
@@ -36,7 +37,7 @@ impl MapCamera {
     }
 
     pub fn update_viewport_from_egui_rect(&mut self, canvas: &EGuiRect) {
-        let viewport = Vec2::new(canvas.max.x, canvas.max.y);
+        let viewport = Vec2::new(canvas.max.x - canvas.min.x, canvas.max.y - canvas.min.y);
         self.viewport_ratio = Some(Vec2::new(
             viewport.x / screen_width(),
             viewport.y / screen_height(),
@@ -67,7 +68,7 @@ impl MapCamera {
     }
 
     pub fn update_macroquad_cam(&mut self) {
-        let viewport = self.viewport.expect("viewport not defined!");
+        let viewport = self.viewport.expect("viewport size not defined!");
         let map_size = self.map_size.expect("map size not defined!");
 
         // Calculate aspect ratio
@@ -103,8 +104,7 @@ impl MapCamera {
         let cam = self.cam.expect("macroquad cam not defined");
 
         let mouse_pos = mouse_position();
-        let mouse_viewport_pos = Vec2::new(mouse_pos.0, mouse_pos.1) / viewport_ratio;
-        
+        let mouse_viewport_pos = (Vec2::new(mouse_pos.0, mouse_pos.1)) / viewport_ratio;
 
         cam.screen_to_world(mouse_viewport_pos)
     }

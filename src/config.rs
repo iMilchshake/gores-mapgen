@@ -301,7 +301,6 @@ impl GenerationConfig {
             inner_size_mut_prob: rnd.get_unit_ratio(),
             outer_rad_mut_prob: rnd.get_unit_ratio(),
             outer_size_mut_prob: rnd.get_unit_ratio(),
-            shift_weights,
             plat_min_distance: rnd.get_usize_in_range(0, 500),
             plat_width_bounds: rnd.get_bounds(1, 8),
             plat_height_bounds: rnd.get_bounds(0, 3),
@@ -310,29 +309,30 @@ impl GenerationConfig {
             momentum_prob: rnd.get_unit_ratio(),
             max_distance: rnd.get_f32_in_range(1.42, 5.0),
             waypoint_reached_dist: rnd.get_usize_in_range(5, 500),
-            // inner_size_probs: RandomDistConfig::new(Some(vec![3, 5]), vec![0.25, 0.75]),
             inner_size_probs: rnd.get_random_usize_dist_config(6, Some((1, 8))),
-            outer_margin_probs,
-            circ_probs,
             skip_min_spacing_sqr: rnd.get_usize_in_range(1, 10) * rnd.pick_from_slice(&[1, 10]),
             skip_length_bounds: rnd.get_bounds(1, 50),
             max_level_skip: rnd.get_usize_in_range(5, 1000),
-            min_freeze_size: 0, // disable blob removal for now?
             enable_pulse: rnd.get_bool_with_prob(0.5),
             pulse_corner_delay: rnd.get_usize_in_range(0, 15),
             pulse_straight_delay: rnd.get_usize_in_range(0, 15),
             pulse_max_kernel_size: rnd.get_usize_in_range(0, 5),
             fade_steps: rnd.get_usize_in_range(0, 200),
-            // fade_max_size: 6,
-            // fade_min_size: 3,
-            max_subwaypoint_dist,
-            subwaypoint_max_shift_dist,
             pos_lock_max_delay: rnd.get_usize_in_range(1, 10_000),
             pos_lock_max_dist: rnd.get_f32_in_range(1.0, 100.0),
+            shift_weights,
+            outer_margin_probs,
+            circ_probs,
+            max_subwaypoint_dist,
+            subwaypoint_max_shift_dist,
             lock_kernel_size,
+            min_freeze_size: 0, // disable blob removal for now?
             // waypoint locking can make generation more stable, but for random
             // configs it mostly screws stuff up, so im just disabling it :)
             waypoint_lock_distance: 0,
+            // inner_size_probs: RandomDistConfig::new(Some(vec![3, 5]), vec![0.25, 0.75]),
+            // fade_max_size: 6,
+            // fade_min_size: 3,
             ..Default::default()
         }
     }
