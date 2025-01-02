@@ -2,14 +2,10 @@
 name = "gores-mapgen"
 version = "1.0.3"
 edition = "2021"
-default-run = "gores-generator"
+default-run = "editor"
 
 [[bin]]
-name = "gores-generator"
-path = "src/main.rs"
-
-[[bin]]
-name = "twmap_test"
+name = "editor"
 
 [[bin]]
 name = "config_points"
@@ -19,11 +15,9 @@ name = "benchmark"
 
 [dependencies]
 egui-macroquad = "0.15.0"
- 
 egui = "0.21.0"
 egui-miniquad = "0.14.0"
 macroquad = "0.3.25"
-
 ndarray = "0.15.6"
 rand = {version="0.8.5", features=['small_rng']}
 seahash = "4.1.0"
@@ -34,8 +28,6 @@ serde = "1.0.197"
 serde_json = "1.0.115"
 rust-embed = "8.3.0"
 tinyfiledialogs = "3.9.1"
-
-# dt = "1.0.6"
 dt = {git = "https://github.com/iMilchshake/dt"}
 derivative = "2.2.0"
 timing = "0.2.3"

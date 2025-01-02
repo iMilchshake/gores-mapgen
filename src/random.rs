@@ -207,7 +207,7 @@ impl Random {
     }
 
     /// uniformly pick one element from a given slice
-    pub fn pick_from_slice<'a, T>(&'a mut self, values: &'a [T]) -> &T {
+    pub fn pick_from_slice<'a, T>(&'a mut self, values: &'a [T]) -> &'a T {
         &values[self.get_usize_in_range(0, values.len() - 1)]
     }
 

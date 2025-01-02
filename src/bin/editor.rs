@@ -18,7 +18,7 @@ const DISABLE_VSYNC: bool = true;
 
 fn window_conf() -> Conf {
     Conf {
-        window_title: "gores-mapgen".to_owned(),
+        window_title: "gores-mapgen-editor".to_owned(),
         platform: Platform {
             swap_interval: match DISABLE_VSYNC {
                 true => Some(0), // set swap_interval to 0 to disable vsync
@@ -41,6 +41,7 @@ async fn main() {
         ThemeConfig::default(),
         &args,
     );
+
     let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     // main loop for gui (and step-wise map generation)
