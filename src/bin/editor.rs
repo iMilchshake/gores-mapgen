@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use gores_mapgen::{
-    args::Args,
+    args::EditorArgs,
     config::{GenerationConfig, MapConfig, ThemeConfig},
     editor::*,
     fps_control::*,
@@ -33,7 +33,7 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     // initialization
-    let args = Args::parse();
+    let args = EditorArgs::parse();
     SimpleLogger::new().init().unwrap();
     let mut editor = Editor::new(
         GenerationConfig::get_initial_gen_config(),

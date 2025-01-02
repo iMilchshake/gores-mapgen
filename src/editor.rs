@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
-    args::Args,
+    args::EditorArgs,
     config::{GenerationConfig, MapConfig, ThemeConfig},
     debug::DebugLayers,
     generator::Generator,
@@ -112,7 +112,7 @@ impl Editor {
         gen_config: GenerationConfig,
         map_config: MapConfig,
         thm_config: ThemeConfig,
-        args: &Args,
+        args: &EditorArgs,
     ) -> Editor {
         let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
