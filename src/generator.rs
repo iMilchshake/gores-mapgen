@@ -8,7 +8,7 @@ use crate::{
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     noise,
-    position::Position,
+    position::{self, Position},
     post_processing::{self as post, get_flood_fill},
     random::{Random, Seed},
     walker::CuteWalker,
@@ -319,6 +319,65 @@ impl Generator {
         }
 
         Ok(())
+    }
+
+    pub fn generate_midway_points(waypoints: &[Position]) -> Vec<Option<Position>> {
+        let mut midway_points = Vec::new();
+
+        for (pos_idx, pos) in waypoints.iter().enumerate() {
+            let mut closest_position = None;
+            let mut closest_distance = usize::MAX;
+
+            let prev_pos = waypoints.get(pos_idx.wrapping_sub(1));
+            let next_pos = waypoints.get(pos_idx + 1);
+            let prev_angle = prev_pos.map(|p| pos.angle_deg(p));
+            let next_angle = next_pos.map(|n| pos.angle_deg(n));
+
+            for (other_idx, other_pos) in waypoints.iter().enumerate() {
+                // Skip the same position or adjacent positions
+                if other_idx == pos_idx || other_idx + 1 == pos_idx || other_idx == pos_idx + 1 {
+                    continue;
+                }
+
+                let other_angle = pos.angle_deg(other_pos);
+                let prev_angle_diff =
+                    prev_angle.and_then(|a| Some(position::angle_difference_deg(a, other_angle)));
+                let next_angle_diff =
+                    next_angle.and_then(|a| Some(position::angle_difference_deg(a, other_angle)));
+
+                let min_angle_diff = 30.0;
+                if prev_angle_diff.is_some_and(|a| a < min_angle_diff)
+                    || next_angle_diff.is_some_and(|a| a < min_angle_diff)
+                {
+                    println!(
+                        "[{}] skipping {} as angles are {:?},{:?}",
+                        pos_idx, other_idx, prev_angle_diff, next_angle_diff
+                    );
+                    continue;
+                }
+
+                // TODO: here i want to determine the angle from the current position, to the
+                // previous and following position.
+
+                let dist = pos.distance_squared(other_pos);
+
+                // Keep track of the closest position
+                if dist < closest_distance {
+                    closest_distance = dist;
+                    closest_position = Some(other_pos);
+                }
+            }
+
+            // Add the midway point if a closest position was found
+            if let Some(closest_pos) = closest_position {
+                let midway_point = pos.lerp(closest_pos, 0.5);
+                midway_points.push(Some(midway_point));
+            } else {
+                midway_points.push(None);
+            }
+        }
+
+        midway_points
     }
 
     /// Generate subwaypoints for more consistent distance between walker waypoints. This

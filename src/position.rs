@@ -4,6 +4,16 @@ use serde::{Deserialize, Serialize};
 use crate::{map::Map, random::Random};
 use std::f32::consts::PI;
 
+/// smallest difference between two angles in degrees
+pub fn angle_difference_deg(angle1: f32, angle2: f32) -> f32 {
+    let diff = (angle1 - angle2).abs() % 360.0;
+    if diff > 180.0 {
+        360.0 - diff
+    } else {
+        diff
+    }
+}
+
 // using my own position vector to meet ndarray's indexing standard using usize
 //
 // while glam has nice performance benefits, the amount of expensive operations
@@ -129,6 +139,16 @@ impl Position {
             .sqrt()
     }
 
+    /// angle to other position in degrees
+    pub fn angle_deg(&self, to: &Position) -> f32 {
+        let dx = to.x as f32 - self.x as f32;
+        let dy = to.y as f32 - self.y as f32;
+        let angle_rad = dy.atan2(dx);
+        let angle_deg = angle_rad * 180.0 / PI;
+        angle_deg
+    }
+
+    /// linear interpolation with another point
     pub fn lerp(&self, other: &Position, weight: f32) -> Position {
         let lerp_x = (self.x as f32 * (1.0 - weight) + other.x as f32 * weight).round() as usize;
         let lerp_y = (self.y as f32 * (1.0 - weight) + other.y as f32 * weight).round() as usize;

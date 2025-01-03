@@ -6,10 +6,16 @@ use gores_mapgen::{
     config::{GenerationConfig, MapConfig, ThemeConfig},
     editor::*,
     fps_control::*,
+    generator::Generator,
     map::*,
     rendering::*,
 };
-use macroquad::{color::*, miniquad, window::*};
+use macroquad::{
+    color::*,
+    miniquad,
+    shapes::{draw_circle, draw_line},
+    window::*,
+};
 use miniquad::conf::{Conf, Platform};
 use simple_logger::SimpleLogger;
 use std::panic::{self, AssertUnwindSafe};
@@ -149,6 +155,27 @@ async fn main() {
         // TODO: move to key input function!
         if macroquad::input::is_key_down(miniquad::KeyCode::D) {
             draw_mouse_map_cell_pos(&editor.map_cam);
+        }
+
+        let midway_points = Generator::generate_midway_points(&editor.gen.walker.waypoints);
+
+        for (midway_point, waypoint) in midway_points.iter().zip(&editor.gen.walker.waypoints) {
+            if let Some(point) = midway_point {
+                draw_circle(
+                    point.x as f32 + 0.5,
+                    point.y as f32 + 0.5,
+                    0.5,
+                    colors::GOLD,
+                );
+                draw_line(
+                    point.x as f32 + 0.5,
+                    point.y as f32 + 0.5,
+                    waypoint.x as f32 + 0.5,
+                    waypoint.y as f32 + 0.5,
+                    0.1,
+                    colors::MAGENTA,
+                );
+            }
         }
 
         // editor.map_cam.draw_cam_debug();
