@@ -321,8 +321,16 @@ impl Generator {
         Ok(())
     }
 
-    pub fn generate_midway_points(waypoints: &[Position]) -> Vec<Option<Position>> {
+    pub fn generate_midway_points(
+        waypoints: &[Position],
+        min_angle_diff: f32,
+        max_distance: usize,
+    ) -> Vec<Option<Position>> {
         let mut midway_points = Vec::new();
+
+        // keep track of which points are already used to "anchor" a midwaypoint.
+        // anchors can no longer be used as a target of a future midwaypoint.
+        let mut point_is_anchor = vec![false; waypoints.len()];
 
         for (pos_idx, pos) in waypoints.iter().enumerate() {
             let mut closest_position = None;
@@ -334,6 +342,11 @@ impl Generator {
             let next_angle = next_pos.map(|n| pos.angle_deg(n));
 
             for (other_idx, other_pos) in waypoints.iter().enumerate() {
+                // skip if already anchoring another midwaypoint
+                if point_is_anchor[other_idx] {
+                    continue;
+                }
+
                 // Skip the same position or adjacent positions
                 if other_idx == pos_idx || other_idx + 1 == pos_idx || other_idx == pos_idx + 1 {
                     continue;
@@ -345,7 +358,6 @@ impl Generator {
                 let next_angle_diff =
                     next_angle.and_then(|a| Some(position::angle_difference_deg(a, other_angle)));
 
-                let min_angle_diff = 30.0;
                 if prev_angle_diff.is_some_and(|a| a < min_angle_diff)
                     || next_angle_diff.is_some_and(|a| a < min_angle_diff)
                 {
@@ -368,10 +380,16 @@ impl Generator {
                 }
             }
 
+            if closest_distance > max_distance {
+                println!("skipping due to distance = {}", closest_distance);
+                closest_position = None;
+            }
+
             // Add the midway point if a closest position was found
             if let Some(closest_pos) = closest_position {
                 let midway_point = pos.lerp(closest_pos, 0.5);
                 midway_points.push(Some(midway_point));
+                point_is_anchor[pos_idx] = true;
             } else {
                 midway_points.push(None);
             }

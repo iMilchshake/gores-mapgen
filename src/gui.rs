@@ -794,10 +794,6 @@ pub fn debug_window(ctx: &Context, editor: &mut Editor) {
 }
 
 pub fn theme_widget(ctx: &Context, editor: &mut Editor) {
-    if editor.debug_layers.is_none() {
-        return;
-    }
-
     egui::Window::new("theme_widget")
         .frame(window_frame())
         .title_bar(false)
@@ -827,6 +823,22 @@ pub fn theme_widget(ctx: &Context, editor: &mut Editor) {
                     &mut editor.thm_config.background_noise_threshold,
                     edit_f32_slider_bounded(-1.0, 1.0),
                     "background nosie threshold",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.thm_config.angle_thingy,
+                    edit_f32_slider_bounded(0.0, 90.0),
+                    "angle thingy",
+                    false,
+                );
+
+                field_edit_widget(
+                    ui,
+                    &mut editor.thm_config.max_dist,
+                    edit_f32_slider_bounded(0.0, 1000.0),
+                    "dist thingy",
                     false,
                 );
             });

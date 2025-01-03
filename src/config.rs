@@ -484,6 +484,10 @@ pub struct ThemeConfig {
     pub background_noise_invert: bool,
     pub background_noise_threshold: f32,
     pub background_noise_type: Noise,
+
+    // test
+    pub angle_thingy: f32,
+    pub max_dist: f32,
 }
 
 impl Default for ThemeConfig {
@@ -504,6 +508,8 @@ impl Default for ThemeConfig {
             background_noise_invert: false,
             background_noise_threshold: 0.00,
             background_noise_type: Noise::Perlin,
+            angle_thingy: 30.,
+            max_dist: 500.0,
         }
     }
 }

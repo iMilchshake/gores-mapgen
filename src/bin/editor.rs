@@ -157,24 +157,43 @@ async fn main() {
             draw_mouse_map_cell_pos(&editor.map_cam);
         }
 
-        let midway_points = Generator::generate_midway_points(&editor.gen.walker.waypoints);
+        let waypoints = editor.gen.walker.waypoints.clone();
+        let midway_points = Generator::generate_midway_points(
+            &waypoints,
+            editor.thm_config.angle_thingy,
+            editor.thm_config.max_dist.powf(2.) as usize,
+        );
 
-        for (midway_point, waypoint) in midway_points.iter().zip(&editor.gen.walker.waypoints) {
-            if let Some(point) = midway_point {
+        for (point_idx, midwaypoint) in midway_points.iter().enumerate() {
+            if let Some(midwaypoint) = midwaypoint {
+                let waypoint = &waypoints[point_idx];
                 draw_circle(
-                    point.x as f32 + 0.5,
-                    point.y as f32 + 0.5,
+                    midwaypoint.x as f32 + 0.5,
+                    midwaypoint.y as f32 + 0.5,
                     0.5,
-                    colors::GOLD,
+                    Color::new(1.0, 0.8, 0.0, 1.0),
                 );
                 draw_line(
-                    point.x as f32 + 0.5,
-                    point.y as f32 + 0.5,
+                    midwaypoint.x as f32 + 0.5,
+                    midwaypoint.y as f32 + 0.5,
                     waypoint.x as f32 + 0.5,
                     waypoint.y as f32 + 0.5,
-                    0.1,
-                    colors::MAGENTA,
+                    0.2,
+                    Color::new(1.0, 0.7, 0.1, 0.25),
                 );
+
+                if point_idx < waypoints.len() - 1 {
+                    if let Some(next_midwaypoint) = &midway_points[point_idx + 1] {
+                        draw_line(
+                            midwaypoint.x as f32 + 0.5,
+                            midwaypoint.y as f32 + 0.5,
+                            next_midwaypoint.x as f32 + 0.5,
+                            next_midwaypoint.y as f32 + 0.5,
+                            0.2,
+                            Color::new(1.0, 0.8, 0.0, 0.50),
+                        );
+                    }
+                }
             }
         }
 
