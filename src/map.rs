@@ -317,7 +317,7 @@ impl Map {
         let mut shift_pos = pos.clone();
         for _ in 0..MAX_SHIFT_UNTIL_STEPS {
             // shift in given direction
-            if shift_pos.shift_in_direction(&dir, self).is_err() {
+            if shift_pos.shift_inplace(&dir, self).is_err() {
                 return None; // fail while shifting -> abort
             } else if criterion(&self.grid[shift_pos.as_index()]) {
                 return Some(shift_pos); // criterion fulfilled -> return current position

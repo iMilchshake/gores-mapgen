@@ -23,6 +23,19 @@ pub enum ShiftDirection {
     Left = 3,
 }
 
+impl ShiftDirection {
+    pub fn get_orthogonal_shifts(&self) -> [ShiftDirection; 2] {
+        match self {
+            ShiftDirection::Left | ShiftDirection::Right => {
+                [ShiftDirection::Up, ShiftDirection::Down]
+            }
+            ShiftDirection::Up | ShiftDirection::Down => {
+                [ShiftDirection::Left, ShiftDirection::Right]
+            }
+        }
+    }
+}
+
 impl Position {
     pub fn new(x: usize, y: usize) -> Position {
         Position { x, y }
@@ -53,11 +66,7 @@ impl Position {
         Ok(Position::new(new_x, new_y))
     }
 
-    pub fn shift_in_direction(
-        &mut self,
-        shift: &ShiftDirection,
-        map: &Map,
-    ) -> Result<(), &'static str> {
+    pub fn shift_inplace(&mut self, shift: &ShiftDirection, map: &Map) -> Result<(), &'static str> {
         if !self.is_shift_valid(shift, map) {
             return Err("invalid shift");
         }
@@ -70,6 +79,12 @@ impl Position {
         }
 
         Ok(())
+    }
+
+    pub fn shifted(&self, shift: &ShiftDirection, map: &Map) -> Result<Position, &'static str> {
+        let mut pos = self.clone();
+        pos.shift_inplace(shift, map)?;
+        Ok(pos)
     }
 
     /// will return a randomly shifted
@@ -151,7 +166,7 @@ impl Position {
 
         shifts.sort_by_cached_key(|shift| {
             let mut shifted_pos = self.clone();
-            if let Ok(()) = shifted_pos.shift_in_direction(shift, map) {
+            if let Ok(()) = shifted_pos.shift_inplace(shift, map) {
                 shifted_pos.distance_squared(goal)
             } else {
                 // assign maximum distance to invalid shifts

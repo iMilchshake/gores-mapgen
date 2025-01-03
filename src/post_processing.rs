@@ -243,7 +243,7 @@ pub fn check_corner_skip(
     let mut stage = 0;
     while stage != 4 && length < tunnel_bounds.1 {
         // shift into given direction, abort if invalid shift
-        if pos.shift_in_direction(shift, &gen.map).is_err() {
+        if pos.shift_inplace(shift, &gen.map).is_err() {
             return None;
         };
         let curr_block_type = gen.map.grid.get(pos.as_index()).unwrap();

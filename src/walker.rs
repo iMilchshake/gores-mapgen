@@ -12,6 +12,12 @@ use crate::{
     utils::safe_slice_mut,
 };
 
+pub enum WalkerState {
+    Default,
+    /// (direction, amount of steps left)
+    UnParking(ShiftDirection, usize),
+}
+
 // this walker is indeed very cute
 pub struct CuteWalker {
     pub pos: Position,
@@ -45,6 +51,8 @@ pub struct CuteWalker {
 
     /// keeps track to which position step is already locked
     pub locked_position_step: usize,
+
+    pub state: WalkerState,
 }
 
 const NUM_SHIFT_SAMPLE_RETRIES: usize = 25;
@@ -95,6 +103,7 @@ impl CuteWalker {
             locked_waypoint_positions: Array2::from_elem((map.width, map.height), false),
             locked_position_step: 0,
             position_history: Vec::new(),
+            state: WalkerState::Default,
         }
     }
 
@@ -171,7 +180,7 @@ impl CuteWalker {
             let mut pos = self.position_history[self.steps.saturating_sub(50)].clone();
             let mut reached_floor = false;
             while !reached_floor {
-                if pos.shift_in_direction(&ShiftDirection::Down, map).is_err() {
+                if pos.shift_inplace(&ShiftDirection::Down, map).is_err() {
                     break; // fail while shifting down -> abort!
                 }
 
@@ -225,6 +234,33 @@ impl CuteWalker {
         Ok(())
     }
 
+    pub fn is_pos_locked(&self, pos: &Position) -> bool {
+        let target_locked =
+            self.locked_positions[pos.as_index()] || self.locked_waypoint_positions[pos.as_index()];
+        target_locked
+    }
+
+    pub fn is_shift_locked(&self, shift: &ShiftDirection, map: &Map) -> bool {
+        self.is_pos_locked(
+            &self
+                .pos
+                .shifted(shift, map)
+                .expect("testing locked state for invalid shift"),
+        )
+    }
+
+    pub fn is_shift_locked_for_pos(
+        &self,
+        shift: &ShiftDirection,
+        pos: &Position,
+        map: &Map,
+    ) -> bool {
+        self.is_pos_locked(
+            &pos.shifted(shift, map)
+                .expect("testing locked state for invalid shift"),
+        )
+    }
+
     pub fn probabilistic_step(
         &mut self,
         map: &mut Map,
@@ -252,24 +288,18 @@ impl CuteWalker {
             }
         }
 
-        let mut current_target_pos = self.pos.clone();
-        current_target_pos.shift_in_direction(&current_shift, map)?;
+        if self.is_shift_locked(&current_shift, map) {
+            if current_shift == shifts[0] || self.is_shift_locked(&shifts[0], map) {
+                // if current and greedy shift (can be the same) are locked -> unpark the walker
+                self.unpark(15, shifts[0], map)?; // unpark using greedy as target direction
 
-        // if target pos is locked, re-sample until a valid one is found
-        let mut invalid = false;
-        for _ in 0..NUM_SHIFT_SAMPLE_RETRIES {
-            invalid = self.locked_positions[current_target_pos.as_index()]
-                || self.locked_waypoint_positions[current_target_pos.as_index()];
+                // self.state = WalkerState::UnParking(, ());
 
-            if invalid {
-                current_shift = rnd.sample_shift(&shifts);
-                current_target_pos = self.pos.clone();
-                current_target_pos.shift_in_direction(&current_shift, map)?;
+                return Err("unpark not implemented yet");
+            } else {
+                // if the current shift is locked but the greedy direction is not -> use greedy shift instead
+                current_shift = shifts[0];
             }
-        }
-
-        if invalid {
-            return Err("number of shift sample retries exceeded, walker stuck?");
         }
 
         // determine if direction changed from last shift
@@ -279,7 +309,7 @@ impl CuteWalker {
         };
 
         // apply selected shift
-        self.pos.shift_in_direction(&current_shift, map)?;
+        self.pos.shift_inplace(&current_shift, map)?;
         self.steps += 1;
 
         // lock old position
@@ -329,6 +359,44 @@ impl CuteWalker {
         };
 
         self.last_shift = Some(current_shift);
+
+        Ok(())
+    }
+
+    pub fn unpark(
+        &mut self,
+        max_distance: usize,
+        target_shift: ShiftDirection,
+        map: &Map,
+    ) -> Result<(), &'static str> {
+        if !self.is_shift_locked(&target_shift, map) {
+            return Err("unpark sanity check failed: target is not locked?");
+        }
+
+        let shift_candidates = target_shift.get_orthogonal_shifts();
+
+        for shift in shift_candidates {
+            let mut pos = self.pos.clone();
+
+            // try to unpark
+            let mut success = false;
+            let mut steps = 0;
+            for _ in 0..max_distance {
+                if self.is_shift_locked_for_pos(&target_shift, &pos, map) {
+                    pos.shift_inplace(&shift, map)?;
+                    steps += 1;
+                } else {
+                    success = true;
+                    break;
+                }
+            }
+
+            if success {
+                println!("could have unparked using {:?} with {} steps", shift, steps);
+            } else {
+                println!("unparked using {:?} didnt work", shift);
+            }
+        }
 
         Ok(())
     }
