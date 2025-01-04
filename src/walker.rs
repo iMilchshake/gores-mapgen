@@ -12,6 +12,7 @@ use crate::{
     utils::safe_slice_mut,
 };
 
+#[derive(PartialEq)]
 pub enum WalkerState {
     Default,
     /// (direction, amount of steps left)
@@ -271,57 +272,59 @@ impl CuteWalker {
         if self.finished {
             return Err("Walker is finished");
         }
-
-        // save position to history before its updated
-        self.position_history.push(self.pos.clone());
-
-        // sample next shift
         let goal = self.goal.as_ref().ok_or("Error: Goal is None")?;
         let shifts = self.pos.get_rated_shifts(goal, map);
+        let mut current_shift;
 
-        let mut current_shift = rnd.sample_shift(&shifts);
+        match self.state {
+            WalkerState::Default => {
+                let use_momentum =
+                    self.last_shift.is_some() && rnd.get_bool_with_prob(gen_config.momentum_prob);
+                current_shift = if use_momentum {
+                    self.last_shift.unwrap() // Momentum: re-use last shift instead of sampling a new one
+                } else {
+                    rnd.sample_shift(&shifts)
+                };
 
-        // Momentum: re-use last shift direction with certain probability
-        if let Some(last_shift) = self.last_shift {
-            if rnd.get_bool_with_prob(gen_config.momentum_prob) {
-                current_shift = last_shift;
+                if self.is_shift_locked(&current_shift, map) {
+                    if current_shift == shifts[0] || self.is_shift_locked(&shifts[0], map) {
+                        // if current and greedy shift (can be the same) are locked -> unpark the walker
+                        let (unpark_shift, unpark_steps) = self.unpark(15, shifts[0], map)?; // unpark using greedy as target direction
+                        println!(
+                            "[{}] UNPARK, steps={}, shift={:?}",
+                            self.steps, unpark_steps, unpark_shift
+                        );
+                        self.state = WalkerState::UnParking(unpark_shift, unpark_steps);
+                        return Ok(());
+                    } else {
+                        // if the current shift is locked but the greedy direction is not -> use greedy shift instead
+                        current_shift = shifts[0];
+                    }
+                }
+            }
+            WalkerState::UnParking(unpark_shift, ref mut steps_left) => {
+                if *steps_left > 0 {
+                    current_shift = unpark_shift;
+                    *steps_left -= 1;
+                } else {
+                    println!("[{}] DONE", self.steps);
+                    assert!(!self.is_shift_locked(&shifts[0], map));
+                    current_shift = shifts[0]; // unparked, perform greedy to get around obstacle
+                    self.state = WalkerState::Default;
+                }
             }
         }
 
-        if self.is_shift_locked(&current_shift, map) {
-            if current_shift == shifts[0] || self.is_shift_locked(&shifts[0], map) {
-                // if current and greedy shift (can be the same) are locked -> unpark the walker
-                self.unpark(15, shifts[0], map)?; // unpark using greedy as target direction
-
-                // self.state = WalkerState::UnParking(, ());
-
-                return Err("unpark not implemented yet");
-            } else {
-                // if the current shift is locked but the greedy direction is not -> use greedy shift instead
-                current_shift = shifts[0];
-            }
-        }
+        // update position
+        self.position_history.push(self.pos.clone());
+        self.pos.shift_inplace(&current_shift, map)?;
+        self.steps += 1;
 
         // determine if direction changed from last shift
         let same_dir = match self.last_shift {
             Some(last_shift) => current_shift == last_shift,
             None => false,
         };
-
-        // apply selected shift
-        self.pos.shift_inplace(&current_shift, map)?;
-        self.steps += 1;
-
-        // lock old position
-        if gen_config.enable_kernel_lock {
-            self.lock_previous_location(map, gen_config, false)?;
-
-            // TODO: this is so imperformant, i dont wanna do this all the time, hmm
-            if let Some(debug_layers) = debug_layers {
-                debug_layers.bool_layers.get_mut("lock").unwrap().grid =
-                    self.locked_positions.clone();
-            }
-        }
 
         // perform pulse if config constraints allows it
         let perform_pulse = gen_config.enable_pulse
@@ -360,6 +363,17 @@ impl CuteWalker {
 
         self.last_shift = Some(current_shift);
 
+        // lock old position
+        if gen_config.enable_kernel_lock {
+            self.lock_previous_location(map, gen_config, false)?;
+
+            // TODO: this is so imperformant, i dont wanna do this all the time, hmm
+            if let Some(debug_layers) = debug_layers {
+                debug_layers.bool_layers.get_mut("lock").unwrap().grid =
+                    self.locked_positions.clone();
+            }
+        }
+
         Ok(())
     }
 
@@ -368,37 +382,37 @@ impl CuteWalker {
         max_distance: usize,
         target_shift: ShiftDirection,
         map: &Map,
-    ) -> Result<(), &'static str> {
+    ) -> Result<(ShiftDirection, usize), &'static str> {
         if !self.is_shift_locked(&target_shift, map) {
             return Err("unpark sanity check failed: target is not locked?");
         }
 
         let shift_candidates = target_shift.get_orthogonal_shifts();
+        let mut best_shift: Option<(ShiftDirection, usize)> = None;
 
-        for shift in shift_candidates {
+        for shift in shift_candidates.iter() {
             let mut pos = self.pos.clone();
-
-            // try to unpark
-            let mut success = false;
             let mut steps = 0;
-            for _ in 0..max_distance {
-                if self.is_shift_locked_for_pos(&target_shift, &pos, map) {
-                    pos.shift_inplace(&shift, map)?;
-                    steps += 1;
-                } else {
-                    success = true;
+
+            while steps < max_distance {
+                if !self.is_shift_locked_for_pos(&target_shift, &pos, map) {
+                    // found unparking solution, check if its the shortest
+                    if let Some((_, best_steps)) = best_shift {
+                        if steps < best_steps {
+                            best_shift = Some((*shift, steps));
+                        }
+                    } else {
+                        best_shift = Some((*shift, steps));
+                    }
                     break;
                 }
-            }
 
-            if success {
-                println!("could have unparked using {:?} with {} steps", shift, steps);
-            } else {
-                println!("unparked using {:?} didnt work", shift);
+                pos.shift_inplace(&shift, map)?;
+                steps += 1;
             }
         }
 
-        Ok(())
+        best_shift.ok_or("Failed to unpark")
     }
 
     pub fn cuddle(&self) {
