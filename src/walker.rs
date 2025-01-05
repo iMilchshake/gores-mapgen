@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, usize};
 
 use ndarray::{s, Array2};
 
@@ -289,7 +289,7 @@ impl CuteWalker {
                 if self.is_shift_locked(&current_shift, map) {
                     if current_shift == shifts[0] || self.is_shift_locked(&shifts[0], map) {
                         // if current and greedy shift (can be the same) are locked -> unpark the walker
-                        let (unpark_shift, unpark_steps) = self.unpark(15, shifts[0], map)?; // unpark using greedy as target direction
+                        let (unpark_shift, unpark_steps) = self.unpark(25, shifts[0], goal, map)?; // unpark using greedy as target direction
                         println!(
                             "[{}] UNPARK, steps={}, shift={:?}",
                             self.steps, unpark_steps, unpark_shift
@@ -378,9 +378,10 @@ impl CuteWalker {
     }
 
     pub fn unpark(
-        &mut self,
+        &self,
         max_distance: usize,
         target_shift: ShiftDirection,
+        goal: &Position,
         map: &Map,
     ) -> Result<(ShiftDirection, usize), &'static str> {
         if !self.is_shift_locked(&target_shift, map) {
@@ -389,26 +390,24 @@ impl CuteWalker {
 
         let shift_candidates = target_shift.get_orthogonal_shifts();
         let mut best_shift: Option<(ShiftDirection, usize)> = None;
+        let mut best_dist = usize::MAX;
 
         for shift in shift_candidates.iter() {
             let mut pos = self.pos.clone();
-            let mut steps = 0;
 
-            while steps < max_distance {
+            for steps in 0..max_distance {
                 if !self.is_shift_locked_for_pos(&target_shift, &pos, map) {
                     // found unparking solution, check if its the shortest
-                    if let Some((_, best_steps)) = best_shift {
-                        if steps < best_steps {
-                            best_shift = Some((*shift, steps));
-                        }
-                    } else {
+                    let dist = pos.distance_squared(goal);
+
+                    if dist < best_dist {
+                        best_dist = dist;
                         best_shift = Some((*shift, steps));
                     }
                     break;
                 }
 
                 pos.shift_inplace(&shift, map)?;
-                steps += 1;
             }
         }
 
