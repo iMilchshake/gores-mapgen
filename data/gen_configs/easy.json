@@ -29,7 +29,7 @@
   "plat_soft_overhang": false,
   "momentum_prob": 0.625,
   "max_distance": 4.7,
-  "waypoint_reached_dist": 250,
+  "waypoint_reached_dist": 200,
   "inner_size_probs": {
     "values": [
       4,
@@ -80,7 +80,8 @@
   "fade_min_size": 6,
   "max_subwaypoint_dist": 50.0,
   "subwaypoint_max_shift_dist": 5.0,
-  "pos_lock_max_dist": 20.0,
+  "pos_lock_max_dist": 30.0,
   "pos_lock_max_delay": 1000,
-  "lock_kernel_size": 9
+  "lock_kernel_size": 8,
+  "waypoint_lock_distance": 10
 }

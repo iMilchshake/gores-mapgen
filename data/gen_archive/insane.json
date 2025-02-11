@@ -10,10 +10,10 @@
   "shift_weights": {
     "values": null,
     "probs": [
-      0.35087723,
-      0.3157895,
-      0.29824564,
-      0.035087723
+      0.3508772,
+      0.31578946,
+      0.2982456,
+      0.03508772
     ]
   },
   "plat_min_distance": 40,
@@ -82,6 +82,5 @@
   "subwaypoint_max_shift_dist": 5.0,
   "pos_lock_max_dist": 20.0,
   "pos_lock_max_delay": 1000,
-  "lock_kernel_size": 5,
-  "waypoint_lock_distance": 10
+  "lock_kernel_size": 9
 }

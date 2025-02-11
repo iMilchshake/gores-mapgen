@@ -29,7 +29,7 @@
   "plat_soft_overhang": false,
   "momentum_prob": 0.6,
   "max_distance": 4.0,
-  "waypoint_reached_dist": 300,
+  "waypoint_reached_dist": 125,
   "inner_size_probs": {
     "values": [
       1,
@@ -73,7 +73,7 @@
     11
   ],
   "skip_min_spacing_sqr": 45,
-  "max_level_skip": 90,
+  "max_level_skip": 45,
   "min_freeze_size": 2,
   "enable_pulse": false,
   "pulse_straight_delay": 10,
@@ -82,9 +82,10 @@
   "fade_steps": 60,
   "fade_max_size": 6,
   "fade_min_size": 3,
-  "max_subwaypoint_dist": 50.0,
+  "max_subwaypoint_dist": 40.0,
   "subwaypoint_max_shift_dist": 5.0,
-  "pos_lock_max_dist": 20.0,
+  "pos_lock_max_dist": 35.0,
   "pos_lock_max_delay": 1000,
-  "lock_kernel_size": 9
+  "lock_kernel_size": 5,
+  "waypoint_lock_distance": 15
 }
