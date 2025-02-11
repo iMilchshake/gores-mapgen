@@ -9,7 +9,7 @@ pub fn safe_slice_mut<'a, T>(
     map: &Map,
 ) -> Result<ArrayViewMut2<'a, T>, &'static str> {
     if !map.pos_in_bounds(top_left) || !map.pos_in_bounds(bot_right) {
-        return Err("area out of bounds");
+        return Err("safe_slice accessed area out of bounds");
     }
 
     let area = grid.slice_mut(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);

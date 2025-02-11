@@ -11,6 +11,7 @@ use crate::{
     position::Position,
     post_processing::{self as post, get_flood_fill},
     random::{Random, Seed},
+    utils::safe_slice_mut,
     walker::CuteWalker,
 };
 
@@ -145,17 +146,59 @@ impl Generator {
             spawn,
         };
 
-        gen.preprocessing(thm_config);
+        gen.preprocessing(gen_config, thm_config).unwrap(); // TODO: pass
         gen
     }
 
-    pub fn preprocessing(&mut self, thm_config: &ThemeConfig) {
+    pub fn preprocessing(
+        &mut self,
+        gen_config: &GenerationConfig,
+        thm_config: &ThemeConfig,
+    ) -> Result<(), &'static str> {
         // test locking for spawn TODO: add helper
         let mut view = self.walker.locked_positions.slice_mut(s![
             self.spawn.x - thm_config.spawn_width..=self.spawn.x,
             self.spawn.y - thm_config.spawn_height / 2..=self.spawn.y + thm_config.spawn_height / 2
         ]);
         view.fill(true);
+
+        // lock padding at map border. amount of padding should ensure that no kernel or locking
+        // operation can be out of bounds. As locking is always at least as large as the largest
+        // kernel, i just use lock size +1
+        let padding = (gen_config.lock_kernel_size) + 1;
+        let mut top_pad = safe_slice_mut(
+            &mut self.walker.locked_positions,
+            &Position::new(0, 0),
+            &Position::new(self.map.width - 1, padding),
+            &self.map,
+        )?;
+        top_pad.fill(true);
+
+        let mut bot_pad = safe_slice_mut(
+            &mut self.walker.locked_positions,
+            &Position::new(0, self.map.height - (1 + padding)),
+            &Position::new(self.map.width - 1, self.map.height - 1),
+            &self.map,
+        )?;
+        bot_pad.fill(true);
+
+        let mut left_pad = safe_slice_mut(
+            &mut self.walker.locked_positions,
+            &Position::new(0, 0),
+            &Position::new(padding, self.map.height - 1),
+            &self.map,
+        )?;
+        left_pad.fill(true);
+
+        let mut right_pad = safe_slice_mut(
+            &mut self.walker.locked_positions,
+            &Position::new(self.map.width - (1 + padding), 0),
+            &Position::new(self.map.width - 1, self.map.height - 1),
+            &self.map,
+        )?;
+        right_pad.fill(true);
+
+        Ok(())
     }
 
     pub fn generate_spawn(&mut self, thm_config: &ThemeConfig) {
@@ -444,6 +487,8 @@ impl Generator {
         }
         print_time(&timer, "set debug layers");
 
+        // TODO: map noise is only required for maps that are actually **exported**,
+        // so these should be defined as optional steps.
         self.map.noise_overlay = noise::generate_noise_array(
             &self.map,
             thm_config.overlay_noise_scale,

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{map::Map, random::Random};
 use std::f32::consts::PI;
+use std::fmt;
 
 // using my own position vector to meet ndarray's indexing standard using usize
 //
@@ -12,6 +13,12 @@ use std::f32::consts::PI;
 pub struct Position {
     pub x: usize,
     pub y: usize,
+}
+
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Serialize, Deserialize, Default)]
