@@ -54,6 +54,7 @@ pub fn set_char_id(_: usize, _: usize, char: &char) -> u8 {
         ':' => 64,
         '>' => 114,
         '!' => 48,
+        '-' => 65,
 
         // a-Z or A-Z
         ch if ch.is_ascii_alphabetic() => ch.to_ascii_lowercase() as u8 - b'a' + 1,
