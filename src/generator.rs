@@ -215,12 +215,24 @@ impl Generator {
             &Overwrite::ReplaceNonSolidForce,
         );
 
+        let char_per_line = 14;
+        let crate_version = crate_version!();
+        let prefix_full = "VERSION: ";
+        let prefix_short = "V: ";
+        let prefix = if prefix_full.len() + crate_version.len() <= char_per_line {
+            prefix_full
+        } else {
+            prefix_short
+        };
+        let available_space = char_per_line - prefix.len();
+        let version_str = format!("{:>width$}", crate_version, width = available_space);
+        let version_line = format!("{}{}", prefix, version_str);
+
         let info_text = format!(
             "RANDOM   GORES\n\
             BY IMILCHSHAKE\n\
-            VERSION: {:}\n\
-            !BETA!",
-            crate_version!()
+            {}\n",
+            version_line
         );
 
         let text_width = info_text.lines().map(str::len).max().unwrap_or(0) as i32;
