@@ -196,7 +196,7 @@ impl TwExport {
 
         // add map generator information
         tw_map.info.author = "iMilchshake".to_string();
-        tw_map.info.version = format!("crate v{}", crate_version!());
+        tw_map.info.version = format!("{}", crate_version!());
         tw_map.info.credits = "https://github.com/iMilchshake/gores-mapgen".to_string();
 
         TwExport::process_tile_layer_new(
