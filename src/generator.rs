@@ -15,7 +15,7 @@ use crate::{
     walker::CuteWalker,
 };
 
-const PRINT_TIMES: bool = false;
+const PRINT_TIMES: bool = true;
 
 pub fn print_time(timer: &Timer, message: &str) {
     // TODO: add cli flag for this
@@ -530,6 +530,9 @@ impl Generator {
 
         print_time(&timer, "noise background (DEBUG)");
         print_time(&timer, "test");
+
+        post::a_star(&self.map, &self.spawn, &self.walker.pos, debug_layers)?;
+        print_time(&timer, "astar");
 
         Ok(())
     }

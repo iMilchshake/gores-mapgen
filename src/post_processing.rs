@@ -6,9 +6,14 @@ use crate::{
     position::{Position, ShiftDirection},
 };
 
-use std::{collections::VecDeque, f32::consts::SQRT_2};
+use std::{
+    cmp::Reverse,
+    collections::{BinaryHeap, HashMap, HashSet, VecDeque},
+    f32::consts::SQRT_2,
+};
 
 use dt::dt_bool;
+use egui::containers;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
@@ -888,4 +893,76 @@ pub fn gen_all_platform_candidates(
             &Overwrite::Force,
         );
     }
+}
+
+fn manhattan_distance(a: &Position, b: &Position) -> u32 {
+    ((a.x as i32 - b.x as i32).abs() + (a.y as i32 - b.y as i32).abs()) as u32
+}
+
+pub fn a_star(
+    map: &Map,
+    start: &Position,
+    end: &Position,
+    debug_layers: &mut Option<DebugLayers>,
+) -> Result<(), &'static str> {
+    // cells that will be visited next (f = g + h, g, pos)
+    let mut open_cells: BinaryHeap<Reverse<(u32, u32, Position)>> = BinaryHeap::new();
+    let h = manhattan_distance(start, end);
+    open_cells.push(Reverse((h, 0, start.clone())));
+
+    // already have been evaluated
+    let mut closed_cells: HashSet<Position> = HashSet::new();
+
+    // keep track of best distances
+    let mut best_dist: HashMap<Position, u32> = HashMap::new();
+    best_dist.insert(start.clone(), 0);
+
+    while let Some(Reverse((_, g, pos))) = open_cells.pop() {
+        let new_g = g + 1; // cityblock
+
+        // check neighboring cells
+        for shift in [
+            ShiftDirection::Right, // favor right cuz gores maps :)
+            ShiftDirection::Up,
+            ShiftDirection::Left,
+            ShiftDirection::Down,
+        ] {
+            let shifted_pos = pos.shifted(&shift, map)?;
+
+            // check if goal is found
+            if shifted_pos == *end {
+                println!("goal found :)");
+                return Ok(());
+            }
+
+            // skip if already visited
+            if closed_cells.contains(&shifted_pos) {
+                continue;
+            }
+
+            // only consider empty cells on the map
+            if !matches!(
+                map.grid[shifted_pos.as_index()],
+                BlockType::Empty | BlockType::EmptyReserved | BlockType::Start | BlockType::Finish
+            ) {
+                continue;
+            }
+
+            // check if a new or better connection has been found
+            if best_dist.get(&shifted_pos).is_none_or(|&d| d > new_g) {
+                best_dist.insert(shifted_pos.clone(), new_g);
+                let h = manhattan_distance(&shifted_pos, end);
+                let f = new_g + h;
+                open_cells.push(Reverse((f, new_g, shifted_pos)));
+            }
+        }
+
+        // current pos is now fully expanded -> close it
+        if let Some(debug_layers) = debug_layers {
+            debug_layers.bool_layers.get_mut("a_star").unwrap().grid[pos.as_index()] = true;
+        }
+        closed_cells.insert(pos);
+    }
+
+    Ok(())
 }

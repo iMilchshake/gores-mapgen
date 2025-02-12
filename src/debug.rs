@@ -90,6 +90,10 @@ impl DebugLayers {
                 "noise_o",
                 BoolLayer::new(shape, Color::new(0.96, 0.38, 0.19, default_alpha), false),
             ),
+            (
+                "a_star",
+                BoolLayer::new(shape, Color::new(0.76, 0.26, 0.33, default_alpha), false),
+            ),
         ]);
 
         let float_layers: BTreeMap<&'static str, FloatLayer> = BTreeMap::from([

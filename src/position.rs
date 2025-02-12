@@ -9,7 +9,7 @@ use std::fmt;
 //
 // while glam has nice performance benefits, the amount of expensive operations
 // on the position vector will be very limited, so this should be fine..
-#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize, Eq, Hash, Ord, PartialOrd)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
