@@ -38,6 +38,7 @@ fn main() {
             gen_config,
             map_config,
             &ThemeConfig::default(),
+            false, // TODO: add CLIArg
         )
     });
 

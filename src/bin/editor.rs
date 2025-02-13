@@ -95,6 +95,8 @@ async fn main() {
                         &editor.gen_config,
                         &editor.thm_config,
                         &mut editor.debug_layers,
+                        editor.generate_noise_layers,
+                        editor.verbose_post_process,
                     )
                     .unwrap_or_else(|err| {
                         println!("Post Processing Failed: {:}", err);

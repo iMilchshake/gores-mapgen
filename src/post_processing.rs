@@ -1,9 +1,11 @@
 use crate::{
-    config::GenerationConfig,
+    config::{GenerationConfig, ThemeConfig},
     debug::DebugLayers,
     generator::Generator,
     map::{BlockType, Map, Overwrite},
+    noise,
     position::{Position, ShiftDirection},
+    random::Random,
 };
 
 use std::{collections::VecDeque, f32::consts::SQRT_2};
@@ -887,5 +889,43 @@ pub fn gen_all_platform_candidates(
             &BlockType::EmptyReserved,
             &Overwrite::Force,
         );
+    }
+}
+
+pub fn generate_noise_layers(
+    map: &mut Map,
+    rnd: &mut Random,
+    thm_config: &ThemeConfig,
+    debug_layers: &mut Option<DebugLayers>,
+) {
+    map.noise_overlay = Some(noise::generate_noise_array(
+        &map,
+        thm_config.overlay_noise_scale,
+        thm_config.overlay_noise_invert,
+        thm_config.overlay_noise_threshold,
+        thm_config.overlay_noise_type,
+        true,
+        false,
+        rnd.get_u32(),
+    ));
+    let noise_background = noise::generate_noise_array(
+        &map,
+        thm_config.background_noise_scale,
+        thm_config.background_noise_invert,
+        thm_config.background_noise_threshold,
+        thm_config.background_noise_type,
+        false,
+        true,
+        rnd.get_u32(),
+    );
+    map.noise_background = Some(noise::opening(&noise::closing(&noise_background)));
+
+    if let Some(debug_layers) = debug_layers {
+        debug_layers.bool_layers.get_mut("noise_o").unwrap().grid =
+            map.noise_overlay.clone().unwrap();
+    }
+    if let Some(debug_layers) = debug_layers {
+        debug_layers.bool_layers.get_mut("noise_b").unwrap().grid =
+            map.noise_background.clone().unwrap();
     }
 }

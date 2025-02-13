@@ -105,6 +105,12 @@ pub struct Editor {
 
     /// whether to keep using the same seed for next generations
     pub retry_on_failure: bool,
+
+    /// whether to generate noise layers. this is computational expensive and should only be done
+    /// for debugging purposes, or if the map is intended to be exported.
+    pub generate_noise_layers: bool,
+
+    pub verbose_post_process: bool,
 }
 
 impl Editor {
@@ -143,6 +149,8 @@ impl Editor {
             show_theme_widget: false,
             show_debug_widget: false,
             show_debug_layers: false,
+            generate_noise_layers: true,
+            verbose_post_process: false,
         };
 
         // initialize debug layers
@@ -183,7 +191,10 @@ impl Editor {
     }
 
     pub fn initialize_debug_layers(&mut self) {
-        assert!(!self.disable_debug_layers);
+        assert!(
+            !self.disable_debug_layers,
+            "debug layers already initialized"
+        );
 
         // if possible, get currently active layers for re-using
         let previously_active_layers = self.debug_layers.take().map(|d| d.active_layers);
@@ -284,7 +295,11 @@ impl Editor {
             &self.thm_config,
             self.user_seed.clone(),
         );
-        self.initialize_debug_layers();
+
+        // reset debug layers, if used
+        if !self.disable_debug_layers {
+            self.initialize_debug_layers();
+        }
     }
 
     fn mouse_in_viewport(cam: &Camera2D) -> bool {

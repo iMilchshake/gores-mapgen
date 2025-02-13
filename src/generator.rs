@@ -7,7 +7,6 @@ use crate::{
     debug::DebugLayers,
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
-    noise,
     position::Position,
     post_processing::{self as post, get_flood_fill},
     random::{Random, Seed},
@@ -15,12 +14,10 @@ use crate::{
     walker::CuteWalker,
 };
 
-const PRINT_TIMES: bool = false;
-
-pub fn print_time(timer: &Timer, message: &str) {
-    // TODO: add cli flag for this
-    if PRINT_TIMES {
+pub fn print_time(timer: &mut Timer, message: &str, print: bool) {
+    if print {
         println!("{}: {:?}", message, timer.elapsed());
+        *timer = Timer::start() // start new timer
     }
 }
 
@@ -302,26 +299,12 @@ impl Generator {
             &Overwrite::Force,
         );
 
-        self.write_text(
+        self.map.write_text(
             &textbox_top_left
                 .shifted_by(text_margin, text_margin)
                 .unwrap(),
             &info_text,
         );
-    }
-
-    pub fn write_text(&mut self, pos: &Position, text: &str) {
-        let mut cursor = pos.clone();
-
-        for ch in text.chars() {
-            if ch == '\n' {
-                cursor.y += 1;
-                cursor.x = pos.x;
-            } else {
-                self.map.font_layer[cursor.as_index()] = ch;
-                cursor.x += 1;
-            }
-        }
     }
 
     /// perform one step of the map generation
@@ -416,21 +399,22 @@ impl Generator {
         Some(subwaypoints)
     }
 
-    // TODO: move this "do all" function into post processing script?
     pub fn perform_all_post_processing(
         &mut self,
         gen_config: &GenerationConfig,
         thm_config: &ThemeConfig,
         debug_layers: &mut Option<DebugLayers>,
+        export_preprocess: bool,
+        verbose: bool,
     ) -> Result<(), &'static str> {
-        let timer = Timer::start();
+        let mut timer = Timer::start();
 
         // lock all remaining blocks
         self.walker
             .lock_previous_location(&self.map, gen_config, true)?;
 
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
-        print_time(&timer, "fix edge bugs");
+        print_time(&mut timer, "fix edge bugs", verbose);
 
         self.generate_spawn(thm_config);
 
@@ -444,17 +428,18 @@ impl Generator {
             Some(&BlockType::Finish),
         )
         .expect("start finish room generation");
-        self.write_text(&self.walker.pos.shifted_by(-2, 0)?, "GG :>");
-        print_time(&timer, "place rooms");
+        self.map
+            .write_text(&self.walker.pos.shifted_by(-2, 0)?, "GG :>");
+        print_time(&mut timer, "place rooms", verbose);
 
         if gen_config.min_freeze_size > 0 {
             // TODO: Maybe add some alternative function for the case of min_freeze_size=1
             post::remove_freeze_blobs(self, gen_config.min_freeze_size, debug_layers);
-            print_time(&timer, "detect blobs");
+            print_time(&mut timer, "detect blobs", verbose);
         }
 
         let flood_fill = get_flood_fill(self, &self.spawn, debug_layers);
-        print_time(&timer, "flood fill");
+        print_time(&mut timer, "flood fill", verbose);
 
         post::gen_all_platform_candidates(
             &self.walker.position_history,
@@ -463,7 +448,7 @@ impl Generator {
             gen_config,
             debug_layers,
         );
-        print_time(&timer, "platforms");
+        print_time(&mut timer, "platforms", verbose);
 
         post::generate_all_skips(
             self,
@@ -473,10 +458,10 @@ impl Generator {
             &flood_fill,
             debug_layers,
         );
-        print_time(&timer, "generate skips");
+        print_time(&mut timer, "generate skips", verbose);
 
         post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
-        print_time(&timer, "place obstacles");
+        print_time(&mut timer, "place obstacles", verbose);
 
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
@@ -485,51 +470,12 @@ impl Generator {
                 self.walker.locked_positions.clone();
             debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
         }
-        print_time(&timer, "set debug layers");
+        print_time(&mut timer, "set debug layers", verbose);
 
-        // TODO: map noise is only required for maps that are actually **exported**,
-        // so these should be defined as optional steps.
-        self.map.noise_overlay = noise::generate_noise_array(
-            &self.map,
-            thm_config.overlay_noise_scale,
-            thm_config.overlay_noise_invert,
-            thm_config.overlay_noise_threshold,
-            thm_config.overlay_noise_type,
-            true,
-            false,
-            self.rnd.get_u32(),
-        );
-        print_time(&timer, "noise overlay");
-
-        if let Some(debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("noise_o").unwrap().grid =
-                self.map.noise_overlay.clone();
+        if export_preprocess {
+            post::generate_noise_layers(&mut self.map, &mut self.rnd, thm_config, debug_layers);
+            print_time(&mut timer, "generate noise layers", verbose);
         }
-        print_time(&timer, "noise overlay (DEBUG)");
-
-        let noise_background = noise::generate_noise_array(
-            &self.map,
-            thm_config.background_noise_scale,
-            thm_config.background_noise_invert,
-            thm_config.background_noise_threshold,
-            thm_config.background_noise_type,
-            false,
-            true,
-            self.rnd.get_u32(),
-        );
-        print_time(&timer, "noise background");
-
-        self.map.noise_background = noise::opening(&noise::closing(&noise_background));
-
-        print_time(&timer, "noise background (MORPH)");
-
-        if let Some(debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("noise_b").unwrap().grid =
-                self.map.noise_background.clone();
-        }
-
-        print_time(&timer, "noise background (DEBUG)");
-        print_time(&timer, "test");
 
         Ok(())
     }
@@ -543,6 +489,7 @@ impl Generator {
         gen_config: &GenerationConfig,
         map_config: &MapConfig,
         thm_config: &ThemeConfig,
+        export_preprocess: bool,
     ) -> Result<Map, &'static str> {
         let mut gen = Generator::new(gen_config, map_config, thm_config, seed.clone());
 
@@ -558,7 +505,13 @@ impl Generator {
         }
 
         // perform all post processing step without creating any debug layers
-        gen.perform_all_post_processing(gen_config, thm_config, &mut None)?;
+        gen.perform_all_post_processing(
+            gen_config,
+            thm_config,
+            &mut None,
+            export_preprocess,
+            false,
+        )?;
 
         Ok(gen.map)
     }

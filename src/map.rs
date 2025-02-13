@@ -114,8 +114,8 @@ pub enum KernelType {
 pub struct Map {
     pub grid: Array2<BlockType>,
     pub font_layer: Array2<char>,
-    pub noise_overlay: Array2<bool>,
-    pub noise_background: Array2<bool>,
+    pub noise_overlay: Option<Array2<bool>>,
+    pub noise_background: Option<Array2<bool>>,
     pub height: usize,
     pub width: usize,
     pub chunk_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
@@ -127,8 +127,8 @@ impl Map {
         Map {
             grid: Array2::from_elem((width, height), default),
             font_layer: Array2::from_elem((width, height), ' '),
-            noise_overlay: Array2::from_elem((width, height), false),
-            noise_background: Array2::from_elem((width, height), false),
+            noise_overlay: None,
+            noise_background: None,
             width,
             height,
             chunk_edited: Array2::from_elem(
@@ -325,5 +325,19 @@ impl Map {
         }
 
         None // criterion was never fulfilled
+    }
+
+    pub fn write_text(&mut self, pos: &Position, text: &str) {
+        let mut cursor = pos.clone();
+
+        for ch in text.chars() {
+            if ch == '\n' {
+                cursor.y += 1;
+                cursor.x = pos.x;
+            } else {
+                self.font_layer[cursor.as_index()] = ch;
+                cursor.x += 1;
+            }
+        }
     }
 }
