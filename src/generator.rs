@@ -438,7 +438,7 @@ impl Generator {
             print_time(&mut timer, "detect blobs", verbose);
         }
 
-        let flood_fill = get_flood_fill(self, &self.spawn, debug_layers);
+        let flood_fill = get_flood_fill(self, &self.spawn, Some(&self.walker.pos), debug_layers)?;
         print_time(&mut timer, "flood fill", verbose);
 
         post::gen_all_platform_candidates(
@@ -477,8 +477,11 @@ impl Generator {
             print_time(&mut timer, "generate noise layers", verbose);
         }
 
-        post::a_star(&self.map, &self.spawn, &self.walker.pos, debug_layers)?;
-        print_time(&mut timer, "astar", verbose);
+        // post::a_star(&self.map, &self.spawn, &self.walker.pos, debug_layers)?;
+        // print_time(&mut timer, "astar", verbose);
+        //
+        // post::dijkstra(&self.map, &self.spawn, &self.walker.pos, debug_layers)?;
+        // print_time(&mut timer, "djikstra", verbose);
 
         Ok(())
     }

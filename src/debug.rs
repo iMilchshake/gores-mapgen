@@ -106,6 +106,14 @@ impl DebugLayers {
                 ),
             ),
             (
+                "flood_fill_dir",
+                FloatLayer::new(
+                    shape,
+                    Color::new(0.0, 1.0, 0.0, default_alpha),
+                    Color::new(0.0, 0.0, 1.0, default_alpha),
+                ),
+            ),
+            (
                 "dt",
                 FloatLayer::new(
                     shape,

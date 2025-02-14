@@ -629,38 +629,50 @@ pub fn remove_freeze_blobs(
 pub fn get_flood_fill(
     gen: &Generator,
     start_pos: &Position,
+    end_pos: Option<&Position>,
     debug_layers: &mut Option<DebugLayers>,
-) -> Array2<Option<usize>> {
+) -> Result<Array2<Option<usize>>, &'static str> {
     let width = gen.map.width;
     let height = gen.map.height;
     let mut distance = Array2::from_elem((width, height), None);
     let mut queue = VecDeque::new();
 
-    let solid = gen.map.grid.map(|val| val.is_solid() || val.is_freeze());
+    // track from where a cell was visited first
+    let mut from: Option<Array2<Option<ShiftDirection>>> = if end_pos.is_some() {
+        Some(Array2::from_elem((width, height), None))
+    } else {
+        None
+    };
 
-    // TODO: error
-    if solid[start_pos.as_index()] {
-        return distance;
+    let blocked_positions = gen.map.grid.map(|val| val.is_solid() || val.is_freeze());
+
+    if blocked_positions[start_pos.as_index()] {
+        return Err("floodfill started on blocked position");
     }
 
     queue.push_back((start_pos.clone(), 0));
     distance[start_pos.as_index()] = Some(0);
 
     while let Some((pos, dist)) = queue.pop_front() {
-        let neighbors = [
-            pos.shifted_by(-1, 0),
-            pos.shifted_by(1, 0),
-            pos.shifted_by(0, -1),
-            pos.shifted_by(0, 1),
+        let shifts = [
+            ShiftDirection::Right,
+            ShiftDirection::Down,
+            ShiftDirection::Up,
+            ShiftDirection::Left,
         ];
 
-        for neighbor in neighbors.iter().flatten() {
-            if gen.map.pos_in_bounds(neighbor)
-                && !solid[neighbor.as_index()]
+        for shift in shifts.iter() {
+            let neighbor = pos.shifted(shift, &gen.map)?;
+            if gen.map.pos_in_bounds(&neighbor)
+                && !blocked_positions[neighbor.as_index()]
                 && distance[neighbor.as_index()].is_none()
             {
                 distance[neighbor.as_index()] = Some(dist + 1);
-                queue.push_back((neighbor.clone(), dist + 1));
+                queue.push_back((neighbor, dist + 1));
+
+                if let Some(from) = from.as_mut() {
+                    from[pos.as_index()] = Some(shift.clone());
+                }
             }
         }
     }
@@ -671,9 +683,17 @@ pub fn get_flood_fill(
             .get_mut("flood_fill")
             .unwrap()
             .grid = distance.map(|v| v.map(|v| v as f32));
+
+        if let Some(from) = from.as_mut() {
+            debug_layers
+                .float_layers
+                .get_mut("flood_fill_dir")
+                .unwrap()
+                .grid = from.map(|v| v.map(|v| v as u8 as f32));
+        }
     }
 
-    distance
+    Ok(distance)
 }
 
 /// stores all relevant information about platform candidates
@@ -963,6 +983,62 @@ pub fn a_star(
             debug_layers.bool_layers.get_mut("a_star").unwrap().grid[pos.as_index()] = true;
         }
         closed_cells.insert(pos);
+    }
+
+    Ok(())
+}
+
+pub fn dijkstra(
+    map: &Map,
+    start: &Position,
+    end: &Position,
+    debug_layers: &mut Option<DebugLayers>,
+) -> Result<(), &'static str> {
+    let mut open_cells: BinaryHeap<Reverse<(u32, Position)>> = BinaryHeap::new();
+    open_cells.push(Reverse((0, start.clone())));
+    let mut best_dist: HashMap<Position, u32> = HashMap::new();
+    best_dist.insert(start.clone(), 0);
+
+    while let Some(Reverse((g, pos))) = open_cells.pop() {
+        if let Some(&current) = best_dist.get(&pos) {
+            if g > current {
+                continue;
+            }
+        }
+
+        for shift in [
+            ShiftDirection::Right,
+            ShiftDirection::Up,
+            ShiftDirection::Left,
+            ShiftDirection::Down,
+        ] {
+            let neighbor = pos.shifted(&shift, map)?;
+
+            if neighbor == *end {
+                println!("goal found :) ");
+                return Ok(());
+            }
+
+            if !matches!(
+                map.grid[neighbor.as_index()],
+                BlockType::Empty | BlockType::EmptyReserved | BlockType::Start | BlockType::Finish
+            ) {
+                continue;
+            }
+
+            let new_cost = g + 1;
+            if best_dist
+                .get(&neighbor)
+                .map_or(true, |&cost| new_cost < cost)
+            {
+                best_dist.insert(neighbor.clone(), new_cost);
+                open_cells.push(Reverse((new_cost, neighbor)));
+            }
+        }
+
+        if let Some(debug_layers) = debug_layers {
+            debug_layers.bool_layers.get_mut("dijkstra").unwrap().grid[pos.as_index()] = true;
+        }
     }
 
     Ok(())
