@@ -258,6 +258,10 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
                     editor.map_cam.reset();
                 }
             });
+            ui.menu_button("Settings", |ui| {
+                ui.checkbox(&mut editor.generate_noise_layers, "noise layers");
+                ui.checkbox(&mut editor.verbose_post_process, "verbose post");
+            });
             ui.menu_button("Help", |ui| if ui.button("About").clicked() {});
         });
     });
@@ -328,9 +332,6 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             ui.horizontal(|ui| {
                 ui.checkbox(&mut editor.fixed_seed, "fixed seed");
-                if ui.button("save map").clicked() {
-                    editor.save_map_dialog();
-                }
             });
         }
         ui.separator();

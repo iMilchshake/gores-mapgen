@@ -56,8 +56,6 @@ pub struct CuteWalker {
     pub state: WalkerState,
 }
 
-const NUM_SHIFT_SAMPLE_RETRIES: usize = 25;
-
 // TODO: somewhere else i used a cool crate for this -> replace
 impl fmt::Debug for CuteWalker {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

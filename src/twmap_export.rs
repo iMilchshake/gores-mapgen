@@ -199,14 +199,16 @@ impl TwExport {
         tw_map.info.version = format!("{}", crate_version!());
         tw_map.info.credits = "https://github.com/iMilchshake/gores-mapgen".to_string();
 
-        TwExport::process_tile_layer_new(
-            &mut tw_map,
-            (1, "BG_Tiles"),
-            (0, "Background"),
-            &map.noise_background,
-            set_bool_active,
-            true,
-        );
+        if let Some(ref noise_background) = map.noise_background {
+            TwExport::process_tile_layer_new(
+                &mut tw_map,
+                (1, "BG_Tiles"),
+                (0, "Background"),
+                noise_background,
+                set_bool_active,
+                true,
+            );
+        }
         // TODO: replace with new
         TwExport::process_tile_layer(&mut tw_map, map, 0, "Freeze", &BlockTypeTW::Freeze);
         TwExport::process_tile_layer_new(
@@ -225,14 +227,16 @@ impl TwExport {
             set_char_id,
             false,
         );
-        TwExport::process_tile_layer_new(
-            &mut tw_map,
-            (3, "FG_Tiles"),
-            (3, "Overlay"),
-            &map.noise_overlay,
-            set_bool_active,
-            true,
-        );
+        if let Some(ref noise_overlay) = map.noise_overlay {
+            TwExport::process_tile_layer_new(
+                &mut tw_map,
+                (3, "FG_Tiles"),
+                (3, "Overlay"),
+                noise_overlay,
+                set_bool_active,
+                true,
+            );
+        }
 
         TwExport::process_game_layer(&mut tw_map, map);
 
