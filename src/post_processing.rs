@@ -52,6 +52,8 @@ pub fn fix_edge_bugs(gen: &mut Generator) -> Result<Array2<bool>, &'static str> 
                 }
 
                 if edge_bug[[x, y]] {
+                    // this doesnt break chunking, as we only consider
+                    // Empty (and therefore already edited) cells
                     gen.map.grid[[x, y]] = BlockType::Freeze;
                 }
             }
@@ -632,6 +634,7 @@ pub fn flood_fill(
     gen: &Generator,
     start_pos: &[Position],
     end_pos: Option<&Position>,
+    fill_freeze: bool,
 ) -> Result<(Array2<Option<usize>>, Option<Vec<Position>>), &'static str> {
     let width = gen.map.width;
     let height = gen.map.height;
@@ -645,7 +648,10 @@ pub fn flood_fill(
         None
     };
 
-    let blocked_positions = gen.map.grid.map(|val| val.is_solid() || val.is_freeze());
+    let blocked_positions = gen
+        .map
+        .grid
+        .map(|val| val.is_solid() || (!fill_freeze && val.is_freeze()));
 
     // initialize all start positions
     for pos in start_pos {

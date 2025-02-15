@@ -438,11 +438,23 @@ impl Generator {
             print_time(&mut timer, "detect blobs", verbose);
         }
 
-        let (ff_dist, ff_path) = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos))?;
+        let (ff_dist, ff_path) =
+            flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
         print_time(&mut timer, "flood fill", verbose);
 
-        let (main_path_dist, _) = flood_fill(self, &ff_path.as_ref().unwrap(), None)?;
+        let (main_path_dist, _) = flood_fill(self, &ff_path.as_ref().unwrap(), None, true)?;
         print_time(&mut timer, "main path dist", verbose);
+
+        // fill up dead ends
+        for (map_block, main_path_dist) in self.map.grid.iter_mut().zip(main_path_dist.iter()) {
+            if let Some(dist) = main_path_dist {
+                if *dist > 10 {
+                    *map_block = BlockType::Hookable;
+                }
+            }
+        }
+        // TODO: only perform this for updated blocks?
+        let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
 
         post::gen_all_platform_candidates(
             &self.walker.position_history,
