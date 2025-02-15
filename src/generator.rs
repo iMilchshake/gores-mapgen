@@ -438,18 +438,15 @@ impl Generator {
             print_time(&mut timer, "detect blobs", verbose);
         }
 
-        let (flood_fill_dist, path) = flood_fill(
-            self,
-            &[self.spawn.clone()],
-            Some(&self.walker.pos),
-            debug_layers,
-        )?;
-        dbg!(&path);
+        let (ff_dist, ff_path) = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos))?;
         print_time(&mut timer, "flood fill", verbose);
+
+        let (main_path_dist, _) = flood_fill(self, &ff_path.as_ref().unwrap(), None)?;
+        print_time(&mut timer, "main path dist", verbose);
 
         post::gen_all_platform_candidates(
             &self.walker.position_history,
-            &flood_fill_dist,
+            &ff_dist,
             &mut self.map,
             gen_config,
             debug_layers,
@@ -461,7 +458,7 @@ impl Generator {
             gen_config.skip_length_bounds,
             gen_config.skip_min_spacing_sqr,
             gen_config.max_level_skip,
-            &flood_fill_dist,
+            &ff_dist,
             debug_layers,
         );
         print_time(&mut timer, "generate skips", verbose);
@@ -472,6 +469,22 @@ impl Generator {
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
         if let Some(debug_layers) = debug_layers {
+            debug_layers
+                .float_layers
+                .get_mut("flood_fill")
+                .unwrap()
+                .grid = ff_dist.map(|v| v.map(|v| v as f32));
+            if let Some(path) = ff_path.as_ref() {
+                let path_grid = &mut debug_layers.bool_layers.get_mut("path").unwrap().grid;
+                for pos in path {
+                    path_grid[pos.as_index()] = true;
+                }
+            }
+            debug_layers
+                .float_layers
+                .get_mut("main_path_dist")
+                .unwrap()
+                .grid = main_path_dist.map(|v| v.map(|v| v as f32));
             debug_layers.bool_layers.get_mut("lock").unwrap().grid =
                 self.walker.locked_positions.clone();
             debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;

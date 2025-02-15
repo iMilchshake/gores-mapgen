@@ -96,7 +96,7 @@ impl DebugLayers {
             ),
             (
                 "path",
-                BoolLayer::new(shape, Color::new(0.36, 0.16, 0.83, default_alpha), false),
+                BoolLayer::new(shape, Color::new(0.86, 0.16, 0.33, default_alpha), false),
             ),
         ]);
 
@@ -110,7 +110,7 @@ impl DebugLayers {
                 ),
             ),
             (
-                "flood_fill_dir",
+                "main_path_dist",
                 FloatLayer::new(
                     shape,
                     Color::new(0.0, 1.0, 0.0, default_alpha),

@@ -632,7 +632,6 @@ pub fn flood_fill(
     gen: &Generator,
     start_pos: &[Position],
     end_pos: Option<&Position>,
-    debug_layers: &mut Option<DebugLayers>,
 ) -> Result<(Array2<Option<usize>>, Option<Vec<Position>>), &'static str> {
     let width = gen.map.width;
     let height = gen.map.height;
@@ -682,22 +681,6 @@ pub fn flood_fill(
         }
     }
 
-    if let Some(debug_layers) = debug_layers {
-        debug_layers
-            .float_layers
-            .get_mut("flood_fill")
-            .unwrap()
-            .grid = distance.map(|v| v.map(|v| v as f32));
-
-        if let Some(from) = from.as_mut() {
-            debug_layers
-                .float_layers
-                .get_mut("flood_fill_dir")
-                .unwrap()
-                .grid = from.map(|v| v.map(|v| v as u8 as f32));
-        }
-    }
-
     // get fastest path from start to finish
     if let Some(end_pos) = end_pos {
         let mut pos = end_pos.clone();
@@ -711,10 +694,6 @@ pub fn flood_fill(
             pos.shift_inplace(&shift, &gen.map)?;
             path_grid[pos.as_index()] = true;
             path.push(pos.clone());
-        }
-
-        if let Some(debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("path").unwrap().grid = path_grid
         }
 
         return Ok((distance, Some(path)));
