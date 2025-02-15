@@ -626,12 +626,14 @@ pub fn remove_freeze_blobs(
     }
 }
 
+/// flood fill implementation with optional multi-start or direction tracking.
+/// to enable direction tracking, just provide an `end_pos`
 pub fn flood_fill(
     gen: &Generator,
-    start_pos: &Position,
+    start_pos: &[Position],
     end_pos: Option<&Position>,
     debug_layers: &mut Option<DebugLayers>,
-) -> Result<Array2<Option<usize>>, &'static str> {
+) -> Result<(Array2<Option<usize>>, Option<Vec<Position>>), &'static str> {
     let width = gen.map.width;
     let height = gen.map.height;
     let mut distance = Array2::from_elem((width, height), None);
@@ -646,12 +648,14 @@ pub fn flood_fill(
 
     let blocked_positions = gen.map.grid.map(|val| val.is_solid() || val.is_freeze());
 
-    if blocked_positions[start_pos.as_index()] {
-        return Err("floodfill started on blocked position");
+    // initialize all start positions
+    for pos in start_pos {
+        if blocked_positions[pos.as_index()] {
+            return Err("floodfill started on blocked position");
+        }
+        queue.push_back((pos.clone(), 0));
+        distance[pos.as_index()] = Some(0);
     }
-
-    queue.push_back((start_pos.clone(), 0));
-    distance[start_pos.as_index()] = Some(0);
 
     while let Some((pos, dist)) = queue.pop_front() {
         let shifts = [
@@ -699,20 +703,24 @@ pub fn flood_fill(
         let mut pos = end_pos.clone();
         let num_steps = distance[pos.as_index()].unwrap();
         let from = from.as_ref().unwrap();
-        let mut path: Array2<bool> = Array2::from_elem((gen.map.width, gen.map.height), false);
+        let mut path_grid: Array2<bool> = Array2::from_elem((gen.map.width, gen.map.height), false);
+        let mut path: Vec<Position> = vec![end_pos.clone()];
 
-        for step in 0..num_steps {
+        for _ in 0..num_steps {
             let shift = from[pos.as_index()].unwrap().get_opposite();
             pos.shift_inplace(&shift, &gen.map)?;
-            path[pos.as_index()] = true;
+            path_grid[pos.as_index()] = true;
+            path.push(pos.clone());
         }
 
         if let Some(debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("path").unwrap().grid = path
+            debug_layers.bool_layers.get_mut("path").unwrap().grid = path_grid
         }
+
+        return Ok((distance, Some(path)));
     }
 
-    Ok(distance)
+    Ok((distance, None))
 }
 
 /// stores all relevant information about platform candidates

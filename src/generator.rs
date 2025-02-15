@@ -438,12 +438,18 @@ impl Generator {
             print_time(&mut timer, "detect blobs", verbose);
         }
 
-        let flood_fill = flood_fill(self, &self.spawn, Some(&self.walker.pos), debug_layers)?;
+        let (flood_fill_dist, path) = flood_fill(
+            self,
+            &[self.spawn.clone()],
+            Some(&self.walker.pos),
+            debug_layers,
+        )?;
+        dbg!(&path);
         print_time(&mut timer, "flood fill", verbose);
 
         post::gen_all_platform_candidates(
             &self.walker.position_history,
-            &flood_fill,
+            &flood_fill_dist,
             &mut self.map,
             gen_config,
             debug_layers,
@@ -455,7 +461,7 @@ impl Generator {
             gen_config.skip_length_bounds,
             gen_config.skip_min_spacing_sqr,
             gen_config.max_level_skip,
-            &flood_fill,
+            &flood_fill_dist,
             debug_layers,
         );
         print_time(&mut timer, "generate skips", verbose);
