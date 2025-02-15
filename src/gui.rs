@@ -875,6 +875,11 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
                         ));
                     }
                 });
-            })
+            });
+
+            ui.label(format!(
+                "({}, {})",
+                map_mouse_pos_cell.0, map_mouse_pos_cell.1
+            ));
         });
 }

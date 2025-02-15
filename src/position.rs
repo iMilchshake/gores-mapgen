@@ -41,6 +41,15 @@ impl ShiftDirection {
             }
         }
     }
+
+    pub fn get_opposite(&self) -> ShiftDirection {
+        match self {
+            ShiftDirection::Up => ShiftDirection::Down,
+            ShiftDirection::Down => ShiftDirection::Up,
+            ShiftDirection::Left => ShiftDirection::Right,
+            ShiftDirection::Right => ShiftDirection::Left,
+        }
+    }
 }
 
 impl Position {

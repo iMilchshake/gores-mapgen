@@ -626,7 +626,7 @@ pub fn remove_freeze_blobs(
     }
 }
 
-pub fn get_flood_fill(
+pub fn flood_fill(
     gen: &Generator,
     start_pos: &Position,
     end_pos: Option<&Position>,
@@ -662,17 +662,18 @@ pub fn get_flood_fill(
         ];
 
         for shift in shifts.iter() {
-            let neighbor = pos.shifted(shift, &gen.map)?;
-            if gen.map.pos_in_bounds(&neighbor)
-                && !blocked_positions[neighbor.as_index()]
-                && distance[neighbor.as_index()].is_none()
+            let pos_neighbor = pos.shifted(shift, &gen.map)?;
+            if gen.map.pos_in_bounds(&pos_neighbor)
+                && !blocked_positions[pos_neighbor.as_index()]
+                && distance[pos_neighbor.as_index()].is_none()
             {
-                distance[neighbor.as_index()] = Some(dist + 1);
-                queue.push_back((neighbor, dist + 1));
+                distance[pos_neighbor.as_index()] = Some(dist + 1);
 
                 if let Some(from) = from.as_mut() {
-                    from[pos.as_index()] = Some(shift.clone());
+                    from[pos_neighbor.as_index()] = Some(shift.clone());
                 }
+
+                queue.push_back((pos_neighbor, dist + 1));
             }
         }
     }
@@ -690,6 +691,24 @@ pub fn get_flood_fill(
                 .get_mut("flood_fill_dir")
                 .unwrap()
                 .grid = from.map(|v| v.map(|v| v as u8 as f32));
+        }
+    }
+
+    // get fastest path from start to finish
+    if let Some(end_pos) = end_pos {
+        let mut pos = end_pos.clone();
+        let num_steps = distance[pos.as_index()].unwrap();
+        let from = from.as_ref().unwrap();
+        let mut path: Array2<bool> = Array2::from_elem((gen.map.width, gen.map.height), false);
+
+        for step in 0..num_steps {
+            let shift = from[pos.as_index()].unwrap().get_opposite();
+            pos.shift_inplace(&shift, &gen.map)?;
+            path[pos.as_index()] = true;
+        }
+
+        if let Some(debug_layers) = debug_layers {
+            debug_layers.bool_layers.get_mut("path").unwrap().grid = path
         }
     }
 

@@ -94,6 +94,10 @@ impl DebugLayers {
                 "a_star",
                 BoolLayer::new(shape, Color::new(0.76, 0.26, 0.33, default_alpha), false),
             ),
+            (
+                "path",
+                BoolLayer::new(shape, Color::new(0.36, 0.16, 0.83, default_alpha), false),
+            ),
         ]);
 
         let float_layers: BTreeMap<&'static str, FloatLayer> = BTreeMap::from([

@@ -8,7 +8,7 @@ use crate::{
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::Position,
-    post_processing::{self as post, get_flood_fill},
+    post_processing::{self as post, flood_fill},
     random::{Random, Seed},
     utils::safe_slice_mut,
     walker::CuteWalker,
@@ -438,7 +438,7 @@ impl Generator {
             print_time(&mut timer, "detect blobs", verbose);
         }
 
-        let flood_fill = get_flood_fill(self, &self.spawn, Some(&self.walker.pos), debug_layers)?;
+        let flood_fill = flood_fill(self, &self.spawn, Some(&self.walker.pos), debug_layers)?;
         print_time(&mut timer, "flood fill", verbose);
 
         post::gen_all_platform_candidates(
