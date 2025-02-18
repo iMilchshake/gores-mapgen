@@ -8,7 +8,7 @@ use crate::{
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::Position,
-    post_processing::{self as post, flood_fill},
+    post_processing::{self as post, fix_stairs, flood_fill},
     random::{Random, Seed},
     utils::safe_slice_mut,
     walker::CuteWalker,
@@ -460,18 +460,14 @@ impl Generator {
                 }
             }
         }
+        print_time(&mut timer, "fill dead ends", verbose);
 
-        for pos in filled_blocks {
-            let stair = post::detect_stair(&self.map, &pos);
-
-            if stair.is_some() {
-                dbg!(&pos, &stair);
-                self.map.grid[pos.as_index()] = BlockType::Platform;
-            }
-        }
+        post::fix_stairs(&mut self.map, filled_blocks, &mut self.rnd);
+        print_time(&mut timer, "fix stairs", verbose);
 
         // TODO: only perform this for updated blocks?
-        // let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
+        post::fix_edge_bugs(self).expect("fix edge bugs failed");
+        print_time(&mut timer, "fix edge_bugs #2", verbose);
 
         post::gen_all_platform_candidates(
             &self.walker.position_history,

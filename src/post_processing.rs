@@ -350,7 +350,7 @@ pub fn generate_skip(gen: &mut Generator, skip: &Skip, block_type: &BlockType) {
         &top_left,
         &bot_right,
         block_type,
-        &Overwrite::ReplaceSolidFreeze,
+        &Overwrite::ReplaceHookableFreeze,
     );
 
     if block_type.is_freeze() {
@@ -363,13 +363,13 @@ pub fn generate_skip(gen: &mut Generator, skip: &Skip, block_type: &BlockType) {
                 &top_left.shifted_by(0, -1).unwrap(),
                 &bot_right.shifted_by(0, -1).unwrap(),
                 &BlockType::Freeze,
-                &Overwrite::ReplaceSolidOnly,
+                &Overwrite::ReplaceHookableOnly,
             );
             gen.map.set_area(
                 &top_left.shifted_by(0, 1).unwrap(),
                 &bot_right.shifted_by(0, 1).unwrap(),
                 &BlockType::Freeze,
-                &Overwrite::ReplaceSolidOnly,
+                &Overwrite::ReplaceHookableOnly,
             );
         }
         ShiftDirection::Up | ShiftDirection::Down => {
@@ -377,13 +377,13 @@ pub fn generate_skip(gen: &mut Generator, skip: &Skip, block_type: &BlockType) {
                 &top_left.shifted_by(-1, 0).unwrap(),
                 &bot_right.shifted_by(-1, 0).unwrap(),
                 &BlockType::Freeze,
-                &Overwrite::ReplaceSolidOnly,
+                &Overwrite::ReplaceHookableOnly,
             );
             gen.map.set_area(
                 &top_left.shifted_by(1, 0).unwrap(),
                 &bot_right.shifted_by(1, 0).unwrap(),
                 &BlockType::Freeze,
-                &Overwrite::ReplaceSolidOnly,
+                &Overwrite::ReplaceHookableOnly,
             );
         }
     }
@@ -1117,7 +1117,33 @@ pub fn detect_pattern(map: &mut Map) {
 /// X X X
 /// X X _
 /// X _ _
-pub fn fix_stairs(map: &Map) {}
+/// to not introduce new too recognizable patterns, stairs are fixed by either removing the center
+/// block, or all hookable blocks.
+pub fn fix_stairs(map: &mut Map, filled_positions: Vec<Position>, rnd: &mut Random) {
+    for pos in filled_positions.iter() {
+        let stair = detect_stair(map, pos);
+
+        if stair.is_some() {
+            if rnd.get_bool_with_prob(0.5) {
+                // = 50%
+                // remove center block
+                map.grid[pos.as_index()] = BlockType::Empty;
+            } else if rnd.get_bool_with_prob(0.5) {
+                // = 25%
+                // remove all hookable blocks
+                map.set_area(
+                    &pos.shifted_by(-1, -1).unwrap(),
+                    &pos.shifted_by(1, 1).unwrap(),
+                    &BlockType::Empty,
+                    &Overwrite::ReplaceHookableOnly,
+                );
+            }
+
+            // = 25%
+            // do nothing :)
+        }
+    }
+}
 
 /// helper function for `fix_stairs`
 /// checks if stair pattern is present at given position.

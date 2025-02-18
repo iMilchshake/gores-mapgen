@@ -72,10 +72,10 @@ pub enum Overwrite {
     Force,
 
     /// Replace Hookable+Freeze
-    ReplaceSolidFreeze,
+    ReplaceHookableFreeze,
 
     /// Replace Hookable
-    ReplaceSolidOnly,
+    ReplaceHookableOnly,
 
     /// Replace Empty
     ReplaceEmptyOnly,
@@ -91,10 +91,10 @@ impl Overwrite {
     fn will_override(&self, btype: &BlockType) -> bool {
         match self {
             Overwrite::Force => true,
-            Overwrite::ReplaceSolidFreeze => {
+            Overwrite::ReplaceHookableFreeze => {
                 matches!(&btype, BlockType::Hookable | BlockType::Freeze)
             }
-            Overwrite::ReplaceSolidOnly => matches!(&btype, BlockType::Hookable),
+            Overwrite::ReplaceHookableOnly => matches!(&btype, BlockType::Hookable),
             Overwrite::ReplaceEmptyOnly => matches!(&btype, BlockType::Empty),
             Overwrite::ReplaceNonSolid => matches!(&btype, BlockType::Freeze | BlockType::Empty),
             Overwrite::ReplaceNonSolidForce => matches!(
