@@ -374,8 +374,8 @@ impl GenerationConfig {
     }
 
     /// This function defines the initial default config for actual map generator
-    pub fn get_initial_gen_config() -> GenerationConfig {
-        if let Some(file) = GenerationConfigStorage::get("hard_stable.json") {
+    pub fn get_initial_config() -> GenerationConfig {
+        if let Some(file) = GenerationConfigStorage::get("hard.json") {
             if let Ok(data) = std::str::from_utf8(&file.data) {
                 if let Ok(config) = serde_json::from_str(data) {
                     return config;

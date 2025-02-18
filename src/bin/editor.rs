@@ -36,7 +36,7 @@ async fn main() {
     let args = EditorArgs::parse();
     SimpleLogger::new().init().unwrap();
     let mut editor = Editor::new(
-        GenerationConfig::get_initial_gen_config(),
+        GenerationConfig::get_initial_config(),
         MapConfig::get_initial_config(),
         ThemeConfig::default(),
         &args,
