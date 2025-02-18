@@ -446,15 +446,32 @@ impl Generator {
         print_time(&mut timer, "main path dist", verbose);
 
         // fill up dead ends
-        for (map_block, main_path_dist) in self.map.grid.iter_mut().zip(main_path_dist.iter()) {
-            if let Some(dist) = main_path_dist {
-                if *dist > 10 {
+        let mut filled_blocks: Vec<Position> = Vec::new();
+        for ((x, y), map_block) in self.map.grid.indexed_iter_mut() {
+            // only consider empty or freeze blocks
+            if !(*map_block == BlockType::Empty || *map_block == BlockType::Freeze) {
+                continue;
+            }
+
+            if let Some(dist) = main_path_dist[[x, y]] {
+                if dist > 10 {
                     *map_block = BlockType::Hookable;
+                    filled_blocks.push(Position::new(x, y));
                 }
             }
         }
+
+        for pos in filled_blocks {
+            let stair = post::detect_stair(&self.map, &pos);
+
+            if stair.is_some() {
+                dbg!(&pos, &stair);
+                self.map.grid[pos.as_index()] = BlockType::Platform;
+            }
+        }
+
         // TODO: only perform this for updated blocks?
-        let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
+        // let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
 
         post::gen_all_platform_candidates(
             &self.walker.position_history,

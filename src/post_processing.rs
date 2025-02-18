@@ -1093,3 +1093,87 @@ pub fn generate_noise_layers(
             map.noise_background.clone().unwrap();
     }
 }
+
+/// prototype for general purpose pattern detection. I dont need this right now, but i'll leave it
+/// here for future me :)
+pub fn detect_pattern(map: &mut Map) {
+    todo!();
+    type BlockTypePredicate = fn(&BlockType) -> bool;
+    #[rustfmt::skip]
+    const PATTERN: [[BlockTypePredicate; 3]; 3] = [
+        [BlockType::is_empty, BlockType::is_solid, BlockType::is_empty],
+        [BlockType::is_solid, BlockType::is_empty, BlockType::is_solid],
+        [BlockType::is_empty, BlockType::is_solid, BlockType::is_empty],
+    ];
+}
+
+/// Fix diagonal staircase patterns
+///
+/// using cityblock distance based floodfill for dead-end removal results in 'perfect' staircases,
+/// this is a consistent pattern that collides with the generators philosophy of generating no
+/// recognizable patterns.
+/// This function should detect and fix these staircase artifacts.
+/// A staircase looks like this, X's being solid and _ empty.
+/// X X X
+/// X X _
+/// X _ _
+pub fn fix_stairs(map: &Map) {}
+
+/// helper function for `fix_stairs`
+/// checks if stair pattern is present at given position.
+/// if yes, returns the empty corner.
+pub fn detect_stair(map: &Map, pos: &Position) -> Option<(i32, i32)> {
+    let mut corner = None;
+
+    // check if center block is solid
+    if !map.grid[pos.as_index()].is_solid() {
+        return None; // no stair
+    }
+
+    // check if exactly one corner is empty
+    for x_shift in [-1, 1] {
+        for y_shift in [-1, 1] {
+            let corner_pos = pos.shifted_by(x_shift, y_shift).unwrap();
+            let corner_block_type = &map.grid[corner_pos.as_index()];
+
+            if corner_block_type.is_empty() {
+                if corner.is_none() {
+                    corner = Some((x_shift, y_shift));
+                } else {
+                    // second empty corner was found!
+                    return None; // no stair
+                }
+            } else if !corner_block_type.is_solid() {
+                // a non solid/empty block occured
+                return None; // no stair
+            }
+        }
+    }
+
+    // check if no empty corner found
+    if corner.is_none() {
+        return None; // no stair
+    }
+    let corner = corner.unwrap();
+
+    // ensure that neighboring non diagonal cells are also empty
+    let neighbor_pos1 = pos.shifted_by(corner.0, 0).unwrap();
+    let neighbor_pos2 = pos.shifted_by(0, corner.1).unwrap();
+    if !map.grid[neighbor_pos1.as_index()].is_empty()
+        || !map.grid[neighbor_pos2.as_index()].is_empty()
+    {
+        return None; // no stair
+    }
+
+    // ensure that opposite non diagonal cells are solid
+    let opposite_pos1 = pos.shifted_by(-1 * corner.0, 0).unwrap();
+    let opposite_pos2 = pos.shifted_by(0, -1 * corner.1).unwrap();
+    if !map.grid[opposite_pos1.as_index()].is_solid()
+        || !map.grid[opposite_pos2.as_index()].is_solid()
+    {
+        return None; // no stair
+    }
+
+    // all checks passes, this is a stair!
+    return Some(corner);
+}
