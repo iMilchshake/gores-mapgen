@@ -85,13 +85,14 @@ impl Seed {
         Seed::from_u64(rnd.get_u64())
     }
 
-    pub fn from_base64(base64_str: String) -> Seed {
-        let decoded_bytes = URL_SAFE
+    pub fn from_base64(base64_str: &String) -> Option<Seed> {
+        URL_SAFE
             .decode(base64_str)
-            .expect("couldn't decode given base64 string");
-        assert_eq!(decoded_bytes.len(), 8, "exactly 8 bytes expected");
-        let seed_u64: u64 = u64::from_be_bytes(decoded_bytes.try_into().unwrap());
-        Seed::from_u64(seed_u64)
+            .ok()
+            .filter(|bytes| bytes.len() == 8)
+            .and_then(|bytes| bytes.try_into().ok())
+            .map(u64::from_be_bytes)
+            .map(Seed::from_u64)
     }
 
     pub fn to_base64(&self) -> String {
@@ -102,21 +103,18 @@ impl Seed {
         Seed::from_u64(Random::get_u64_from_entropy())
     }
 
-    pub fn from_string(seed_str: &String, seed_type: &SeedType) -> Seed {
+    pub fn from_string(seed_str: &String, seed_type: &SeedType) -> Option<Seed> {
         match seed_type {
-            // hash strings
-            SeedType::STRING => Self::from_u64(hash(seed_str.as_bytes())),
-            SeedType::U64 => {
-                let x = if seed_str.chars().all(|c| c.is_ascii_digit()) {
-                    seed_str.parse::<u64>().ok().unwrap_or(1337)
-                } else {
-                    1337
-                };
-                Self::from_u64(x)
-            }
-            SeedType::BASE64 => {
-                todo!()
-            }
+            // hash string to u64
+            SeedType::STRING => Some(Self::from_u64(hash(seed_str.as_bytes()))),
+
+            // parse string to u64
+            SeedType::U64 => seed_str
+                .parse::<u64>()
+                .ok()
+                .map(|seed_u64| Self::from_u64(seed_u64)),
+
+            SeedType::BASE64 => Self::from_base64(seed_str),
         }
     }
 }

@@ -150,7 +150,7 @@ impl Editor {
             thm_config: ThemeConfig::default(),
             steps_per_frame: STEPS_PER_FRAME,
             gen,
-            user_seed: Seed::from_string(&"iMilchshake".to_string(), &SeedType::STRING),
+            user_seed: Seed::from_string(&"iMilchshake".to_string(), &SeedType::STRING).unwrap(),
             user_seed_str: String::new(),
             seed_input_type: SeedType::BASE64,
             instant: args.instant,

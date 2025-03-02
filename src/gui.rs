@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, env, process::exit};
 
-use egui::{Align2, RichText};
+use egui::{text_edit, Align2, RichText};
 use tinyfiledialogs;
 
 use crate::{
@@ -316,7 +316,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             ui.separator();
 
             ui.vertical(|ui| {
-                ui.label(format!("{}", editor.user_seed.seed_u64));
+                ui.label(format!("seed: {}", editor.user_seed.to_base64()));
                 egui::ComboBox::from_label("seed type")
                     .selected_text(format!("{:?}", editor.seed_input_type))
                     .show_ui(ui, |ui| {
@@ -335,18 +335,25 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             });
 
             ui.horizontal(|ui| {
-                ui.label("seed");
-                let text_edit =
-                    egui::TextEdit::singleline(&mut editor.user_seed_str).desired_width(150.0);
+                let text_edit = egui::TextEdit::singleline(&mut editor.user_seed_str);
 
-                if ui.add(text_edit).changed() {
-                    editor.user_seed =
-                        Seed::from_string(&editor.user_seed_str, &editor.seed_input_type);
-                }
+                if ui.add(text_edit).changed() {}
             });
 
             ui.horizontal(|ui| {
                 ui.checkbox(&mut editor.fixed_seed, "fixed seed");
+                if ui.button("set seed").clicked() {
+                    if let Some(new_seed) =
+                        Seed::from_string(&editor.user_seed_str, &editor.seed_input_type)
+                    {
+                        editor.user_seed = new_seed;
+                    } else {
+                        println!(
+                            "invalid seed='{}', type={:?}",
+                            &editor.user_seed_str, &editor.seed_input_type
+                        );
+                    }
+                }
             });
         }
         ui.separator();
