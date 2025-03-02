@@ -59,6 +59,14 @@ enum PausedState {
     /// dont start generation yet to allow setup configuration
     Setup,
 }
+
+#[derive(Debug, PartialEq)]
+pub enum SeedType {
+    U64,
+    STRING,
+    BASE64,
+}
+
 pub struct Editor {
     state: EditorState,
     // TODO: shouldnt these be part of generator??
@@ -71,7 +79,10 @@ pub struct Editor {
     pub debug_layers: Option<DebugLayers>,
     pub average_fps: f32,
     pub gen: Generator,
+
     pub user_seed: Seed,
+    pub user_seed_str: String,
+    pub seed_input_type: SeedType,
 
     /// keeps track of camera for map visualization
     pub map_cam: MapCamera,
@@ -139,7 +150,9 @@ impl Editor {
             thm_config: ThemeConfig::default(),
             steps_per_frame: STEPS_PER_FRAME,
             gen,
-            user_seed: Seed::from_string(&"iMilchshake".to_string()),
+            user_seed: Seed::from_string(&"iMilchshake".to_string(), &SeedType::STRING),
+            user_seed_str: String::new(),
+            seed_input_type: SeedType::BASE64,
             instant: args.instant,
             auto_generate: args.auto_generation,
             fixed_seed: args.fixed_seed,

@@ -4,7 +4,7 @@ use egui::{Align2, RichText};
 use tinyfiledialogs;
 
 use crate::{
-    editor::{window_frame, Editor},
+    editor::{window_frame, Editor, SeedType},
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
 };
@@ -313,20 +313,35 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
         // =======================================[ SEED CONTROL ]===================================
         if editor.is_setup() {
-            ui.horizontal(|ui| {
-                ui.label("str");
-                let text_edit =
-                    egui::TextEdit::singleline(&mut editor.user_seed.seed_str).desired_width(150.0);
-                if ui.add(text_edit).changed() {
-                    editor.user_seed.seed_u64 = Seed::str_to_u64(&editor.user_seed.seed_str);
-                }
+            ui.separator();
+
+            ui.vertical(|ui| {
+                ui.label(format!("{}", editor.user_seed.seed_u64));
+                egui::ComboBox::from_label("seed type")
+                    .selected_text(format!("{:?}", editor.seed_input_type))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut editor.seed_input_type, SeedType::U64, "U64");
+                        ui.selectable_value(
+                            &mut editor.seed_input_type,
+                            SeedType::BASE64,
+                            "BASE64",
+                        );
+                        ui.selectable_value(
+                            &mut editor.seed_input_type,
+                            SeedType::STRING,
+                            "STRING",
+                        );
+                    });
             });
 
             ui.horizontal(|ui| {
-                ui.label("u64");
+                ui.label("seed");
+                let text_edit =
+                    egui::TextEdit::singleline(&mut editor.user_seed_str).desired_width(150.0);
 
-                if edit_u64_textfield(ui, &mut editor.user_seed.seed_u64).changed() {
-                    editor.user_seed.seed_str = String::new();
+                if ui.add(text_edit).changed() {
+                    editor.user_seed =
+                        Seed::from_string(&editor.user_seed_str, &editor.seed_input_type);
                 }
             });
 

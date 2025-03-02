@@ -1,5 +1,5 @@
-use crate::config::GenerationConfig;
 use crate::position::ShiftDirection;
+use crate::{config::GenerationConfig, editor::SeedType};
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use rand::prelude::*;
 use rand::rngs::SmallRng;
@@ -70,25 +70,15 @@ pub struct Random {
     circ_dist: RandomDist<f32>,
 }
 
+/// u64 seed wrapper with various conversion methods
 #[derive(Debug, Clone)]
 pub struct Seed {
     pub seed_u64: u64,
-    pub seed_str: String, // TODO: yeah okay no idea why i did this lol
 }
 
 impl Seed {
     pub fn from_u64(seed_u64: u64) -> Seed {
-        Seed {
-            seed_u64,
-            seed_str: String::new(),
-        }
-    }
-
-    pub fn from_string(seed_str: &String) -> Seed {
-        Seed {
-            seed_u64: Seed::str_to_u64(seed_str),
-            seed_str: seed_str.to_owned(),
-        }
+        Seed { seed_u64 }
     }
 
     pub fn from_random(rnd: &mut Random) -> Seed {
@@ -112,8 +102,22 @@ impl Seed {
         Seed::from_u64(Random::get_u64_from_entropy())
     }
 
-    pub fn str_to_u64(seed_str: &String) -> u64 {
-        hash(seed_str.as_bytes())
+    pub fn from_string(seed_str: &String, seed_type: &SeedType) -> Seed {
+        match seed_type {
+            // hash strings
+            SeedType::STRING => Self::from_u64(hash(seed_str.as_bytes())),
+            SeedType::U64 => {
+                let x = if seed_str.chars().all(|c| c.is_ascii_digit()) {
+                    seed_str.parse::<u64>().ok().unwrap_or(1337)
+                } else {
+                    1337
+                };
+                Self::from_u64(x)
+            }
+            SeedType::BASE64 => {
+                todo!()
+            }
+        }
     }
 }
 
