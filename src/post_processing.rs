@@ -6,6 +6,7 @@ use crate::{
     noise,
     position::{Position, ShiftDirection},
     random::Random,
+    utils::safe_slice_mut,
 };
 
 use std::{
@@ -1202,4 +1203,46 @@ pub fn detect_stair(map: &Map, pos: &Position) -> Option<(i32, i32)> {
 
     // all checks passes, this is a stair!
     return Some(corner);
+}
+
+pub fn generate_finish_room(
+    gen: &mut Generator,
+    pos: &Position,
+    room_size: usize,
+) -> Result<(), &'static str> {
+    let room_size: i32 = room_size as i32;
+
+    let top_left = pos.shifted_by(-room_size, -room_size)?;
+    let bot_right = pos.shifted_by(room_size, room_size)?;
+
+    // abort if area already locked
+    let lock_area = safe_slice_mut(
+        &mut gen.walker.locked_positions,
+        &top_left,
+        &bot_right,
+        &gen.map,
+    )?;
+    if lock_area.iter().any(|v| *v) {
+        return Err("Cant place finish room, area is already locked!");
+    }
+
+    // carve room
+    gen.map.set_area(
+        &top_left,
+        &bot_right,
+        &BlockType::EmptyReserved,
+        &Overwrite::Force,
+    );
+
+    // set start/finish line
+    gen.map.set_area_border(
+        &top_left.shifted_by(-1, -1)?,
+        &bot_right.shifted_by(1, 1)?,
+        &BlockType::Finish,
+        &Overwrite::ReplaceNonSolidForce,
+    );
+
+    gen.map.write_text(&pos.shifted_by(-2, 0)?, "GG :3");
+
+    Ok(())
 }

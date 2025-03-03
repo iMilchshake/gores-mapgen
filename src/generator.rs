@@ -32,81 +32,6 @@ pub struct Generator {
     spawn: Position,
 }
 
-pub fn generate_room(
-    map: &mut Map,
-    pos: &Position,
-    room_size: usize,
-    platform_margin: usize,
-    zone_type: Option<&BlockType>,
-) -> Result<(), &'static str> {
-    let room_size: i32 = room_size as i32;
-    let platform_margin: i32 = platform_margin as i32;
-
-    if !map.pos_in_bounds(&pos.shifted_by(room_size + 2, room_size + 1).unwrap())
-        || !map.pos_in_bounds(&pos.shifted_by(room_size + 1, room_size + 1).unwrap())
-    {
-        return Err("generate room out of bounds");
-    }
-
-    // carve room
-    map.set_area_border(
-        &pos.shifted_by(-room_size, -room_size)?,
-        &pos.shifted_by(room_size, room_size)?,
-        &BlockType::Empty,
-        &Overwrite::Force,
-    );
-
-    // only reserve - 1 so that when this is used for platforms
-    map.set_area(
-        &pos.shifted_by(-room_size + 1, -room_size + 1)?,
-        &pos.shifted_by(room_size - 1, room_size - 1)?,
-        &BlockType::EmptyReserved,
-        &Overwrite::Force,
-    );
-
-    // set start/finish line
-    if let Some(zone_type) = zone_type {
-        map.set_area_border(
-            &pos.shifted_by(-room_size - 1, -room_size - 1)?,
-            &pos.shifted_by(room_size + 1, room_size + 1)?,
-            zone_type,
-            &Overwrite::ReplaceNonSolidForce,
-        );
-    }
-
-    // set spawns
-    if zone_type == Some(&BlockType::Start) {
-        map.set_area(
-            &pos.shifted_by(-(room_size - platform_margin), room_size)?,
-            &pos.shifted_by(room_size - platform_margin, room_size)?,
-            &BlockType::Spawn,
-            &Overwrite::Force,
-        );
-    }
-
-    // set platform below spawns
-    if zone_type == Some(&BlockType::Start) {
-        map.set_area(
-            &pos.shifted_by(-(room_size - platform_margin), room_size + 1)?,
-            &pos.shifted_by(room_size - platform_margin, room_size + 1)?,
-            &BlockType::Platform,
-            &Overwrite::Force,
-        );
-    }
-
-    // for non start/finish rooms -> place center platform
-    if zone_type.is_none() {
-        map.set_area(
-            &pos.shifted_by(-(room_size - platform_margin), room_size - 3)?,
-            &pos.shifted_by(room_size - platform_margin, room_size - 3)?,
-            &BlockType::Platform,
-            &Overwrite::Force,
-        );
-    }
-
-    Ok(())
-}
-
 impl Generator {
     /// derive an initial generator state based on a GenerationConfig
     pub fn new(
@@ -409,28 +334,16 @@ impl Generator {
     ) -> Result<(), &'static str> {
         let mut timer = Timer::start();
 
-        // lock all remaining blocks
-        self.walker
-            .lock_previous_location(&self.map, gen_config, true)?;
-
         let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
         print_time(&mut timer, "fix edge bugs", verbose);
 
         self.generate_spawn(thm_config);
-
-        // generate_room(&mut self.map, &self.spawn, 6, 3, Some(&BlockType::Start))
-        //     .expect("start room generation failed");
-        generate_room(
-            &mut self.map,
-            &self.walker.pos.clone(),
-            4,
-            3,
-            Some(&BlockType::Finish),
-        )
-        .expect("start finish room generation");
-        self.map
-            .write_text(&self.walker.pos.shifted_by(-2, 0)?, "GG :>");
+        post::generate_finish_room(self, &self.walker.pos.clone(), 4)?;
         print_time(&mut timer, "place rooms", verbose);
+
+        // lock all remaining blocks
+        self.walker
+            .lock_previous_location(&self.map, gen_config, true)?;
 
         if gen_config.min_freeze_size > 0 {
             // TODO: Maybe add some alternative function for the case of min_freeze_size=1
