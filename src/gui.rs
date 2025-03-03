@@ -316,7 +316,15 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             ui.separator();
 
             ui.vertical(|ui| {
-                ui.label(format!("seed: {}", editor.user_seed.to_base64()));
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(format!("seed: {}", editor.user_seed.to_base64()))
+                            .monospace(),
+                    );
+                    if ui.button("📋").clicked() {
+                        ui.output_mut(|o| o.copied_text = editor.user_seed.to_base64());
+                    }
+                });
                 egui::ComboBox::from_label("seed type")
                     .selected_text(format!("{:?}", editor.seed_input_type))
                     .show_ui(ui, |ui| {
