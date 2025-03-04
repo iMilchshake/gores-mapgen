@@ -489,9 +489,9 @@ pub struct ThemeConfig {
 impl Default for ThemeConfig {
     fn default() -> Self {
         ThemeConfig {
-            spawn_width: 32,
-            spawn_height: 26,
-            spawn_margin: 4,
+            spawn_width: 40,
+            spawn_height: 32,
+            spawn_margin: 6,
             spawn_platform_width: 12,
             text_margin: 1,
             textbox_top_offset: 3,

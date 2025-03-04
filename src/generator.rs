@@ -68,7 +68,7 @@ impl Generator {
             spawn,
         };
 
-        gen.preprocessing(gen_config, thm_config).unwrap(); // TODO: pass
+        gen.preprocessing(gen_config, thm_config).unwrap(); // TODO: move somewhere else + pass
         gen
     }
 
@@ -78,11 +78,32 @@ impl Generator {
         thm_config: &ThemeConfig,
     ) -> Result<(), &'static str> {
         // test locking for spawn TODO: add helper
-        let mut view = self.walker.locked_positions.slice_mut(s![
-            self.spawn.x - thm_config.spawn_width..=self.spawn.x,
-            self.spawn.y - thm_config.spawn_height / 2..=self.spawn.y + thm_config.spawn_height / 2
-        ]);
-        view.fill(true);
+        let spawn_width: i32 = thm_config.spawn_width as i32;
+        let spawn_height: i32 = thm_config.spawn_height as i32;
+        let margin: i32 = thm_config.spawn_margin as i32;
+
+        let top_left = self
+            .spawn
+            .shifted_by(-spawn_width + margin, -(spawn_height / 2))?;
+        let bot_right = self.spawn.shifted_by(margin, spawn_height / 2)?;
+
+        // lock area around spawn area so in future walker cant cross it
+        let mut spawn_lock = safe_slice_mut(
+            &mut self.walker.locked_positions,
+            &top_left,
+            &bot_right,
+            &self.map,
+        )?;
+        spawn_lock.fill(true);
+
+        // unlock some [1 x margin] wide path so walker can escape locking
+        let mut spawn_escape_unlock = safe_slice_mut(
+            &mut self.walker.locked_positions,
+            &self.spawn,
+            &self.spawn.shifted_by(margin, 0)?,
+            &self.map,
+        )?;
+        spawn_escape_unlock.fill(false);
 
         // lock padding at map border. amount of padding should ensure that no kernel or locking
         // operation can be out of bounds. As locking is always at least as large as the largest
@@ -134,7 +155,7 @@ impl Generator {
 
         let top_left = self
             .spawn
-            .shifted_by(-spawn_width + margin, -(spawn_height / 2) + margin)
+            .shifted_by(-spawn_width + (2 * margin), -(spawn_height / 2) + margin)
             .unwrap();
 
         let bot_right = self
