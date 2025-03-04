@@ -54,6 +54,9 @@ pub struct CuteWalker {
     pub locked_position_step: usize,
 
     pub state: WalkerState,
+
+    /// pre-calculate locking size
+    pub lock_size: usize,
 }
 
 // TODO: somewhere else i used a cool crate for this -> replace
@@ -85,7 +88,12 @@ impl CuteWalker {
         outer_kernel: Kernel,
         waypoints: Vec<Position>,
         map: &Map,
+        gen_config: &GenerationConfig,
     ) -> CuteWalker {
+        // lock size = maximum possible kernel which is max inner + max margin
+        let lock_size = gen_config.inner_size_probs.max_value().unwrap()
+            + gen_config.outer_margin_probs.max_value().unwrap();
+
         CuteWalker {
             pos: initial_pos,
             steps: 0,
@@ -103,6 +111,7 @@ impl CuteWalker {
             locked_position_step: 0,
             position_history: Vec::new(),
             state: WalkerState::Default,
+            lock_size,
         }
     }
 
@@ -513,8 +522,8 @@ impl CuteWalker {
             }
 
             // TODO: rework this by reusing functionality -> lock possible cells
-            let offset: usize = gen_config.lock_kernel_size; // offset of kernel wrt. position (top/left)
-            let extend: usize = (gen_config.lock_kernel_size * 2) - offset; // how much kernel extends position (bot/right)
+            let offset: usize = self.lock_size; // offset of kernel wrt. position (top/left)
+            let extend: usize = (self.lock_size * 2) - offset; // how much kernel extends position (bot/right)
             let top_left = next_lock_pos.shifted_by(-(offset as i32), -(offset as i32))?;
             let bot_right = next_lock_pos.shifted_by(extend as i32, extend as i32)?;
 
@@ -527,9 +536,7 @@ impl CuteWalker {
             let mut view = self
                 .locked_positions
                 .slice_mut(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
-            for lock_status in view.iter_mut() {
-                *lock_status = true;
-            }
+            view.fill(true);
 
             self.locked_position_step += 1;
         }

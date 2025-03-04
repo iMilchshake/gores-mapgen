@@ -59,6 +59,7 @@ impl Generator {
             outer_kernel,
             subwaypoints,
             &map,
+            &gen_config,
         );
 
         let mut gen = Generator {
@@ -108,7 +109,7 @@ impl Generator {
         // lock padding at map border. amount of padding should ensure that no kernel or locking
         // operation can be out of bounds. As locking is always at least as large as the largest
         // kernel, i just use lock size +1
-        let padding = (gen_config.lock_kernel_size) + 1;
+        let padding = (self.walker.lock_size) + 1;
         let mut top_pad = safe_slice_mut(
             &mut self.walker.locked_positions,
             &Position::new(0, 0),

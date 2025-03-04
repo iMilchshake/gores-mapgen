@@ -757,13 +757,13 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                                 false,
                             );
 
-                            field_edit_widget(
-                                ui,
-                                &mut editor.gen_config.lock_kernel_size,
-                                edit_usize,
-                                "lock kernel size",
-                                false,
-                            );
+                            // field_edit_widget(
+                            //     ui,
+                            //     &mut editor.gen_config.lock_kernel_size,
+                            //     edit_usize,
+                            //     "lock kernel size",
+                            //     false,
+                            // );
                         });
 
                         field_edit_widget(

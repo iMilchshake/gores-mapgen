@@ -190,7 +190,7 @@ pub struct GenerationConfig {
     pub enable_kernel_lock: bool,
 
     /// size of area that is locked
-    pub lock_kernel_size: usize,
+    // pub lock_kernel_size: usize,
 
     /// how far future waypoints lock blocks around them to ensure
     /// they arent blocked before having to actually be reached
@@ -325,7 +325,7 @@ impl GenerationConfig {
             circ_probs,
             max_subwaypoint_dist,
             subwaypoint_max_shift_dist,
-            lock_kernel_size,
+            // lock_kernel_size,
             min_freeze_size: 0, // disable blob removal for now?
             // waypoint locking can make generation more stable, but for random
             // configs it mostly screws stuff up, so im just disabling it :)
@@ -427,7 +427,7 @@ impl Default for GenerationConfig {
             subwaypoint_max_shift_dist: 5.0,
             pos_lock_max_delay: 1000,
             pos_lock_max_dist: 20.0,
-            lock_kernel_size: 9,
+            // lock_kernel_size: 9,
             enable_kernel_lock: true,
             waypoint_lock_distance: 10,
         }

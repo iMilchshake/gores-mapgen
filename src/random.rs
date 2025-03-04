@@ -38,6 +38,13 @@ impl<T> RandomDistConfig<T> {
             }
         }
     }
+
+    pub fn max_value(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
+        self.values.as_ref()?.iter().max()
+    }
 }
 
 pub struct RandomDist<T> {
