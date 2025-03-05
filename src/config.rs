@@ -249,17 +249,15 @@ impl GenerationConfig {
     pub fn random(rnd: &mut Random) -> GenerationConfig {
         let use_locking = rnd.get_bool_with_prob(0.5);
 
-        let (max_subwaypoint_dist, subwaypoint_max_shift_dist, lock_kernel_size) = if use_locking {
+        let (max_subwaypoint_dist, subwaypoint_max_shift_dist) = if use_locking {
             (
                 rnd.get_f32_in_range(20.0, 50.0), // greatly reduce number of sub-waypoints
                 rnd.get_f32_in_range(0.0, 5.0),   // greatly reduce waypoint shift
-                rnd.get_usize_in_range(1, 9),
             )
         } else {
             (
                 rnd.get_f32_in_range(1.0, 100.0),
                 rnd.get_f32_in_range(0.0, 50.0),
-                0, // disable locking
             )
         };
 

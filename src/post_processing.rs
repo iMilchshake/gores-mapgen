@@ -1097,16 +1097,16 @@ pub fn generate_noise_layers(
 
 /// prototype for general purpose pattern detection. I dont need this right now, but i'll leave it
 /// here for future me :)
-pub fn detect_pattern(map: &mut Map) {
-    todo!();
-    type BlockTypePredicate = fn(&BlockType) -> bool;
-    #[rustfmt::skip]
-    const PATTERN: [[BlockTypePredicate; 3]; 3] = [
-        [BlockType::is_empty, BlockType::is_solid, BlockType::is_empty],
-        [BlockType::is_solid, BlockType::is_empty, BlockType::is_solid],
-        [BlockType::is_empty, BlockType::is_solid, BlockType::is_empty],
-    ];
-}
+// pub fn detect_pattern(map: &mut Map) {
+//     todo!();
+//     type BlockTypePredicate = fn(&BlockType) -> bool;
+//     #[rustfmt::skip]
+//     const PATTERN: [[BlockTypePredicate; 3]; 3] = [
+//         [BlockType::is_empty, BlockType::is_solid, BlockType::is_empty],
+//         [BlockType::is_solid, BlockType::is_empty, BlockType::is_solid],
+//         [BlockType::is_empty, BlockType::is_solid, BlockType::is_empty],
+//     ];
+// }
 
 /// Fix diagonal staircase patterns
 ///

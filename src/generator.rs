@@ -1,5 +1,4 @@
 use clap::crate_version;
-use ndarray::s;
 use timing::Timer;
 
 use crate::{
@@ -8,7 +7,7 @@ use crate::{
     kernel::Kernel,
     map::{BlockType, Map, Overwrite},
     position::Position,
-    post_processing::{self as post, fix_stairs, flood_fill},
+    post_processing::{self as post, flood_fill},
     random::{Random, Seed},
     utils::safe_slice_mut,
     walker::CuteWalker,
@@ -69,15 +68,11 @@ impl Generator {
             spawn,
         };
 
-        gen.preprocessing(gen_config, thm_config).unwrap(); // TODO: move somewhere else + pass
+        gen.preprocessing(thm_config).unwrap(); // TODO: move somewhere else + pass
         gen
     }
 
-    pub fn preprocessing(
-        &mut self,
-        gen_config: &GenerationConfig,
-        thm_config: &ThemeConfig,
-    ) -> Result<(), &'static str> {
+    pub fn preprocessing(&mut self, thm_config: &ThemeConfig) -> Result<(), &'static str> {
         // test locking for spawn TODO: add helper
         let spawn_width: i32 = thm_config.spawn_width as i32;
         let spawn_height: i32 = thm_config.spawn_height as i32;

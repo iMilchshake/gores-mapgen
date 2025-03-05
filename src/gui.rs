@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, env, process::exit};
 
-use egui::{text_edit, Align2, RichText};
+use egui::{Align2, RichText};
 use tinyfiledialogs;
 
 use crate::{
@@ -144,18 +144,6 @@ pub fn field_edit_widget<T, F>(
             edit_element(ui, value)
         });
     }
-}
-
-/// edit u64 using a crappy textfield, as DragValue results in numeric instabilities
-fn edit_u64_textfield(ui: &mut egui::Ui, value: &mut u64) -> egui::Response {
-    let mut int_as_str = format!("{}", value);
-    let res = ui.add(egui::TextEdit::singleline(&mut int_as_str).desired_width(150.0));
-    if int_as_str.is_empty() {
-        *value = 0;
-    } else if let Ok(result) = int_as_str.parse() {
-        *value = result;
-    }
-    res
 }
 
 pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
