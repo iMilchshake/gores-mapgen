@@ -189,12 +189,12 @@ pub struct GenerationConfig {
     /// whether kernel locking should be used
     pub enable_kernel_lock: bool,
 
-    /// size of area that is locked
-    // pub lock_kernel_size: usize,
-
     /// how far future waypoints lock blocks around them to ensure
     /// they arent blocked before having to actually be reached
     pub waypoint_lock_distance: usize,
+
+    /// how far empty blocks need be be apart from "main path" for them to count as a dead end
+    pub dead_end_threshold: usize,
 }
 
 impl GenerationConfig {
@@ -425,9 +425,9 @@ impl Default for GenerationConfig {
             subwaypoint_max_shift_dist: 5.0,
             pos_lock_max_delay: 1000,
             pos_lock_max_dist: 20.0,
-            // lock_kernel_size: 9,
             enable_kernel_lock: true,
             waypoint_lock_distance: 10,
+            dead_end_threshold: 10,
         }
     }
 }

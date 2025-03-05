@@ -90,9 +90,10 @@ impl CuteWalker {
         map: &Map,
         gen_config: &GenerationConfig,
     ) -> CuteWalker {
-        // lock size = maximum possible kernel which is max inner + max margin
+        // lock size = maximum possible kernel which is max inner + max margin + 2
         let lock_size = gen_config.inner_size_probs.max_value().unwrap()
-            + gen_config.outer_margin_probs.max_value().unwrap();
+            + gen_config.outer_margin_probs.max_value().unwrap()
+            + 2;
 
         CuteWalker {
             pos: initial_pos,

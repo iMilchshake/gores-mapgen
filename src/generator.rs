@@ -375,23 +375,12 @@ impl Generator {
         print_time(&mut timer, "flood fill (main path dist)", verbose);
 
         // fill up dead ends
-        let mut filled_blocks: Vec<Position> = Vec::new();
-        for ((x, y), map_block) in self.map.grid.indexed_iter_mut() {
-            // only consider empty or freeze blocks
-            if !(*map_block == BlockType::Empty || *map_block == BlockType::Freeze) {
-                continue;
-            }
-
-            if let Some(dist) = ff_main_path.distance[[x, y]] {
-                if dist > 10 {
-                    *map_block = BlockType::Hookable;
-                    filled_blocks.push(Position::new(x, y));
-                }
-            }
-        }
+        let dead_end_blocks =
+            post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance);
         print_time(&mut timer, "fill dead ends", verbose);
 
-        post::fix_stairs(&mut self.map, filled_blocks, &mut self.rnd);
+        // fix stair artifacts resulting from dead end filling
+        post::fix_stairs(&mut self.map, dead_end_blocks, &mut self.rnd);
         print_time(&mut timer, "fix stairs", verbose);
 
         // TODO: only perform this for updated blocks?

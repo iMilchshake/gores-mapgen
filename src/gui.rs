@@ -762,6 +762,18 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             false,
                         );
                     });
+
+                CollapsingHeader::new("Dead End Removal")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.dead_end_threshold,
+                            edit_usize,
+                            "dead end",
+                            false,
+                        );
+                    });
             }
 
             // =======================================[ MAP CONFIG EDIT ]===================================

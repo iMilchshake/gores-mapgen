@@ -1261,3 +1261,27 @@ pub fn generate_finish_room(
 
     Ok(())
 }
+
+pub fn fill_dead_ends(
+    map: &mut Map,
+    gen_config: &GenerationConfig,
+    main_path_distance: &Array2<Option<usize>>,
+) -> Vec<Position> {
+    let mut filled_blocks: Vec<Position> = Vec::new();
+    for ((x, y), map_block) in map.grid.indexed_iter_mut() {
+        // only consider empty or freeze blocks
+        if !(*map_block == BlockType::Empty || *map_block == BlockType::Freeze) {
+            continue;
+        }
+
+        // if distance to main path is too large -> fill up with hookable blocks
+        if let Some(dist) = main_path_distance[[x, y]] {
+            if dist > gen_config.dead_end_threshold {
+                *map_block = BlockType::Hookable;
+                filled_blocks.push(Position::new(x, y));
+            }
+        }
+    }
+
+    filled_blocks
+}
