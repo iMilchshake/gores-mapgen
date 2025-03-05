@@ -58,7 +58,7 @@ impl Generator {
             outer_kernel,
             subwaypoints,
             &map,
-            &gen_config,
+            gen_config,
         );
 
         let mut gen = Generator {
@@ -361,6 +361,7 @@ impl Generator {
         // lock all remaining blocks
         self.walker
             .lock_previous_location(&self.map, gen_config, true)?;
+        print_time(&mut timer, "finish walker lock", verbose);
 
         if gen_config.min_freeze_size > 0 {
             // TODO: Maybe add some alternative function for the case of min_freeze_size=1
@@ -368,12 +369,10 @@ impl Generator {
             print_time(&mut timer, "detect blobs", verbose);
         }
 
-        let (ff_dist, ff_path) =
-            flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
+        let ff = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
         print_time(&mut timer, "flood fill", verbose);
-
-        let (main_path_dist, _) = flood_fill(self, &ff_path.as_ref().unwrap(), None, true)?;
-        print_time(&mut timer, "main path dist", verbose);
+        let ff_main_path = flood_fill(self, ff.path.as_ref().unwrap(), None, true)?;
+        print_time(&mut timer, "flood fill (main path dist)", verbose);
 
         // fill up dead ends
         let mut filled_blocks: Vec<Position> = Vec::new();
@@ -383,7 +382,7 @@ impl Generator {
                 continue;
             }
 
-            if let Some(dist) = main_path_dist[[x, y]] {
+            if let Some(dist) = ff_main_path.distance[[x, y]] {
                 if dist > 10 {
                     *map_block = BlockType::Hookable;
                     filled_blocks.push(Position::new(x, y));
@@ -401,7 +400,7 @@ impl Generator {
 
         post::gen_all_platform_candidates(
             &self.walker.position_history,
-            &ff_dist,
+            &ff.distance,
             &mut self.map,
             gen_config,
             debug_layers,
@@ -413,7 +412,7 @@ impl Generator {
             gen_config.skip_length_bounds,
             gen_config.skip_min_spacing_sqr,
             gen_config.max_level_skip,
-            &ff_dist,
+            &ff.distance,
             debug_layers,
         );
         print_time(&mut timer, "generate skips", verbose);
@@ -428,8 +427,8 @@ impl Generator {
                 .float_layers
                 .get_mut("flood_fill")
                 .unwrap()
-                .grid = ff_dist.map(|v| v.map(|v| v as f32));
-            if let Some(path) = ff_path.as_ref() {
+                .grid = ff.distance.map(|v| v.map(|v| v as f32));
+            if let Some(path) = ff.path.as_ref() {
                 let path_grid = &mut debug_layers.bool_layers.get_mut("path").unwrap().grid;
                 for pos in path {
                     path_grid[pos.as_index()] = true;
@@ -439,7 +438,7 @@ impl Generator {
                 .float_layers
                 .get_mut("main_path_dist")
                 .unwrap()
-                .grid = main_path_dist.map(|v| v.map(|v| v as f32));
+                .grid = ff_main_path.distance.map(|v| v.map(|v| v as f32));
             debug_layers.bool_layers.get_mut("lock").unwrap().grid =
                 self.walker.locked_positions.clone();
             debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;

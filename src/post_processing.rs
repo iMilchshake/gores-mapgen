@@ -629,6 +629,17 @@ pub fn remove_freeze_blobs(
     }
 }
 
+pub struct FloodFillResult {
+    /// tracks distance from each cell to `start_pos`
+    pub distance: Array2<Option<usize>>,
+
+    /// tracks from which adjacent cell each cell was visited, only if `end_pos` is set
+    pub come_from: Option<Array2<Option<ShiftDirection>>>,
+
+    /// reconstruct path from `start_pos` to `end_pos` using `come_from`, only if `end_pos` is set
+    pub path: Option<Vec<Position>>,
+}
+
 /// flood fill implementation with optional multi-start or direction tracking.
 /// to enable direction tracking, just provide an `end_pos`
 pub fn flood_fill(
@@ -636,14 +647,14 @@ pub fn flood_fill(
     start_pos: &[Position],
     end_pos: Option<&Position>,
     fill_freeze: bool,
-) -> Result<(Array2<Option<usize>>, Option<Vec<Position>>), &'static str> {
+) -> Result<FloodFillResult, &'static str> {
     let width = gen.map.width;
     let height = gen.map.height;
     let mut distance = Array2::from_elem((width, height), None);
     let mut queue = VecDeque::new();
 
     // track from where a cell was visited first
-    let mut from: Option<Array2<Option<ShiftDirection>>> = if end_pos.is_some() {
+    let mut come_from: Option<Array2<Option<ShiftDirection>>> = if end_pos.is_some() {
         Some(Array2::from_elem((width, height), None))
     } else {
         None
@@ -679,8 +690,8 @@ pub fn flood_fill(
             {
                 distance[pos_neighbor.as_index()] = Some(dist + 1);
 
-                if let Some(from) = from.as_mut() {
-                    from[pos_neighbor.as_index()] = Some(shift.clone());
+                if let Some(from) = come_from.as_mut() {
+                    from[pos_neighbor.as_index()] = Some(*shift);
                 }
 
                 queue.push_back((pos_neighbor, dist + 1));
@@ -689,10 +700,10 @@ pub fn flood_fill(
     }
 
     // get fastest path from start to finish
-    if let Some(end_pos) = end_pos {
+    let path = if let Some(end_pos) = end_pos {
         let mut pos = end_pos.clone();
         let num_steps = distance[pos.as_index()].unwrap();
-        let from = from.as_ref().unwrap();
+        let from = come_from.as_ref().unwrap();
         let mut path_grid: Array2<bool> = Array2::from_elem((gen.map.width, gen.map.height), false);
         let mut path: Vec<Position> = vec![end_pos.clone()];
 
@@ -703,10 +714,16 @@ pub fn flood_fill(
             path.push(pos.clone());
         }
 
-        return Ok((distance, Some(path)));
-    }
+        Some(path)
+    } else {
+        None
+    };
 
-    Ok((distance, None))
+    Ok(FloodFillResult {
+        distance,
+        come_from,
+        path,
+    })
 }
 
 /// stores all relevant information about platform candidates
@@ -1064,7 +1081,7 @@ pub fn generate_noise_layers(
     debug_layers: &mut Option<DebugLayers>,
 ) {
     map.noise_overlay = Some(noise::generate_noise_array(
-        &map,
+        map,
         thm_config.overlay_noise_scale,
         thm_config.overlay_noise_invert,
         thm_config.overlay_noise_threshold,
@@ -1074,7 +1091,7 @@ pub fn generate_noise_layers(
         rnd.get_u32(),
     ));
     let noise_background = noise::generate_noise_array(
-        &map,
+        map,
         thm_config.background_noise_scale,
         thm_config.background_noise_invert,
         thm_config.background_noise_threshold,
@@ -1178,9 +1195,7 @@ pub fn detect_stair(map: &Map, pos: &Position) -> Option<(i32, i32)> {
     }
 
     // check if no empty corner found
-    if corner.is_none() {
-        return None; // no stair
-    }
+    corner?;
     let corner = corner.unwrap();
 
     // ensure that neighboring non diagonal cells are also empty
@@ -1193,8 +1208,8 @@ pub fn detect_stair(map: &Map, pos: &Position) -> Option<(i32, i32)> {
     }
 
     // ensure that opposite non diagonal cells are solid
-    let opposite_pos1 = pos.shifted_by(-1 * corner.0, 0).unwrap();
-    let opposite_pos2 = pos.shifted_by(0, -1 * corner.1).unwrap();
+    let opposite_pos1 = pos.shifted_by(-corner.0, 0).unwrap();
+    let opposite_pos2 = pos.shifted_by(0, -corner.1).unwrap();
     if !map.grid[opposite_pos1.as_index()].is_solid()
         || !map.grid[opposite_pos2.as_index()].is_solid()
     {
@@ -1202,7 +1217,7 @@ pub fn detect_stair(map: &Map, pos: &Position) -> Option<(i32, i32)> {
     }
 
     // all checks passes, this is a stair!
-    return Some(corner);
+    Some(corner)
 }
 
 pub fn generate_finish_room(

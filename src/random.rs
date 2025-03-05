@@ -119,7 +119,7 @@ impl Seed {
             SeedType::U64 => seed_str
                 .parse::<u64>()
                 .ok()
-                .map(|seed_u64| Self::from_u64(seed_u64)),
+                .map(Self::from_u64),
 
             SeedType::BASE64 => Self::from_base64(seed_str),
         }

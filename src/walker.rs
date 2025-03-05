@@ -1,4 +1,4 @@
-use std::{fmt, usize};
+use std::fmt;
 
 use ndarray::{s, Array2};
 
@@ -243,9 +243,7 @@ impl CuteWalker {
     }
 
     pub fn is_pos_locked(&self, pos: &Position) -> bool {
-        let target_locked =
-            self.locked_positions[pos.as_index()] || self.locked_waypoint_positions[pos.as_index()];
-        target_locked
+        self.locked_positions[pos.as_index()] || self.locked_waypoint_positions[pos.as_index()]
     }
 
     pub fn is_shift_locked(&self, shift: &ShiftDirection, map: &Map) -> bool {
@@ -415,7 +413,7 @@ impl CuteWalker {
                     break;
                 }
 
-                pos.shift_inplace(&shift, map)?;
+                pos.shift_inplace(shift, map)?;
             }
         }
 

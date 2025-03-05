@@ -196,7 +196,7 @@ impl TwExport {
 
         // add map generator information
         tw_map.info.author = "iMilchshake".to_string();
-        tw_map.info.version = format!("{}", crate_version!());
+        tw_map.info.version = crate_version!().to_string();
         tw_map.info.credits = "https://github.com/iMilchshake/gores-mapgen".to_string();
 
         if let Some(ref noise_background) = map.noise_background {
