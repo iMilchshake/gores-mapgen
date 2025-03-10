@@ -117,11 +117,18 @@ pub struct Editor {
     /// whether to keep using the same seed for next generations
     pub retry_on_failure: bool,
 
-    /// whether to generate noise layers. this is computational expensive and should only be done
-    /// for debugging purposes, or if the map is intended to be exported.
-    pub generate_noise_layers: bool,
+    /// Whether to perform map export preprocessing such as generation of noise layers.
+    /// This is computational expensive and should only be done for debugging purposes,
+    /// or if the map is intended to be exported.
+    pub export_preprocess: bool,
 
     pub verbose_post_process: bool,
+
+    /// very good performance optimization, only disable for debugging
+    pub use_chunked_rendering: bool,
+
+    /// Whether to flip maps after generation
+    pub use_map_flip: bool,
 }
 
 impl Editor {
@@ -162,8 +169,10 @@ impl Editor {
             show_theme_widget: false,
             show_debug_widget: false,
             show_debug_layers: false,
-            generate_noise_layers: true,
+            export_preprocess: false,
             verbose_post_process: false,
+            use_chunked_rendering: true,
+            use_map_flip: false,
         };
 
         // initialize debug layers
@@ -339,6 +348,7 @@ impl Editor {
         let cwd = env::current_dir().unwrap();
         let initial_path = cwd.join("name.map").to_string_lossy().to_string();
         if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
+            // TODO: perform export preprocessing if not enabled in editor
             self.gen.map.export(&PathBuf::from_str(&path_out).unwrap());
         }
     }

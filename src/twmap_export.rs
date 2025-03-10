@@ -47,8 +47,9 @@ pub fn set_bool_active(_: usize, _: usize, active: &bool) -> u8 {
 }
 
 /// place a tile with matching id for each char
-pub fn set_char_id(_: usize, _: usize, char: &char) -> u8 {
-    match *char {
+pub fn set_char_id(_: usize, _: usize, character: &Option<char>) -> u8 {
+    let character = character.as_ref().unwrap_or(&' ');
+    match *character {
         ' ' => 0,
         '.' => 52,
         ':' => 64,
@@ -68,7 +69,7 @@ pub fn set_char_id(_: usize, _: usize, char: &char) -> u8 {
             }
         }
 
-        _ => panic!("unsupported character: {:}", char),
+        _ => panic!("unsupported character: {:}", character),
     }
 }
 

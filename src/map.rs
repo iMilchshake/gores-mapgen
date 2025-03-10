@@ -3,9 +3,9 @@ use crate::{
     position::{Position, ShiftDirection},
     twmap_export::TwExport,
 };
-use ndarray::{s, Array2};
+use ndarray::{s, Array2, Axis};
 
-use std::{char, path::PathBuf};
+use std::path::PathBuf;
 
 const CHUNK_SIZE: usize = 5;
 const MAX_SHIFT_UNTIL_STEPS: usize = 25;
@@ -113,7 +113,7 @@ pub enum KernelType {
 #[derive(Debug)]
 pub struct Map {
     pub grid: Array2<BlockType>,
-    pub font_layer: Array2<char>,
+    pub font_layer: Array2<Option<char>>,
     pub noise_overlay: Option<Array2<bool>>,
     pub noise_background: Option<Array2<bool>>,
     pub height: usize,
@@ -126,7 +126,7 @@ impl Map {
     pub fn new(width: usize, height: usize, default: BlockType) -> Map {
         Map {
             grid: Array2::from_elem((width, height), default),
-            font_layer: Array2::from_elem((width, height), ' '),
+            font_layer: Array2::from_elem((width, height), None),
             noise_overlay: None,
             noise_background: None,
             width,
@@ -335,8 +335,46 @@ impl Map {
                 cursor.y += 1;
                 cursor.x = pos.x;
             } else {
-                self.font_layer[cursor.as_index()] = ch;
+                self.font_layer[cursor.as_index()] = Some(ch);
                 cursor.x += 1;
+            }
+        }
+    }
+
+    /// Flip grid and font layer of map on the x axis.
+    /// TODO: Chunked rendering and debug layers are currently broken
+    pub fn flip_x_axis(&mut self) {
+        // just flip map grid
+        self.grid.invert_axis(Axis(0));
+
+        // we dont need to flip noise layers, as they are just random background anyways
+
+        // flip font layers
+        self.font_layer.invert_axis(Axis(0));
+
+        // then fix character ordering of flipped font layer
+        for y in 0..self.height {
+            let mut x = 0;
+            while x < self.width {
+                // find start of character group
+                if self.font_layer[(x, y)].is_some() {
+                    let x_start = x;
+
+                    // find end of character group
+                    while x < self.width && self.font_layer[(x, y)].is_some() {
+                        x += 1;
+                    }
+                    let x_end = x - 1;
+
+                    // flip character group
+                    let mut character_group = self.font_layer.slice_mut(s![x_start..x_end + 1, y]);
+                    let len = character_group.len();
+                    for i in 0..(len / 2) {
+                        character_group.swap(i, len - i - 1);
+                    }
+                } else {
+                    x += 1;
+                }
             }
         }
     }

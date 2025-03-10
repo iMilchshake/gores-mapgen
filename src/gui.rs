@@ -247,8 +247,9 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
                 }
             });
             ui.menu_button("Settings", |ui| {
-                ui.checkbox(&mut editor.generate_noise_layers, "noise layers");
+                ui.checkbox(&mut editor.export_preprocess, "export preprocess");
                 ui.checkbox(&mut editor.verbose_post_process, "verbose post");
+                ui.checkbox(&mut editor.use_chunked_rendering, "chunked render");
             });
             ui.menu_button("Help", |ui| if ui.button("About").clicked() {});
         });

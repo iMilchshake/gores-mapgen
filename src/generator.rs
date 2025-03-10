@@ -362,7 +362,6 @@ impl Generator {
         gen_config: &GenerationConfig,
         thm_config: &ThemeConfig,
         debug_layers: &mut Option<DebugLayers>,
-        export_preprocess: bool,
         verbose: bool,
     ) -> Result<(), &'static str> {
         let mut timer = Timer::start();
@@ -452,18 +451,23 @@ impl Generator {
         }
         print_time(&mut timer, "set debug layers", verbose);
 
-        if export_preprocess {
-            post::generate_noise_layers(&mut self.map, &mut self.rnd, thm_config, debug_layers);
-            print_time(&mut timer, "generate noise layers", verbose);
-        }
-
-        // post::a_star(&self.map, &self.spawn, &self.walker.pos, debug_layers)?;
-        // print_time(&mut timer, "astar", verbose);
-        //
-        // post::dijkstra(&self.map, &self.spawn, &self.walker.pos, debug_layers)?;
-        // print_time(&mut timer, "djikstra", verbose);
-
         Ok(())
+    }
+
+    pub fn export_preprocess(
+        &mut self,
+        thm_config: &ThemeConfig,
+        debug_layers: &mut Option<DebugLayers>,
+        verbose: bool,
+    ) {
+        let mut timer = Timer::start();
+        post::generate_noise_layers(&mut self.map, &mut self.rnd, thm_config, debug_layers);
+        print_time(&mut timer, "generate noise layers", verbose);
+
+        if self.rnd.get_bool_with_prob(0.5) {
+            self.map.flip_x_axis();
+            print_time(&mut timer, "flip map", verbose);
+        }
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.
@@ -491,13 +495,12 @@ impl Generator {
         }
 
         // perform all post processing step without creating any debug layers
-        gen.perform_all_post_processing(
-            gen_config,
-            thm_config,
-            &mut None,
-            export_preprocess,
-            false,
-        )?;
+        gen.perform_all_post_processing(gen_config, thm_config, &mut None, false)?;
+
+        // if enabled, perform all export preprocessing steps without debug layers
+        if export_preprocess {
+            gen.export_preprocess(thm_config, &mut None, false);
+        }
 
         Ok(gen.map)
     }

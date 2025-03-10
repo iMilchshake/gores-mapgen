@@ -95,12 +95,19 @@ async fn main() {
                         &editor.gen_config,
                         &editor.thm_config,
                         &mut editor.debug_layers,
-                        editor.generate_noise_layers,
                         editor.verbose_post_process,
                     )
                     .unwrap_or_else(|err| {
                         println!("Post Processing Failed: {:}", err);
                     });
+
+                if editor.export_preprocess {
+                    editor.gen.export_preprocess(
+                        &editor.thm_config,
+                        &mut editor.debug_layers,
+                        editor.verbose_post_process,
+                    );
+                }
             }));
 
             // switch into setup mode for next map
@@ -112,11 +119,17 @@ async fn main() {
         editor.handle_user_inputs();
 
         clear_background(WHITE);
-        draw_chunked_grid(
-            &editor.gen.map.grid,
-            &editor.gen.map.chunk_edited,
-            editor.gen.map.chunk_size,
-        );
+
+        if editor.use_chunked_rendering {
+            draw_chunked_grid(
+                &editor.gen.map.grid,
+                &editor.gen.map.chunk_edited,
+                editor.gen.map.chunk_size,
+            );
+        } else {
+            draw_grid(&editor.gen.map.grid, blocktype_to_color);
+        }
+
         draw_font_layer(&editor.gen.map.font_layer);
 
         // draw debug layers
