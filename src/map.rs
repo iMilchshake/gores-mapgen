@@ -344,10 +344,13 @@ impl Map {
     /// Flip grid and font layer of map on the x axis.
     /// TODO: Chunked rendering and debug layers are currently broken
     pub fn flip_x_axis(&mut self) {
-        // just flip map grid
+        // flip map grid
         self.grid.invert_axis(Axis(0));
 
-        // we dont need to flip noise layers, as they are just random background anyways
+        // flip noise overlay
+        if let Some(ref mut noise_overlay) = self.noise_overlay {
+            noise_overlay.invert_axis(Axis(0));
+        }
 
         // flip font layers
         self.font_layer.invert_axis(Axis(0));

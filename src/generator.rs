@@ -454,6 +454,8 @@ impl Generator {
         Ok(())
     }
 
+    /// Perform preprocessing steps that are intended for map export, this call can be skipped
+    /// if the generated maps are not intended to be exported
     pub fn export_preprocess(
         &mut self,
         thm_config: &ThemeConfig,
