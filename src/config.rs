@@ -180,6 +180,9 @@ pub struct GenerationConfig {
     /// maximum distance that subwaypoints are shifted from their base position
     pub subwaypoint_max_shift_dist: f32,
 
+    /// whether to ignore waypoints that are locked or out of bounds
+    pub skip_invalid_waypoints: bool,
+
     /// how close previous positions may be locked
     pub pos_lock_max_dist: f32,
 
@@ -423,6 +426,7 @@ impl Default for GenerationConfig {
             fade_min_size: 3,
             max_subwaypoint_dist: 50.0,
             subwaypoint_max_shift_dist: 5.0,
+            skip_invalid_waypoints: true, // TODO: make false def
             pos_lock_max_delay: 1000,
             pos_lock_max_dist: 20.0,
             enable_kernel_lock: true,

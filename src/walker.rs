@@ -314,8 +314,9 @@ impl CuteWalker {
                     current_shift = unpark_shift;
                     *steps_left -= 1;
                 } else {
-                    // println!("[{}] DONE", self.steps);
-                    assert!(!self.is_shift_locked(&shifts[0], map));
+                    if self.is_shift_locked(&shifts[0], map) {
+                        return Err("greedy shift after unparking is locked??");
+                    }
                     current_shift = shifts[0]; // unparked, perform greedy to get around obstacle
                     self.state = WalkerState::Default;
                 }
