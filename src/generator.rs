@@ -391,13 +391,15 @@ impl Generator {
         print_time(&mut timer, "flood fill (main path dist)", verbose);
 
         // fill up dead ends
-        let dead_end_blocks =
-            post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance);
-        print_time(&mut timer, "fill dead ends", verbose);
+        if gen_config.use_dead_end_removal {
+            let dead_end_blocks =
+                post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance);
+            print_time(&mut timer, "fill dead ends", verbose);
 
-        // fix stair artifacts resulting from dead end filling
-        post::fix_stairs(&mut self.map, dead_end_blocks, &mut self.rnd);
-        print_time(&mut timer, "fix stairs", verbose);
+            // fix stair artifacts resulting from dead end filling
+            post::fix_stairs(&mut self.map, dead_end_blocks, &mut self.rnd);
+            print_time(&mut timer, "fix stairs", verbose);
+        }
 
         // TODO: only perform this for updated blocks?
         post::fix_edge_bugs(self).expect("fix edge bugs failed");

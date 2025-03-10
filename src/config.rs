@@ -157,6 +157,7 @@ pub struct GenerationConfig {
     /// min unconnected freeze obstacle size
     pub min_freeze_size: usize,
 
+    // ===================================[ Pulse ]==========================================
     /// enable pulse
     pub enable_pulse: bool,
 
@@ -165,6 +166,7 @@ pub struct GenerationConfig {
     pub pulse_corner_delay: usize,
     pub pulse_max_kernel_size: usize,
 
+    // ===================================[ Fade ]==========================================
     /// number of initial walker steps to perform fading. Will fade from max to min kernel size.
     pub fade_steps: usize,
 
@@ -174,7 +176,9 @@ pub struct GenerationConfig {
     /// goal min kernel size for fading
     pub fade_min_size: usize,
 
-    /// maximum valid distance between subwaypoints
+    // ===================================[ Waypoints ]=====================================
+
+    // maximum valid distance between subwaypoints
     pub max_subwaypoint_dist: f32,
 
     /// maximum distance that subwaypoints are shifted from their base position
@@ -183,6 +187,7 @@ pub struct GenerationConfig {
     /// whether to ignore waypoints that are locked or out of bounds
     pub skip_invalid_waypoints: bool,
 
+    // ===================================[ Locking ]=====================================
     /// how close previous positions may be locked
     pub pos_lock_max_dist: f32,
 
@@ -195,6 +200,10 @@ pub struct GenerationConfig {
     /// how far future waypoints lock blocks around them to ensure
     /// they arent blocked before having to actually be reached
     pub waypoint_lock_distance: usize,
+
+    // ===================================[ Dead End Removal ]=============================
+    /// enable dead end removal feature
+    pub use_dead_end_removal: bool,
 
     /// how far empty blocks need be be apart from "main path" for them to count as a dead end
     pub dead_end_threshold: usize,
@@ -426,11 +435,12 @@ impl Default for GenerationConfig {
             fade_min_size: 3,
             max_subwaypoint_dist: 50.0,
             subwaypoint_max_shift_dist: 5.0,
-            skip_invalid_waypoints: true, // TODO: make false def
+            skip_invalid_waypoints: false,
             pos_lock_max_delay: 1000,
             pos_lock_max_dist: 20.0,
             enable_kernel_lock: true,
             waypoint_lock_distance: 10,
+            use_dead_end_removal: true,
             dead_end_threshold: 10,
         }
     }

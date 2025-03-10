@@ -10,10 +10,10 @@
   "shift_weights": {
     "values": null,
     "probs": [
-      0.6451613,
-      0.16129032,
-      0.12903225,
-      0.06451613
+      0.64516133,
+      0.16129033,
+      0.12903227,
+      0.064516135
     ]
   },
   "plat_min_distance": 40,
@@ -74,8 +74,11 @@
   "fade_min_size": 2,
   "max_subwaypoint_dist": 5.0,
   "subwaypoint_max_shift_dist": 50.0,
+  "skip_invalid_waypoints": true,
   "pos_lock_max_dist": 150.0,
   "pos_lock_max_delay": 9999,
-  "lock_kernel_size": 1,
-  "waypoint_lock_distance": 0
+  "enable_kernel_lock": true,
+  "waypoint_lock_distance": 0,
+  "use_dead_end_removal": false,
+  "dead_end_threshold": 10
 }

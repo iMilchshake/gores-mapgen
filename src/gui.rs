@@ -599,6 +599,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             "subpoint max shift",
                             false,
                         );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.skip_invalid_waypoints,
+                            edit_bool,
+                            "skip invalid waypoints",
+                            true,
+                        );
                     });
 
                 ui.add_enabled_ui(editor.is_setup(), |ui| {
@@ -744,14 +752,6 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                                 "pos lock max delay",
                                 false,
                             );
-
-                            // field_edit_widget(
-                            //     ui,
-                            //     &mut editor.gen_config.lock_kernel_size,
-                            //     edit_usize,
-                            //     "lock kernel size",
-                            //     false,
-                            // );
                         });
 
                         field_edit_widget(
@@ -768,11 +768,20 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     .show(ui, |ui| {
                         field_edit_widget(
                             ui,
-                            &mut editor.gen_config.dead_end_threshold,
-                            edit_usize,
-                            "dead end",
+                            &mut editor.gen_config.use_dead_end_removal,
+                            edit_bool,
+                            "use dead end",
                             false,
                         );
+                        ui.add_enabled_ui(editor.gen_config.use_dead_end_removal, |ui| {
+                            field_edit_widget(
+                                ui,
+                                &mut editor.gen_config.dead_end_threshold,
+                                edit_usize,
+                                "dist threshold",
+                                false,
+                            );
+                        });
                     });
             }
 
