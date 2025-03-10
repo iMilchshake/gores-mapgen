@@ -256,7 +256,7 @@ impl Generator {
         validate: bool,
         debug_layers: &mut Option<DebugLayers>,
     ) -> Result<(), &'static str> {
-        // check if walker has reached goal position
+        // check if walker has reached currernt goal position
         if self
             .walker
             .is_goal_reached(&gen_config.waypoint_reached_dist)
@@ -265,17 +265,16 @@ impl Generator {
             // get next waypoint
             self.walker.next_waypoint();
 
-            // optionally skip invalid waypoints
-            if let Some(goal) = &self.walker.goal {
-                // we only consider regular locking, not waypoint locks
-
-                if gen_config.skip_invalid_waypoints
+            // if enabled, keep skipping invalid waypoints
+            while let Some(goal) = &self.walker.goal {
+                let is_invalid = gen_config.skip_invalid_waypoints
                     && (!self.map.pos_in_bounds(goal)
-                        || self.walker.locked_positions[goal.as_index()])
-                {
-                    // skip waypoint, get another!
-                    dbg!("we skipped one :O");
+                        || self.walker.locked_positions[goal.as_index()]);
+
+                if is_invalid {
                     self.walker.next_waypoint();
+                } else {
+                    break; // valid waypoint -> stop searching
                 }
             }
 
