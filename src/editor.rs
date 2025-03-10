@@ -344,11 +344,15 @@ impl Editor {
         self.map_cam.update_macroquad_cam();
     }
 
-    pub fn save_map_dialog(&self) {
+    pub fn save_map_dialog(&mut self) {
         let cwd = env::current_dir().unwrap();
         let initial_path = cwd.join("name.map").to_string_lossy().to_string();
         if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
-            // TODO: perform export preprocessing if not enabled in editor
+            // perform export preprocessing, if not enabled in editor
+            if !self.export_preprocess {
+                self.gen
+                    .export_preprocess(&self.thm_config, &mut self.debug_layers, false);
+            }
             self.gen.map.export(&PathBuf::from_str(&path_out).unwrap());
         }
     }
