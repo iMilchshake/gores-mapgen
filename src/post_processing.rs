@@ -728,7 +728,7 @@ pub fn flood_fill(
 
 /// stores all relevant information about platform candidates
 #[derive(Debug, Clone)]
-pub struct Platform {
+pub struct LegacyPlatform {
     /// how total height is available for platform generation
     pub available_height: usize,
 
@@ -742,11 +742,11 @@ pub struct Platform {
     pub pos: Position,
 }
 
-pub fn get_optimal_greedy_platform_candidate(
+pub fn get_legacy_opt_plat_cand(
     pos: &Position,
     map: &Map,
     gen_config: &GenerationConfig,
-) -> Result<Platform, &'static str> {
+) -> Result<LegacyPlatform, &'static str> {
     // how far empty box has been extended
     let mut left_limit = 0;
     let mut right_limit = 0;
@@ -841,7 +841,7 @@ pub fn get_optimal_greedy_platform_candidate(
         }
     }
 
-    Ok(Platform {
+    Ok(LegacyPlatform {
         pos: pos.clone(),
         width_left: left_limit as usize,
         width_right: right_limit as usize,
@@ -849,14 +849,14 @@ pub fn get_optimal_greedy_platform_candidate(
     })
 }
 
-pub fn gen_all_platform_candidates(
+pub fn gen_legacy_all_platforms(
     walker_pos_history: &Vec<Position>,
     flood_fill: &Array2<Option<usize>>,
     map: &mut Map,
     gen_config: &GenerationConfig,
     debug_layers: &mut Option<DebugLayers>,
 ) {
-    let mut platform_candidates: Vec<Platform> = Vec::new();
+    let mut platform_candidates: Vec<LegacyPlatform> = Vec::new();
     let mut last_platform_level_distance = 0;
 
     for pos in walker_pos_history {
@@ -882,7 +882,7 @@ pub fn gen_all_platform_candidates(
 
         // try to get optimal platform candidate
         let platform_pos = floor_pos.shifted_by(0, -1).unwrap();
-        let result = get_optimal_greedy_platform_candidate(&platform_pos, map, gen_config);
+        let result = get_legacy_opt_plat_cand(&platform_pos, map, gen_config);
         if let Ok(platform) = result {
             // debug visualizations
             if let Some(debug_layers) = debug_layers {
@@ -1284,4 +1284,47 @@ pub fn fill_dead_ends(
     }
 
     filled_blocks
+}
+
+enum PlatformCandidate {}
+
+pub fn detect_floor_blocks(map: &Map) -> Result<Vec<Position>, &'static str> {
+    let mut floor_pos: Vec<Position> = Vec::new();
+
+    for x in 0..map.width {
+        for y in 1..map.height {
+            if map.grid[[x, y]] != BlockType::Hookable {
+                continue; // current block must be hookable
+            }
+
+            if map.grid[[x, y - 1]] != BlockType::Freeze {
+                continue; // block above must be freeze
+            }
+
+            // shift upwards to find first non freeze block
+            let pos = Position::new(x, y);
+            if let Some(non_freeze_pos) =
+                map.shift_pos_until(&pos, ShiftDirection::Up, |b| !b.is_freeze())
+            {
+                if map.grid[non_freeze_pos.as_index()] != BlockType::Empty {
+                    continue; // above N freeze blocks there must be an empty block
+                }
+
+                //  TODO: check wrt. to base position?
+                if !map.check_area_all(
+                    &non_freeze_pos.shifted_by(0, -6)?,
+                    &non_freeze_pos,
+                    &BlockType::Empty,
+                )? {
+                    continue;
+                }
+
+                let freeze_height = pos.y - non_freeze_pos.y;
+
+                floor_pos.push(pos);
+            }
+        }
+    }
+
+    Ok(floor_pos)
 }

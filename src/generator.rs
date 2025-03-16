@@ -404,14 +404,14 @@ impl Generator {
         post::fix_edge_bugs(self).expect("fix edge bugs failed");
         print_time(&mut timer, "fix edge_bugs #2", verbose);
 
-        post::gen_all_platform_candidates(
-            &self.walker.position_history,
-            &ff.distance,
-            &mut self.map,
-            gen_config,
-            debug_layers,
-        );
-        print_time(&mut timer, "platforms", verbose);
+        // post::gen_legacy_all_platforms(
+        //     &self.walker.position_history,
+        //     &ff.distance,
+        //     &mut self.map,
+        //     gen_config,
+        //     debug_layers,
+        // );
+        // print_time(&mut timer, "platforms", verbose);
 
         post::generate_all_skips(
             self,
@@ -422,6 +422,10 @@ impl Generator {
             debug_layers,
         );
         print_time(&mut timer, "generate skips", verbose);
+
+        // platforms
+        let floor_pos = post::detect_floor_blocks(&self.map)?;
+        print_time(&mut timer, "generate platforms", verbose);
 
         post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
         print_time(&mut timer, "place obstacles", verbose);
@@ -448,6 +452,13 @@ impl Generator {
             debug_layers.bool_layers.get_mut("lock").unwrap().grid =
                 self.walker.locked_positions.clone();
             debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
+
+            let grid = &mut debug_layers.bool_layers.get_mut("floor").unwrap().grid;
+
+            // floor
+            for pos in floor_pos {
+                grid[pos.as_index()] = true;
+            }
         }
         print_time(&mut timer, "set debug layers", verbose);
 
