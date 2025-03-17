@@ -102,6 +102,14 @@ impl DebugLayers {
                 "floor",
                 BoolLayer::new(shape, Color::new(0.96, 0.16, 0.18, default_alpha), false),
             ),
+            (
+                "plat_cand",
+                BoolLayer::new(shape, Color::new(0.26, 0.96, 0.18, default_alpha), false),
+            ),
+            (
+                "plat_group",
+                BoolLayer::new(shape, Color::new(0.26, 0.26, 0.98, default_alpha), false),
+            ),
         ]);
 
         let float_layers: BTreeMap<&'static str, FloatLayer> = BTreeMap::from([

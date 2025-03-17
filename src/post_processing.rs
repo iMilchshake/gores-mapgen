@@ -16,6 +16,8 @@ use std::{
 };
 
 use dt::dt_bool;
+use egui::containers;
+use macroquad::miniquad::conf::Platform;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
@@ -1286,10 +1288,36 @@ pub fn fill_dead_ends(
     filled_blocks
 }
 
-enum PlatformCandidate {}
+#[derive(Clone, PartialEq)]
+enum PlatformPosCandidate {
+    /// location is not platform candidate
+    None,
+    /// location is platform candidate, not used yet in a platform group
+    Candidate,
+    /// location is platform candidate and already used for platform group
+    Grouped,
+}
 
-pub fn detect_floor_blocks(map: &Map) -> Result<Vec<Position>, &'static str> {
-    let mut floor_pos: Vec<Position> = Vec::new();
+pub struct FloorPosition {
+    pub pos: Position,
+    pub freeze_height: usize,
+}
+
+#[derive(Debug)]
+pub struct PlatformCandidate {
+    pub pos: Position,
+    pub offset_left: usize,
+    pub offset_right: usize,
+}
+
+pub fn detect_floor_blocks(
+    map: &Map,
+    debug_layers: &mut Option<DebugLayers>,
+) -> Result<Vec<FloorPosition>, &'static str> {
+    let mut floor_pos: Vec<FloorPosition> = Vec::new();
+
+    let max_freeze = 2;
+    let target_height = 5;
 
     for x in 0..map.width {
         for y in 1..map.height {
@@ -1310,20 +1338,82 @@ pub fn detect_floor_blocks(map: &Map) -> Result<Vec<Position>, &'static str> {
                     continue; // above N freeze blocks there must be an empty block
                 }
 
-                //  TODO: check wrt. to base position?
+                let freeze_height = pos.y - non_freeze_pos.y - 1;
+                if freeze_height > max_freeze {
+                    continue;
+                }
+
+                let empty_blocks = target_height - freeze_height;
                 if !map.check_area_all(
-                    &non_freeze_pos.shifted_by(0, -6)?,
+                    &non_freeze_pos.shifted_by(0, -(empty_blocks as i32))?,
                     &non_freeze_pos,
                     &BlockType::Empty,
                 )? {
                     continue;
                 }
 
-                let freeze_height = pos.y - non_freeze_pos.y;
-
-                floor_pos.push(pos);
+                floor_pos.push(FloorPosition { pos, freeze_height });
             }
         }
+    }
+
+    // fill candidates
+    let mut candidates = Array2::from_elem((map.width, map.height), PlatformPosCandidate::None);
+    for floor in floor_pos.iter() {
+        let mut view = safe_slice_mut(
+            &mut candidates,
+            &floor.pos.shifted_by(0, -(floor.freeze_height as i32))?, // TODO: add margins
+            &floor.pos,
+            map,
+        )?;
+        view.fill(PlatformPosCandidate::Candidate);
+    }
+
+    let mut platforms = Vec::new();
+
+    // group candidates
+    for floor in floor_pos.iter() {
+        let start_x = floor.pos.x;
+        let start_y = floor.pos.y;
+
+        // group to the left
+        let mut offset_left = 1;
+        while candidates[[floor.pos.x - offset_left, floor.pos.y]]
+            == PlatformPosCandidate::Candidate
+        {
+            candidates[[floor.pos.x - offset_left, floor.pos.y]] = PlatformPosCandidate::Grouped;
+            offset_left += 1;
+        }
+
+        // group to the right
+        let mut offset_right = 1;
+        while candidates[[floor.pos.x + offset_right, floor.pos.y]]
+            == PlatformPosCandidate::Candidate
+        {
+            candidates[[floor.pos.x + offset_right, floor.pos.y]] = PlatformPosCandidate::Grouped;
+            offset_right += 1;
+        }
+
+        // group starting position
+        candidates[[start_x, start_y]] = PlatformPosCandidate::Grouped;
+
+        platforms.push(PlatformCandidate {
+            pos: floor.pos.clone(), // TODO: remove clone
+            offset_left,
+            offset_right,
+        });
+    }
+
+    dbg!(&platforms);
+
+    if let Some(debug_layers) = debug_layers {
+        debug_layers.bool_layers.get_mut("plat_cand").unwrap().grid =
+            candidates.mapv(|v| v == PlatformPosCandidate::Candidate);
+    }
+
+    if let Some(debug_layers) = debug_layers {
+        debug_layers.bool_layers.get_mut("plat_group").unwrap().grid =
+            candidates.mapv(|v| v == PlatformPosCandidate::Grouped);
     }
 
     Ok(floor_pos)
