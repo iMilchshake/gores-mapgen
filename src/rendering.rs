@@ -9,12 +9,12 @@ use ndarray::Array2;
 pub fn blocktype_to_color(value: &BlockType) -> Color {
     match value {
         BlockType::Hookable => Color::new(0.76, 0.48, 0.29, 0.8),
+        BlockType::Platform => Color::new(0.99, 0.24, 0.31, 0.8),
         BlockType::Freeze => Color::new(0.0, 0.0, 0.0, 0.8),
         BlockType::Empty => Color::new(0.0, 0.0, 0.0, 0.0),
         BlockType::EmptyReserved => Color::new(0.3, 0.0, 0.0, 0.1),
         BlockType::Finish => Color::new(1.0, 0.1, 0.1, 0.8),
         BlockType::Start => Color::new(0.1, 1.0, 0.1, 0.8),
-        BlockType::Platform => Color::new(0.83, 0.64, 0.51, 0.8),
         BlockType::Spawn => Color::new(0.2, 0.2, 0.7, 0.8),
     }
 }

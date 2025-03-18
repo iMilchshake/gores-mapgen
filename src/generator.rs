@@ -424,7 +424,7 @@ impl Generator {
         print_time(&mut timer, "generate skips", verbose);
 
         // platforms
-        let floor_pos = post::detect_floor_blocks(&self.map, debug_layers)?;
+        let floor_pos = post::detect_floor_blocks(&mut self.map, &ff.distance, debug_layers)?;
         print_time(&mut timer, "generate platforms", verbose);
 
         post::fill_open_areas(self, &gen_config.max_distance, debug_layers);

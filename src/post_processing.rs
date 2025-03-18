@@ -1311,7 +1311,8 @@ pub struct PlatformCandidate {
 }
 
 pub fn detect_floor_blocks(
-    map: &Map,
+    map: &mut Map,
+    flood_fill: &Array2<Option<usize>>,
     debug_layers: &mut Option<DebugLayers>,
 ) -> Result<Vec<FloorPosition>, &'static str> {
     let mut floor_pos: Vec<FloorPosition> = Vec::new();
@@ -1384,6 +1385,7 @@ pub fn detect_floor_blocks(
             candidates[[floor.pos.x - offset_left, floor.pos.y]] = PlatformPosCandidate::Grouped;
             offset_left += 1;
         }
+        offset_left -= 1;
 
         // group to the right
         let mut offset_right = 1;
@@ -1393,6 +1395,7 @@ pub fn detect_floor_blocks(
             candidates[[floor.pos.x + offset_right, floor.pos.y]] = PlatformPosCandidate::Grouped;
             offset_right += 1;
         }
+        offset_right -= 1;
 
         // group starting position
         candidates[[start_x, start_y]] = PlatformPosCandidate::Grouped;
@@ -1404,7 +1407,72 @@ pub fn detect_floor_blocks(
         });
     }
 
-    dbg!(&platforms);
+    platforms.sort_unstable_by(|a, b| {
+        (a.offset_left + a.offset_right)
+            .cmp(&(b.offset_left + b.offset_right))
+            .reverse()
+    });
+
+    let platforms_count = platforms.len();
+    let mut platform_blocked = vec![false; platforms_count];
+
+    for idx in 0..platforms.len() {
+        if platform_blocked[idx] {
+            continue;
+        }
+
+        // not blocked so we place platform
+        let plat = &platforms[idx];
+
+        // but block all near platforms
+        for idx_other in idx..platforms_count {
+            if platform_blocked[idx_other] {
+                continue; // skip if already blocked
+            }
+
+            let plat_other = &platforms[idx_other];
+            let euclidean_dist = plat.pos.distance(&plat_other.pos);
+            if euclidean_dist < 50.0 {
+                // crappy way to get distance in map, as flood fill is only performed for empty
+                // we just shift up a bit by max_freeze so we SHOULD end up at empty block lol
+                let ff = flood_fill[[plat.pos.x, plat.pos.y - (max_freeze + 1)]];
+                let ff_other = flood_fill[[plat_other.pos.x, plat_other.pos.y - (max_freeze + 1)]];
+                let ff_diff = ff.unwrap().abs_diff(ff_other.unwrap());
+
+                // ff uses city block distance, it should always be larger than euclidean
+                // distance. So we can use same or similar value here?
+                if ff_diff < 70 {
+                    platform_blocked[idx_other] = true;
+                } else {
+                    // dbg!(
+                    //     plat,
+                    //     plat_other,
+                    //     euclidean_dist,
+                    //     ff.unwrap(),
+                    //     ff_other.unwrap(),
+                    //     ff_diff
+                    // );
+                    // println!("- - - - - - - - - - -");
+                }
+            }
+        }
+
+        map.set_area(
+            &plat.pos.shifted_by(-(plat.offset_left as i32), 0)?,
+            &plat.pos.shifted_by(plat.offset_right as i32, 0)?,
+            &BlockType::Platform,
+            &Overwrite::Force,
+        );
+
+        map.set_area(
+            &plat
+                .pos
+                .shifted_by(-(plat.offset_left as i32), -(target_height as i32))?,
+            &plat.pos.shifted_by(plat.offset_right as i32, -1)?, // can also set this to 0!
+            &BlockType::EmptyReserved,
+            &Overwrite::ReplaceEmptyOnly,
+        );
+    }
 
     if let Some(debug_layers) = debug_layers {
         debug_layers.bool_layers.get_mut("plat_cand").unwrap().grid =
