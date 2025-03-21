@@ -728,225 +728,225 @@ pub fn flood_fill(
     })
 }
 
-/// stores all relevant information about platform candidates
-#[derive(Debug, Clone)]
-pub struct LegacyPlatform {
-    /// how total height is available for platform generation
-    pub available_height: usize,
-
-    /// how much platform extends to the left
-    pub width_left: usize,
-
-    /// how much platform extends to the right
-    pub width_right: usize,
-
-    /// lowest center position of platform
-    pub pos: Position,
-}
-
-pub fn get_legacy_opt_plat_cand(
-    pos: &Position,
-    map: &Map,
-    gen_config: &GenerationConfig,
-) -> Result<LegacyPlatform, &'static str> {
-    // how far empty box has been extended
-    let mut left_limit = 0;
-    let mut right_limit = 0;
-    let mut up_limit = 0;
-
-    // which directions are already locked due to hitting a limit
-    let mut left_locked = false;
-    let mut right_locked = false;
-    let mut up_locked = false;
-
-    while !left_locked || !right_locked || !up_locked {
-        // try to expand upwards
-        if !up_locked {
-            let next_limit_valid = map.check_area_all(
-                &pos.shifted_by(-left_limit, -(up_limit + 1))?,
-                &pos.shifted_by(right_limit, -(up_limit + 1))?,
-                &BlockType::Empty,
-            )?;
-
-            if next_limit_valid {
-                up_limit += 1;
-            } else {
-                up_locked = true;
-            }
-        }
-
-        // try to expand left
-        if !left_locked {
-            // check if platform has no overhang
-            let no_overhang =
-                map.check_position_crit(&pos.shifted_by(-(left_limit + 1), 1)?, |b| {
-                    match (gen_config.plat_soft_overhang, b) {
-                        (true, block) => !block.is_empty(),
-                        (false, block) => block.is_solid(),
-                    }
-                });
-
-            let next_limit_valid = map.check_area_all(
-                &pos.shifted_by(-(left_limit + 1), -up_limit)?,
-                &pos.shifted_by(-(left_limit + 1), -1)?, // dont check y=0 as freeze expected
-                &BlockType::Empty,
-            )?;
-
-            if no_overhang && next_limit_valid {
-                left_limit += 1;
-            } else {
-                left_locked = true;
-            }
-        }
-
-        // try to expand right
-        if !right_locked {
-            let no_overhang = map.check_position_crit(&pos.shifted_by(right_limit + 1, 1)?, |b| {
-                match (gen_config.plat_soft_overhang, b) {
-                    (true, block) => !block.is_empty(),
-                    (false, block) => block.is_solid(),
-                }
-            });
-            let next_limit_valid = map.check_area_all(
-                &pos.shifted_by(right_limit + 1, -up_limit)?,
-                &pos.shifted_by(right_limit + 1, -1)?, // dont check y=0 as freeze expected
-                &BlockType::Empty,
-            )?;
-
-            if no_overhang && next_limit_valid {
-                right_limit += 1;
-            } else {
-                right_locked = true;
-            }
-        }
-
-        // early abort if x or y dimension is already locked, but lower bound isnt reached
-        if up_locked
-            && (((up_limit + 1) as usize)
-                < gen_config.plat_height_bounds.0 + gen_config.plat_min_empty_height)
-        {
-            return Err("not enough y space");
-        } else if left_locked
-            && right_locked
-            && (((left_limit + right_limit + 1) as usize) < gen_config.plat_width_bounds.0)
-        {
-            return Err("not enough x space");
-        }
-        if ((up_limit + 1) as usize)
-            >= (gen_config.plat_height_bounds.1 + gen_config.plat_min_empty_height)
-        {
-            up_locked = true;
-        }
-        if ((left_limit + right_limit + 1) as usize) >= gen_config.plat_width_bounds.1 {
-            left_locked = true;
-            right_locked = true;
-        }
-    }
-
-    Ok(LegacyPlatform {
-        pos: pos.clone(),
-        width_left: left_limit as usize,
-        width_right: right_limit as usize,
-        available_height: (up_limit + 1) as usize,
-    })
-}
-
-pub fn gen_legacy_all_platforms(
-    walker_pos_history: &Vec<Position>,
-    flood_fill: &Array2<Option<usize>>,
-    map: &mut Map,
-    gen_config: &GenerationConfig,
-    debug_layers: &mut Option<DebugLayers>,
-) {
-    let mut platform_candidates: Vec<LegacyPlatform> = Vec::new();
-    let mut last_platform_level_distance = 0;
-
-    for pos in walker_pos_history {
-        // skip if initial walker pos is non empty
-        if map.grid[pos.as_index()] != BlockType::Empty {
-            continue;
-        }
-
-        // skip if previous platform is still to close
-        let level_distance = flood_fill[pos.as_index()].unwrap();
-        if level_distance.saturating_sub(last_platform_level_distance)
-            < gen_config.plat_min_distance
-        {
-            continue;
-        }
-
-        // skip if floor pos coulnt be determined
-        let floor_pos = map.shift_pos_until(pos, ShiftDirection::Down, |b| b.is_solid());
-        if floor_pos.is_none() {
-            continue;
-        }
-        let floor_pos = floor_pos.unwrap();
-
-        // try to get optimal platform candidate
-        let platform_pos = floor_pos.shifted_by(0, -1).unwrap();
-        let result = get_legacy_opt_plat_cand(&platform_pos, map, gen_config);
-        if let Ok(platform) = result {
-            // debug visualizations
-            if let Some(debug_layers) = debug_layers {
-                let platform_debug_layer = debug_layers.bool_layers.get_mut("platforms").unwrap();
-                let mut area = platform_debug_layer.grid.slice_mut(s![
-                    platform_pos.x - platform.width_left..=platform_pos.x + platform.width_right,
-                    platform_pos.y - (platform.available_height - 1)..=platform_pos.y
-                ]);
-                area.fill(true);
-            }
-
-            // save platform
-            platform_candidates.push(platform);
-
-            // update last level distance
-            last_platform_level_distance = level_distance;
-        }
-    }
-
-    // generate platforms
-    for platform_candidate in platform_candidates {
-        let platform_height =
-            platform_candidate.available_height - gen_config.plat_min_empty_height;
-
-        if platform_height > 0 {
-            map.set_area(
-                &platform_candidate
-                    .pos
-                    .shifted_by(
-                        -(platform_candidate.width_left as i32),
-                        -(platform_height as i32),
-                    )
-                    .unwrap(),
-                &platform_candidate
-                    .pos
-                    .shifted_by(platform_candidate.width_right as i32, 0)
-                    .unwrap(),
-                &BlockType::Platform,
-                &Overwrite::Force,
-            );
-        }
-
-        map.set_area(
-            &platform_candidate
-                .pos
-                .shifted_by(
-                    -(platform_candidate.width_left as i32),
-                    -((platform_candidate.available_height - 1) as i32),
-                )
-                .unwrap(),
-            &platform_candidate
-                .pos
-                .shifted_by(
-                    platform_candidate.width_right as i32,
-                    -(platform_height as i32),
-                )
-                .unwrap(),
-            &BlockType::EmptyReserved,
-            &Overwrite::Force,
-        );
-    }
-}
+// /// stores all relevant information about platform candidates
+// #[derive(Debug, Clone)]
+// pub struct LegacyPlatform {
+//     /// how total height is available for platform generation
+//     pub available_height: usize,
+//
+//     /// how much platform extends to the left
+//     pub width_left: usize,
+//
+//     /// how much platform extends to the right
+//     pub width_right: usize,
+//
+//     /// lowest center position of platform
+//     pub pos: Position,
+// }
+//
+// pub fn get_legacy_opt_plat_cand(
+//     pos: &Position,
+//     map: &Map,
+//     gen_config: &GenerationConfig,
+// ) -> Result<LegacyPlatform, &'static str> {
+//     // how far empty box has been extended
+//     let mut left_limit = 0;
+//     let mut right_limit = 0;
+//     let mut up_limit = 0;
+//
+//     // which directions are already locked due to hitting a limit
+//     let mut left_locked = false;
+//     let mut right_locked = false;
+//     let mut up_locked = false;
+//
+//     while !left_locked || !right_locked || !up_locked {
+//         // try to expand upwards
+//         if !up_locked {
+//             let next_limit_valid = map.check_area_all(
+//                 &pos.shifted_by(-left_limit, -(up_limit + 1))?,
+//                 &pos.shifted_by(right_limit, -(up_limit + 1))?,
+//                 &BlockType::Empty,
+//             )?;
+//
+//             if next_limit_valid {
+//                 up_limit += 1;
+//             } else {
+//                 up_locked = true;
+//             }
+//         }
+//
+//         // try to expand left
+//         if !left_locked {
+//             // check if platform has no overhang
+//             let no_overhang =
+//                 map.check_position_crit(&pos.shifted_by(-(left_limit + 1), 1)?, |b| {
+//                     match (gen_config.plat_soft_overhang, b) {
+//                         (true, block) => !block.is_empty(),
+//                         (false, block) => block.is_solid(),
+//                     }
+//                 });
+//
+//             let next_limit_valid = map.check_area_all(
+//                 &pos.shifted_by(-(left_limit + 1), -up_limit)?,
+//                 &pos.shifted_by(-(left_limit + 1), -1)?, // dont check y=0 as freeze expected
+//                 &BlockType::Empty,
+//             )?;
+//
+//             if no_overhang && next_limit_valid {
+//                 left_limit += 1;
+//             } else {
+//                 left_locked = true;
+//             }
+//         }
+//
+//         // try to expand right
+//         if !right_locked {
+//             let no_overhang = map.check_position_crit(&pos.shifted_by(right_limit + 1, 1)?, |b| {
+//                 match (gen_config.plat_soft_overhang, b) {
+//                     (true, block) => !block.is_empty(),
+//                     (false, block) => block.is_solid(),
+//                 }
+//             });
+//             let next_limit_valid = map.check_area_all(
+//                 &pos.shifted_by(right_limit + 1, -up_limit)?,
+//                 &pos.shifted_by(right_limit + 1, -1)?, // dont check y=0 as freeze expected
+//                 &BlockType::Empty,
+//             )?;
+//
+//             if no_overhang && next_limit_valid {
+//                 right_limit += 1;
+//             } else {
+//                 right_locked = true;
+//             }
+//         }
+//
+//         // early abort if x or y dimension is already locked, but lower bound isnt reached
+//         if up_locked
+//             && (((up_limit + 1) as usize)
+//                 < gen_config.plat_height_bounds.0 + gen_config.plat_min_empty_height)
+//         {
+//             return Err("not enough y space");
+//         } else if left_locked
+//             && right_locked
+//             && (((left_limit + right_limit + 1) as usize) < gen_config.plat_width_bounds.0)
+//         {
+//             return Err("not enough x space");
+//         }
+//         if ((up_limit + 1) as usize)
+//             >= (gen_config.plat_height_bounds.1 + gen_config.plat_min_empty_height)
+//         {
+//             up_locked = true;
+//         }
+//         if ((left_limit + right_limit + 1) as usize) >= gen_config.plat_width_bounds.1 {
+//             left_locked = true;
+//             right_locked = true;
+//         }
+//     }
+//
+//     Ok(LegacyPlatform {
+//         pos: pos.clone(),
+//         width_left: left_limit as usize,
+//         width_right: right_limit as usize,
+//         available_height: (up_limit + 1) as usize,
+//     })
+// }
+//
+// pub fn gen_legacy_all_platforms(
+//     walker_pos_history: &Vec<Position>,
+//     flood_fill: &Array2<Option<usize>>,
+//     map: &mut Map,
+//     gen_config: &GenerationConfig,
+//     debug_layers: &mut Option<DebugLayers>,
+// ) {
+//     let mut platform_candidates: Vec<LegacyPlatform> = Vec::new();
+//     let mut last_platform_level_distance = 0;
+//
+//     for pos in walker_pos_history {
+//         // skip if initial walker pos is non empty
+//         if map.grid[pos.as_index()] != BlockType::Empty {
+//             continue;
+//         }
+//
+//         // skip if previous platform is still to close
+//         let level_distance = flood_fill[pos.as_index()].unwrap();
+//         if level_distance.saturating_sub(last_platform_level_distance)
+//             < gen_config.plat_min_distance
+//         {
+//             continue;
+//         }
+//
+//         // skip if floor pos coulnt be determined
+//         let floor_pos = map.shift_pos_until(pos, ShiftDirection::Down, |b| b.is_solid());
+//         if floor_pos.is_none() {
+//             continue;
+//         }
+//         let floor_pos = floor_pos.unwrap();
+//
+//         // try to get optimal platform candidate
+//         let platform_pos = floor_pos.shifted_by(0, -1).unwrap();
+//         let result = get_legacy_opt_plat_cand(&platform_pos, map, gen_config);
+//         if let Ok(platform) = result {
+//             // debug visualizations
+//             if let Some(debug_layers) = debug_layers {
+//                 let platform_debug_layer = debug_layers.bool_layers.get_mut("platforms").unwrap();
+//                 let mut area = platform_debug_layer.grid.slice_mut(s![
+//                     platform_pos.x - platform.width_left..=platform_pos.x + platform.width_right,
+//                     platform_pos.y - (platform.available_height - 1)..=platform_pos.y
+//                 ]);
+//                 area.fill(true);
+//             }
+//
+//             // save platform
+//             platform_candidates.push(platform);
+//
+//             // update last level distance
+//             last_platform_level_distance = level_distance;
+//         }
+//     }
+//
+//     // generate platforms
+//     for platform_candidate in platform_candidates {
+//         let platform_height =
+//             platform_candidate.available_height - gen_config.plat_min_empty_height;
+//
+//         if platform_height > 0 {
+//             map.set_area(
+//                 &platform_candidate
+//                     .pos
+//                     .shifted_by(
+//                         -(platform_candidate.width_left as i32),
+//                         -(platform_height as i32),
+//                     )
+//                     .unwrap(),
+//                 &platform_candidate
+//                     .pos
+//                     .shifted_by(platform_candidate.width_right as i32, 0)
+//                     .unwrap(),
+//                 &BlockType::Platform,
+//                 &Overwrite::Force,
+//             );
+//         }
+//
+//         map.set_area(
+//             &platform_candidate
+//                 .pos
+//                 .shifted_by(
+//                     -(platform_candidate.width_left as i32),
+//                     -((platform_candidate.available_height - 1) as i32),
+//                 )
+//                 .unwrap(),
+//             &platform_candidate
+//                 .pos
+//                 .shifted_by(
+//                     platform_candidate.width_right as i32,
+//                     -(platform_height as i32),
+//                 )
+//                 .unwrap(),
+//             &BlockType::EmptyReserved,
+//             &Overwrite::Force,
+//         );
+//     }
+// }
 
 fn manhattan_distance(a: &Position, b: &Position) -> u32 {
     ((a.x as i32 - b.x as i32).abs() + (a.y as i32 - b.y as i32).abs()) as u32
@@ -1308,17 +1308,19 @@ pub struct PlatformCandidate {
     pub pos: Position,
     pub offset_left: usize,
     pub offset_right: usize,
+    pub flood_fill_dist: usize,
 }
 
-pub fn detect_floor_blocks(
+pub fn generate_platforms(
     map: &mut Map,
+    gen_config: &GenerationConfig,
     flood_fill: &Array2<Option<usize>>,
     debug_layers: &mut Option<DebugLayers>,
 ) -> Result<Vec<FloorPosition>, &'static str> {
     let mut floor_pos: Vec<FloorPosition> = Vec::new();
 
-    let max_freeze = 2;
-    let target_height = 5;
+    let max_freeze = gen_config.plat_max_freeze;
+    let target_height = gen_config.plat_height;
 
     for x in 0..map.width {
         for y in 1..map.height {
@@ -1400,11 +1402,15 @@ pub fn detect_floor_blocks(
         // group starting position
         candidates[[start_x, start_y]] = PlatformPosCandidate::Grouped;
 
-        platforms.push(PlatformCandidate {
-            pos: floor.pos.clone(), // TODO: remove clone
-            offset_left,
-            offset_right,
-        });
+        // add platform candidate if flood fill distance can be determined
+        if let Some(flood_fill_dist) = flood_fill[[floor.pos.x, floor.pos.y - (max_freeze + 1)]] {
+            platforms.push(PlatformCandidate {
+                pos: floor.pos.clone(), // TODO: remove clone
+                offset_left,
+                offset_right,
+                flood_fill_dist,
+            });
+        }
     }
 
     platforms.sort_unstable_by(|a, b| {
@@ -1432,16 +1438,14 @@ pub fn detect_floor_blocks(
 
             let plat_other = &platforms[idx_other];
             let euclidean_dist = plat.pos.distance(&plat_other.pos);
-            if euclidean_dist < 50.0 {
+            if euclidean_dist < gen_config.plat_min_euclidean_distance as f32 {
                 // crappy way to get distance in map, as flood fill is only performed for empty
                 // we just shift up a bit by max_freeze so we SHOULD end up at empty block lol
-                let ff = flood_fill[[plat.pos.x, plat.pos.y - (max_freeze + 1)]];
-                let ff_other = flood_fill[[plat_other.pos.x, plat_other.pos.y - (max_freeze + 1)]];
-                let ff_diff = ff.unwrap().abs_diff(ff_other.unwrap());
+                let ff_diff = plat.flood_fill_dist.abs_diff(plat_other.flood_fill_dist);
 
                 // ff uses city block distance, it should always be larger than euclidean
                 // distance. So we can use same or similar value here?
-                if ff_diff < 70 {
+                if ff_diff < gen_config.plat_min_ff_distance {
                     platform_blocked[idx_other] = true;
                 } else {
                     // dbg!(
