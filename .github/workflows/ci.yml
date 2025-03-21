@@ -34,7 +34,7 @@ jobs:
       run: cargo test --verbose
 
     - name: Run build
-      run: cargo build --release && strip --strip-all ./target/release/gores-generator && mv ./target/release/gores-generator ./target/release/gores-generator-linux
+      run: cargo build --release && strip --strip-all ./target/release/editor && mv ./target/release/editor ./target/release/editor-linux
 
     - name: Upload release
       id: upload-release-linux
@@ -43,13 +43,11 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_paths: '["./target/release/gores-generator-linux"]'
-
+        asset_paths: '["./target/release/editor-linux"]'
 
   build-macos:
     runs-on: macos-latest
     needs: release
-
     steps:
     - uses: actions/checkout@v3
     - name: Install deps
@@ -59,22 +57,20 @@ jobs:
       run: cargo test --verbose
 
     - name: Run build
-      run: cargo build --release && mv ./target/release/gores-generator ./target/release/gores-generator-macos
+      run: cargo build --release && mv ./target/release/editor ./target/release/editor-macos
 
     - name: Upload release
-      id: upload-release-linux
+      id: upload-release-macos
       uses: alexellis/upload-assets@0.2.3
       env: 
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_paths: '["./target/release/gores-generator-macos"]'
-
+        asset_paths: '["./target/release/editor-macos"]'
 
   build-windows:
     runs-on: windows-2019
     needs: release
-
     steps:
     - uses: actions/checkout@v3
 
@@ -91,4 +87,4 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_paths: '["./target/release/gores-generator.exe"]'
+        asset_paths: '["./target/release/editor.exe"]'
