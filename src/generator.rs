@@ -477,13 +477,15 @@ impl Generator {
         verbose: bool,
     ) {
         let mut timer = Timer::start();
-        post::generate_noise_layers(&mut self.map, &mut self.rnd, thm_config, debug_layers);
-        print_time(&mut timer, "generate noise layers", verbose);
 
+        // flip before generating noise, as overlay noise depends on it
         if self.rnd.get_bool_with_prob(0.5) {
             self.map.flip_x_axis();
             print_time(&mut timer, "flip map", verbose);
         }
+
+        post::generate_noise_layers(&mut self.map, &mut self.rnd, thm_config, debug_layers);
+        print_time(&mut timer, "generate noise layers", verbose);
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

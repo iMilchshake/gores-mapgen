@@ -347,11 +347,6 @@ impl Map {
         // flip map grid
         self.grid.invert_axis(Axis(0));
 
-        // flip noise overlay
-        if let Some(ref mut noise_overlay) = self.noise_overlay {
-            noise_overlay.invert_axis(Axis(0));
-        }
-
         // flip font layers
         self.font_layer.invert_axis(Axis(0));
 

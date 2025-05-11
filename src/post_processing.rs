@@ -1341,14 +1341,17 @@ pub fn generate_platforms(
                     continue; // above N freeze blocks there must be an empty block
                 }
 
-                let freeze_height = pos.y - non_freeze_pos.y - 1;
+                let freeze_height = pos.y.checked_sub(non_freeze_pos.y + 1).unwrap();
                 if freeze_height > max_freeze {
                     continue;
                 }
 
-                let empty_blocks = target_height - freeze_height;
+                let check_empty_blocks = target_height.checked_sub(freeze_height + 1).unwrap();
+
+                dbg!(freeze_height, check_empty_blocks);
+
                 if !map.check_area_all(
-                    &non_freeze_pos.shifted_by(0, -(empty_blocks as i32))?,
+                    &non_freeze_pos.shifted_by(0, -(check_empty_blocks as i32))?,
                     &non_freeze_pos,
                     &BlockType::Empty,
                 )? {
@@ -1401,6 +1404,11 @@ pub fn generate_platforms(
 
         // group starting position
         candidates[[start_x, start_y]] = PlatformPosCandidate::Grouped;
+
+        // skip if platform too narrow
+        if offset_left + offset_right + 1 < gen_config.plat_min_width {
+            continue;
+        }
 
         // add platform candidate if flood fill distance can be determined
         if let Some(flood_fill_dist) = flood_fill[[floor.pos.x, floor.pos.y - (max_freeze + 1)]] {
@@ -1474,7 +1482,7 @@ pub fn generate_platforms(
                 .shifted_by(-(plat.offset_left as i32), -(target_height as i32))?,
             &plat.pos.shifted_by(plat.offset_right as i32, -1)?, // can also set this to 0!
             &BlockType::EmptyReserved,
-            &Overwrite::ReplaceEmptyOnly,
+            &Overwrite::Force,
         );
     }
 
