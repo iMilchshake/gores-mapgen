@@ -16,13 +16,13 @@ use std::{
 };
 
 use dt::dt_bool;
-use egui::containers;
-use macroquad::miniquad::conf::Platform;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
 /// configurations do not ensure a min. 1-block freeze padding consistently.
-pub fn fix_edge_bugs(gen: &mut Generator) -> Result<Array2<bool>, &'static str> {
+/// This function replaces all empty blocks that have neighbor hookable blocks with freeze,
+/// so it kind of "expands" the existing freeze to ensure that there are no edge bugs.
+pub fn fix_edge_bugs_expanding(gen: &mut Generator) -> Result<Array2<bool>, &'static str> {
     let mut edge_bug = Array2::from_elem((gen.map.width, gen.map.height), false);
     let width = gen.map.width;
     let height = gen.map.height;
@@ -1469,21 +1469,25 @@ pub fn generate_platforms(
             }
         }
 
+        let left = plat.pos.x - plat.offset_left;
+        let right = plat.pos.x + plat.offset_right;
+        let top = plat.pos.y - target_height;
+
         map.set_area(
-            &plat.pos.shifted_by(-(plat.offset_left as i32), 0)?,
-            &plat.pos.shifted_by(plat.offset_right as i32, 0)?,
+            &Position::new(left, plat.pos.y),
+            &Position::new(right, plat.pos.y),
             &BlockType::Platform,
             &Overwrite::Force,
         );
 
         map.set_area(
-            &plat
-                .pos
-                .shifted_by(-(plat.offset_left as i32), -(target_height as i32))?,
-            &plat.pos.shifted_by(plat.offset_right as i32, -1)?, // can also set this to 0!
+            &Position::new(left, top),
+            &Position::new(right, plat.pos.y - 1),
             &BlockType::EmptyReserved,
             &Overwrite::Force,
         );
+
+        // fix edge bugs
     }
 
     if let Some(debug_layers) = debug_layers {

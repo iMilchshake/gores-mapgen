@@ -366,7 +366,7 @@ impl Generator {
     ) -> Result<(), &'static str> {
         let mut timer = Timer::start();
 
-        let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
+        let edge_bugs = post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
         print_time(&mut timer, "fix edge bugs", verbose);
 
         self.generate_spawn(thm_config);
@@ -401,7 +401,7 @@ impl Generator {
         }
 
         // TODO: only perform this for updated blocks?
-        post::fix_edge_bugs(self).expect("fix edge bugs failed");
+        post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
         print_time(&mut timer, "fix edge_bugs #2", verbose);
 
         // post::gen_legacy_all_platforms(
