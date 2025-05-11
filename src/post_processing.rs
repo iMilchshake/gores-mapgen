@@ -1488,6 +1488,19 @@ pub fn generate_platforms(
         );
 
         // fix edge bugs
+        (top..=plat.pos.y).for_each(|y| {
+            [left - 1, right + 1].into_iter().for_each(|x| {
+                if map.grid[[x, y]] == BlockType::Hookable {
+                    map.grid[[x, y]] = BlockType::Freeze;
+                }
+            });
+        });
+
+        (left - 1..=right + 1).for_each(|x| {
+            if map.grid[[x, top - 1]] == BlockType::Hookable {
+                map.grid[[x, top - 1]] = BlockType::Freeze;
+            }
+        });
     }
 
     if let Some(debug_layers) = debug_layers {
