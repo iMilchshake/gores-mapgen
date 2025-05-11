@@ -1488,7 +1488,7 @@ pub fn generate_platforms(
         );
 
         // fix edge bugs
-        (top..=plat.pos.y).for_each(|y| {
+        (top..=plat.pos.y - 1).for_each(|y| {
             [left - 1, right + 1].into_iter().for_each(|x| {
                 if map.grid[[x, y]] == BlockType::Hookable {
                     map.grid[[x, y]] = BlockType::Freeze;
@@ -1501,6 +1501,41 @@ pub fn generate_platforms(
                 map.grid[[x, top - 1]] = BlockType::Freeze;
             }
         });
+
+        // check "soft blocked" parts
+        let part_offset = 2;
+
+        // consider left and right
+        for &dir in &[-1, 1] {
+            let entry_x = if dir == 1 { right + 1 } else { left - 1 };
+            let part_entry = Position::new(entry_x, plat.pos.y - 1);
+            let part_exit = part_entry.shifted_by(part_offset * dir, 0)?;
+
+            // ensure correct order for topleft / botright access
+            let (start, end) = if dir == 1 {
+                (part_entry, part_exit)
+            } else {
+                (part_exit, part_entry)
+            };
+
+            // check if part is empty = "playable"
+            if map.check_area_all(&start, &end, &BlockType::Empty)? {
+                let above_start = start.shifted_by(0, -1)?;
+                let above_end = end.shifted_by(0, -1)?;
+
+                // check if playable path is a one tiler
+                if map.check_area_exists(&above_start, &above_end, &BlockType::Freeze)? {
+                    dbg!(&above_start, &above_end);
+                    // if yes, remove one block above
+                    map.set_area(
+                        &above_start,
+                        &above_end,
+                        &BlockType::Empty,
+                        &Overwrite::ReplaceNonSolid,
+                    );
+                }
+            }
+        }
     }
 
     if let Some(debug_layers) = debug_layers {
