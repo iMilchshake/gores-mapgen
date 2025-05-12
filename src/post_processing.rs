@@ -66,6 +66,42 @@ pub fn fix_edge_bugs_expanding(gen: &mut Generator) -> Result<Array2<bool>, &'st
     Ok(edge_bug)
 }
 
+/// given an empty rectangle, ensure that there are no adjacent hookable blocks.
+/// This is relevant when modifying the map by setting Empty, as it can remove the
+/// layer of freeze blocks around hookable blocks. This function replaces those
+/// hookable blocks with freeze, to retain the empty-area and freeze padding.
+fn fix_local_edge_bugs(map: &mut Map, top_left: &Position, bot_right: &Position) {
+    // vertical borders
+    for y in top_left.y..=bot_right.y {
+        // left neighbour
+        if top_left.x > 0 {
+            let x = top_left.x - 1;
+            if map.grid[[x, y]] == BlockType::Hookable {
+                map.grid[[x, y]] = BlockType::Freeze;
+            }
+        }
+        // right neighbour
+        let x = bot_right.x + 1;
+        if map.grid[[x, y]] == BlockType::Hookable {
+            map.grid[[x, y]] = BlockType::Freeze;
+        }
+    }
+
+    // horizontal border above
+    if top_left.y > 0 {
+        let y_above = top_left.y - 1;
+        let start_x = top_left.x.saturating_sub(1);
+        let end_x = bot_right.x + 1;
+        for x in start_x..=end_x {
+            if map.grid[[x, y_above]] == BlockType::Hookable {
+                map.grid[[x, y_above]] = BlockType::Freeze;
+            }
+        }
+    }
+
+    // TODO: currently i dont check below
+}
+
 /// Using a distance transform this function will fill up all empty blocks that are too far
 /// from the next solid/non-empty block
 pub fn fill_open_areas(
@@ -1305,9 +1341,19 @@ pub struct FloorPosition {
 
 #[derive(Debug)]
 pub struct PlatformCandidate {
+    /// 'center' position of platform
     pub pos: Position,
+
+    /// inclusive offset of left platform position
     pub offset_left: usize,
+
+    /// inclusive offset of right platform position
     pub offset_right: usize,
+
+    /// reserved height above platform
+    pub reserved_height: usize,
+
+    /// flood fill distance in the map
     pub flood_fill_dist: usize,
 }
 
@@ -1347,8 +1393,6 @@ pub fn generate_platforms(
                 }
 
                 let check_empty_blocks = target_height.checked_sub(freeze_height + 1).unwrap();
-
-                dbg!(freeze_height, check_empty_blocks);
 
                 if !map.check_area_all(
                     &non_freeze_pos.shifted_by(0, -(check_empty_blocks as i32))?,
@@ -1416,6 +1460,7 @@ pub fn generate_platforms(
                 pos: floor.pos.clone(), // TODO: remove clone
                 offset_left,
                 offset_right,
+                reserved_height: target_height, // for now all platforms use target height
                 flood_fill_dist,
             });
         }
@@ -1455,87 +1500,12 @@ pub fn generate_platforms(
                 // distance. So we can use same or similar value here?
                 if ff_diff < gen_config.plat_min_ff_distance {
                     platform_blocked[idx_other] = true;
-                } else {
-                    // dbg!(
-                    //     plat,
-                    //     plat_other,
-                    //     euclidean_dist,
-                    //     ff.unwrap(),
-                    //     ff_other.unwrap(),
-                    //     ff_diff
-                    // );
-                    // println!("- - - - - - - - - - -");
                 }
             }
         }
 
-        let left = plat.pos.x - plat.offset_left;
-        let right = plat.pos.x + plat.offset_right;
-        let top = plat.pos.y - target_height;
-
-        map.set_area(
-            &Position::new(left, plat.pos.y),
-            &Position::new(right, plat.pos.y),
-            &BlockType::Platform,
-            &Overwrite::Force,
-        );
-
-        map.set_area(
-            &Position::new(left, top),
-            &Position::new(right, plat.pos.y - 1),
-            &BlockType::EmptyReserved,
-            &Overwrite::Force,
-        );
-
-        // fix edge bugs
-        (top..=plat.pos.y - 1).for_each(|y| {
-            [left - 1, right + 1].into_iter().for_each(|x| {
-                if map.grid[[x, y]] == BlockType::Hookable {
-                    map.grid[[x, y]] = BlockType::Freeze;
-                }
-            });
-        });
-
-        (left - 1..=right + 1).for_each(|x| {
-            if map.grid[[x, top - 1]] == BlockType::Hookable {
-                map.grid[[x, top - 1]] = BlockType::Freeze;
-            }
-        });
-
-        // check "soft blocked" parts
-        let part_offset = 2;
-
-        // consider left and right
-        for &dir in &[-1, 1] {
-            let entry_x = if dir == 1 { right + 1 } else { left - 1 };
-            let part_entry = Position::new(entry_x, plat.pos.y - 1);
-            let part_exit = part_entry.shifted_by(part_offset * dir, 0)?;
-
-            // ensure correct order for topleft / botright access
-            let (start, end) = if dir == 1 {
-                (part_entry, part_exit)
-            } else {
-                (part_exit, part_entry)
-            };
-
-            // check if part is empty = "playable"
-            if map.check_area_all(&start, &end, &BlockType::Empty)? {
-                let above_start = start.shifted_by(0, -1)?;
-                let above_end = end.shifted_by(0, -1)?;
-
-                // check if playable path is a one tiler
-                if map.check_area_exists(&above_start, &above_end, &BlockType::Freeze)? {
-                    dbg!(&above_start, &above_end);
-                    // if yes, remove one block above
-                    map.set_area(
-                        &above_start,
-                        &above_end,
-                        &BlockType::Empty,
-                        &Overwrite::ReplaceNonSolid,
-                    );
-                }
-            }
-        }
+        // set platform
+        set_platform(map, plat)?;
     }
 
     if let Some(debug_layers) = debug_layers {
@@ -1549,4 +1519,70 @@ pub fn generate_platforms(
     }
 
     Ok(floor_pos)
+}
+
+pub fn set_platform(map: &mut Map, plat: &PlatformCandidate) -> Result<(), &'static str> {
+    let left = plat.pos.x - plat.offset_left;
+    let right = plat.pos.x + plat.offset_right;
+    let top = plat.pos.y - plat.reserved_height;
+
+    let top_left = Position::new(left, top);
+    let bot_right = Position::new(right, plat.pos.y - 1);
+
+    map.set_area(
+        &Position::new(left, plat.pos.y),
+        &Position::new(right, plat.pos.y),
+        &BlockType::Platform,
+        &Overwrite::Force,
+    );
+
+    map.set_area(
+        &top_left,
+        &bot_right,
+        &BlockType::EmptyReserved,
+        &Overwrite::Force,
+    );
+
+    // fix edge bugs
+    fix_local_edge_bugs(map, &top_left, &bot_right);
+
+    // check "soft blocked" parts
+    let part_offset = 2;
+
+    // consider left and right
+    for &dir in &[-1, 1] {
+        let entry_x = if dir == 1 { right + 1 } else { left - 1 };
+        let part_entry = Position::new(entry_x, plat.pos.y - 1);
+        let part_exit = part_entry.shifted_by(part_offset * dir, 0)?;
+
+        // ensure correct order for position access
+        let (left, right) = if dir == 1 {
+            (part_entry, part_exit)
+        } else {
+            (part_exit, part_entry)
+        };
+
+        // check if part is empty = "playable"
+        if map.check_area_all(&left, &right, &BlockType::Empty)? {
+            let above_left = left.shifted_by(0, -1)?;
+            let above_right = right.shifted_by(0, -1)?;
+
+            // check if playable path is a one tiler
+            if map.check_area_exists(&above_left, &above_right, &BlockType::Freeze)? {
+                dbg!(&above_left, &above_right);
+                // if yes, remove one block above
+                map.set_area(
+                    &above_left,
+                    &above_right,
+                    &BlockType::Empty,
+                    &Overwrite::ReplaceNonSolid,
+                );
+
+                // and fix potential resulting edge bugs
+                fix_local_edge_bugs(map, &above_left, &above_right);
+            }
+        }
+    }
+
+    Ok(())
 }
