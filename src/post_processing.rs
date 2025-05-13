@@ -11,7 +11,7 @@ use crate::{
 
 use std::{
     cmp::Reverse,
-    collections::{BinaryHeap, HashMap, HashSet, VecDeque},
+    collections::{BinaryHeap, HashMap, VecDeque},
     f32::consts::SQRT_2,
 };
 
@@ -988,73 +988,73 @@ fn manhattan_distance(a: &Position, b: &Position) -> u32 {
     ((a.x as i32 - b.x as i32).abs() + (a.y as i32 - b.y as i32).abs()) as u32
 }
 
-pub fn a_star(
-    map: &Map,
-    start: &Position,
-    end: &Position,
-    debug_layers: &mut Option<DebugLayers>,
-) -> Result<(), &'static str> {
-    // cells that will be visited next (f = g + h, g, pos)
-    let mut open_cells: BinaryHeap<Reverse<(u32, u32, Position)>> = BinaryHeap::new();
-    let h = manhattan_distance(start, end);
-    open_cells.push(Reverse((h, 0, start.clone())));
-
-    // already have been evaluated
-    let mut closed_cells: HashSet<Position> = HashSet::new();
-
-    // keep track of best distances
-    let mut best_dist: HashMap<Position, u32> = HashMap::new();
-    best_dist.insert(start.clone(), 0);
-
-    while let Some(Reverse((_, g, pos))) = open_cells.pop() {
-        let new_g = g + 1; // cityblock
-
-        // check neighboring cells
-        for shift in [
-            ShiftDirection::Right, // favor right cuz gores maps :)
-            ShiftDirection::Up,
-            ShiftDirection::Left,
-            ShiftDirection::Down,
-        ] {
-            let shifted_pos = pos.shifted(&shift, map)?;
-
-            // check if goal is found
-            if shifted_pos == *end {
-                println!("goal found :)");
-                return Ok(());
-            }
-
-            // skip if already visited
-            if closed_cells.contains(&shifted_pos) {
-                continue;
-            }
-
-            // only consider empty cells on the map
-            if !matches!(
-                map.grid[shifted_pos.as_index()],
-                BlockType::Empty | BlockType::EmptyReserved | BlockType::Start | BlockType::Finish
-            ) {
-                continue;
-            }
-
-            // check if a new or better connection has been found
-            if best_dist.get(&shifted_pos).is_none_or(|&d| d > new_g) {
-                best_dist.insert(shifted_pos.clone(), new_g);
-                let h = manhattan_distance(&shifted_pos, end);
-                let f = new_g + h;
-                open_cells.push(Reverse((f, new_g, shifted_pos)));
-            }
-        }
-
-        // current pos is now fully expanded -> close it
-        if let Some(debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("a_star").unwrap().grid[pos.as_index()] = true;
-        }
-        closed_cells.insert(pos);
-    }
-
-    Ok(())
-}
+// pub fn a_star(
+//     map: &Map,
+//     start: &Position,
+//     end: &Position,
+//     debug_layers: &mut Option<DebugLayers>,
+// ) -> Result<(), &'static str> {
+//     // cells that will be visited next (f = g + h, g, pos)
+//     let mut open_cells: BinaryHeap<Reverse<(u32, u32, Position)>> = BinaryHeap::new();
+//     let h = manhattan_distance(start, end);
+//     open_cells.push(Reverse((h, 0, start.clone())));
+//
+//     // already have been evaluated
+//     let mut closed_cells: HashSet<Position> = HashSet::new();
+//
+//     // keep track of best distances
+//     let mut best_dist: HashMap<Position, u32> = HashMap::new();
+//     best_dist.insert(start.clone(), 0);
+//
+//     while let Some(Reverse((_, g, pos))) = open_cells.pop() {
+//         let new_g = g + 1; // cityblock
+//
+//         // check neighboring cells
+//         for shift in [
+//             ShiftDirection::Right, // favor right cuz gores maps :)
+//             ShiftDirection::Up,
+//             ShiftDirection::Left,
+//             ShiftDirection::Down,
+//         ] {
+//             let shifted_pos = pos.shifted(&shift, map)?;
+//
+//             // check if goal is found
+//             if shifted_pos == *end {
+//                 println!("goal found :)");
+//                 return Ok(());
+//             }
+//
+//             // skip if already visited
+//             if closed_cells.contains(&shifted_pos) {
+//                 continue;
+//             }
+//
+//             // only consider empty cells on the map
+//             if !matches!(
+//                 map.grid[shifted_pos.as_index()],
+//                 BlockType::Empty | BlockType::EmptyReserved | BlockType::Start | BlockType::Finish
+//             ) {
+//                 continue;
+//             }
+//
+//             // check if a new or better connection has been found
+//             if best_dist.get(&shifted_pos).is_none_or(|&d| d > new_g) {
+//                 best_dist.insert(shifted_pos.clone(), new_g);
+//                 let h = manhattan_distance(&shifted_pos, end);
+//                 let f = new_g + h;
+//                 open_cells.push(Reverse((f, new_g, shifted_pos)));
+//             }
+//         }
+//
+//         // current pos is now fully expanded -> close it
+//         if let Some(debug_layers) = debug_layers {
+//             debug_layers.bool_layers.get_mut("a_star").unwrap().grid[pos.as_index()] = true;
+//         }
+//         closed_cells.insert(pos);
+//     }
+//
+//     Ok(())
+// }
 
 pub fn dijkstra(
     map: &Map,
@@ -1087,9 +1087,15 @@ pub fn dijkstra(
                 return Ok(());
             }
 
+            // we only consider "playable" blocks aka. parts the player can pass (except freeze)
             if !matches!(
                 map.grid[neighbor.as_index()],
-                BlockType::Empty | BlockType::EmptyReserved | BlockType::Start | BlockType::Finish
+                BlockType::Empty
+                    | BlockType::EmptyRoom
+                    | BlockType::EmptyFade
+                    | BlockType::EmptyPlatform
+                    | BlockType::Start
+                    | BlockType::Finish
             ) {
                 continue;
             }
@@ -1283,7 +1289,7 @@ pub fn generate_finish_room(
     gen.map.set_area(
         &top_left,
         &bot_right,
-        &BlockType::EmptyReserved,
+        &BlockType::EmptyRoom,
         &Overwrite::Force,
     );
 
@@ -1292,7 +1298,7 @@ pub fn generate_finish_room(
         &top_left.shifted_by(-1, -1)?,
         &bot_right.shifted_by(1, 1)?,
         &BlockType::Finish,
-        &Overwrite::ReplaceNonSolidForce,
+        &Overwrite::ReplaceRoomNonSolid,
     );
 
     gen.map.write_text(&pos.shifted_by(-2, 0)?, "GG :3");
@@ -1304,24 +1310,36 @@ pub fn fill_dead_ends(
     map: &mut Map,
     gen_config: &GenerationConfig,
     main_path_distance: &Array2<Option<usize>>,
-) -> Vec<Position> {
-    let mut filled_blocks: Vec<Position> = Vec::new();
-    for ((x, y), map_block) in map.grid.indexed_iter_mut() {
-        // only consider empty or freeze blocks
-        if !(*map_block == BlockType::Empty || *map_block == BlockType::Freeze) {
-            continue;
-        }
+) -> Result<Vec<Position>, &'static str> {
+    let mut filled_blocks = Vec::new();
 
-        // if distance to main path is too large -> fill up with hookable blocks
-        if let Some(dist) = main_path_distance[[x, y]] {
-            if dist > gen_config.dead_end_threshold {
-                *map_block = BlockType::Hookable;
-                filled_blocks.push(Position::new(x, y));
+    for x in 0..map.width {
+        for y in 0..map.height {
+            let block = &map.grid[(x, y)];
+
+            if block != &BlockType::Empty && block != &BlockType::Freeze {
+                continue;
+            }
+
+            if map.check_area_exists(
+                &Position::new(x - 1, y - 1),
+                &Position::new(x + 1, y + 1),
+                &BlockType::EmptyFade,
+            )? {
+                continue;
+            }
+
+            // if too far, fill up with hookables.
+            if let Some(dist) = main_path_distance[[x, y]] {
+                if dist > gen_config.dead_end_threshold {
+                    map.grid[(x, y)] = BlockType::Hookable;
+                    filled_blocks.push(Position::new(x, y));
+                }
             }
         }
     }
 
-    filled_blocks
+    Ok(filled_blocks)
 }
 
 #[derive(Clone, PartialEq)]
@@ -1539,7 +1557,7 @@ pub fn set_platform(map: &mut Map, plat: &PlatformCandidate) -> Result<(), &'sta
     map.set_area(
         &top_left,
         &bot_right,
-        &BlockType::EmptyReserved,
+        &BlockType::EmptyPlatform,
         &Overwrite::Force,
     );
 

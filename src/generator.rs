@@ -163,7 +163,7 @@ impl Generator {
         self.map.set_area(
             &top_left,
             &bot_right,
-            &BlockType::EmptyReserved,
+            &BlockType::EmptyRoom,
             &Overwrite::Force,
         );
 
@@ -172,7 +172,7 @@ impl Generator {
             &top_left.shifted_by(-1, -1).unwrap(),
             &bot_right.shifted_by(1, 1).unwrap(),
             &BlockType::Start,
-            &Overwrite::ReplaceNonSolidForce,
+            &Overwrite::ReplaceNonSolid,
         );
 
         // set elevated platform
@@ -180,7 +180,7 @@ impl Generator {
             &Position::new(top_left.x, self.spawn.y - 1),
             &Position::new(top_left.x + platform_width, self.spawn.y + 1),
             &BlockType::Hookable,
-            &Overwrite::ReplaceNonSolidForce,
+            &Overwrite::ReplaceNonSolid,
         );
 
         // set spawns
@@ -188,13 +188,13 @@ impl Generator {
             &Position::new(top_left.x, self.spawn.y - 2),
             &Position::new(top_left.x + platform_width, self.spawn.y - 2),
             &BlockType::Spawn,
-            &Overwrite::ReplaceNonSolidForce,
+            &Overwrite::ReplaceNonSolid,
         );
         self.map.set_area(
             &Position::new(top_left.x, bot_right.y),
             &Position::new(top_left.x + platform_width, bot_right.y),
             &BlockType::Spawn,
-            &Overwrite::ReplaceNonSolidForce,
+            &Overwrite::ReplaceNonSolid,
         );
 
         let char_per_line = 14;
@@ -237,7 +237,7 @@ impl Generator {
         self.map.set_area(
             &textbox_top_left,
             &textbox_bot_right,
-            &BlockType::EmptyReserved,
+            &BlockType::EmptyRoom,
             &Overwrite::Force,
         );
 
@@ -392,7 +392,7 @@ impl Generator {
         // fill up dead ends
         if gen_config.use_dead_end_removal {
             let dead_end_blocks =
-                post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance);
+                post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance)?;
             print_time(&mut timer, "fill dead ends", verbose);
 
             // fix stair artifacts resulting from dead end filling
