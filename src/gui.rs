@@ -519,7 +519,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     .show(ui, |ui| {
                         field_edit_widget(
                             ui,
-                            &mut editor.gen_config.plat_min_euclidean_distance,
+                            &mut editor.gen_config.plat_max_euclidean_distance,
                             edit_usize,
                             "min euclidean dist",
                             true,

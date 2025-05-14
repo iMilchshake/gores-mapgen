@@ -1492,6 +1492,7 @@ pub fn generate_platforms(
 
     let platforms_count = platforms.len();
     let mut platform_blocked = vec![false; platforms_count];
+    let mut used_plat = Vec::new();
 
     for idx in 0..platforms.len() {
         if platform_blocked[idx] {
@@ -1509,11 +1510,8 @@ pub fn generate_platforms(
 
             let plat_other = &platforms[idx_other];
             let euclidean_dist = plat.pos.distance(&plat_other.pos);
-            if euclidean_dist < gen_config.plat_min_euclidean_distance as f32 {
-                // crappy way to get distance in map, as flood fill is only performed for empty
-                // we just shift up a bit by max_freeze so we SHOULD end up at empty block lol
+            if euclidean_dist < gen_config.plat_max_euclidean_distance as f32 {
                 let ff_diff = plat.flood_fill_dist.abs_diff(plat_other.flood_fill_dist);
-
                 // ff uses city block distance, it should always be larger than euclidean
                 // distance. So we can use same or similar value here?
                 if ff_diff < gen_config.plat_min_ff_distance {
@@ -1524,7 +1522,26 @@ pub fn generate_platforms(
 
         // set platform
         set_platform(map, plat)?;
+
+        // remember the platforms that are actually used
+        used_plat.push(plat);
     }
+
+    used_plat.sort_unstable_by(|a, b| (a.flood_fill_dist).cmp(&(b.flood_fill_dist)));
+
+    dbg!(&used_plat);
+
+    let ff_gaps: Vec<usize> = used_plat
+        .windows(2)
+        .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
+        .collect();
+    dbg!(&ff_gaps);
+
+    let eucl_gaps: Vec<f32> = used_plat
+        .windows(2)
+        .map(|a| a[1].pos.distance(&a[0].pos))
+        .collect();
+    dbg!(&eucl_gaps);
 
     if let Some(debug_layers) = debug_layers {
         debug_layers.bool_layers.get_mut("plat_cand").unwrap().grid =
