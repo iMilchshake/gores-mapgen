@@ -1,7 +1,7 @@
 {
   "name": "1tilerz",
   "description": null,
-  "difficulty": 3.0,
+  "difficulty": 3.75,
   "version": "1.0",
   "inner_rad_mut_prob": 1.0,
   "inner_size_mut_prob": 0.2,

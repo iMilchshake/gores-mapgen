@@ -1,7 +1,7 @@
 {
   "name": "insane",
   "description": null,
-  "difficulty": 4.0,
+  "difficulty": 4.5,
   "version": "1.0",
   "inner_rad_mut_prob": 0.6,
   "inner_size_mut_prob": 1.0,
