@@ -1299,7 +1299,7 @@ pub fn generate_finish_room(
         &top_left.shifted_by(-1, -1)?,
         &bot_right.shifted_by(1, 1)?,
         &BlockType::Finish,
-        &Overwrite::ReplaceRoomNonSolid,
+        &Overwrite::ReplaceNonSolid,
     );
 
     gen.map.write_text(&pos.shifted_by(-2, 0)?, "GG :3");

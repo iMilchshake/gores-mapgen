@@ -172,7 +172,7 @@ impl Generator {
             &top_left.shifted_by(-1, -1).unwrap(),
             &bot_right.shifted_by(1, 1).unwrap(),
             &BlockType::Start,
-            &Overwrite::ReplaceNonSolid,
+            &Overwrite::ReplaceNonSolidFade,
         );
 
         // set elevated platform
@@ -180,7 +180,7 @@ impl Generator {
             &Position::new(top_left.x, self.spawn.y - 1),
             &Position::new(top_left.x + platform_width, self.spawn.y + 1),
             &BlockType::Hookable,
-            &Overwrite::ReplaceNonSolid,
+            &Overwrite::ReplaceNonSolidRoom,
         );
 
         // set spawns
@@ -188,13 +188,13 @@ impl Generator {
             &Position::new(top_left.x, self.spawn.y - 2),
             &Position::new(top_left.x + platform_width, self.spawn.y - 2),
             &BlockType::Spawn,
-            &Overwrite::ReplaceNonSolid,
+            &Overwrite::ReplaceNonSolidRoom,
         );
         self.map.set_area(
             &Position::new(top_left.x, bot_right.y),
             &Position::new(top_left.x + platform_width, bot_right.y),
             &BlockType::Spawn,
-            &Overwrite::ReplaceNonSolid,
+            &Overwrite::ReplaceNonSolidRoom,
         );
 
         let char_per_line = 14;

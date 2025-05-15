@@ -80,10 +80,10 @@ impl BlockType {
 }
 
 pub enum Overwrite {
-    /// Replace EVERYTHING
+    /// Replace EVERYTHING, use with caution!
     Force,
 
-    /// Replace Hookable+Freeze
+    /// Replace Hookable + Freeze
     ReplaceHookableFreeze,
 
     /// Replace Hookable
@@ -92,11 +92,14 @@ pub enum Overwrite {
     /// Replace Empty
     ReplaceEmptyOnly,
 
-    /// Replace Freeze+Empty
+    /// Replace Freeze + Empty
     ReplaceNonSolid,
 
-    /// Replace EmptySpawn and Freeze (for start line)
-    ReplaceRoomNonSolid,
+    /// Replace Freeze + EmptyFade + Empty
+    ReplaceNonSolidFade,
+
+    /// Replace Freeze + EmptySpawn + Empty
+    ReplaceNonSolidRoom,
 }
 
 impl Overwrite {
@@ -109,8 +112,11 @@ impl Overwrite {
             Overwrite::ReplaceHookableOnly => matches!(&btype, BlockType::Hookable),
             Overwrite::ReplaceEmptyOnly => matches!(&btype, BlockType::Empty),
             Overwrite::ReplaceNonSolid => matches!(&btype, BlockType::Freeze | BlockType::Empty),
-            Overwrite::ReplaceRoomNonSolid => {
+            Overwrite::ReplaceNonSolidRoom => {
                 matches!(&btype, BlockType::EmptyRoom | BlockType::Freeze)
+            }
+            Overwrite::ReplaceNonSolidFade => {
+                matches!(&btype, BlockType::EmptyFade | BlockType::Freeze)
             }
         }
     }
