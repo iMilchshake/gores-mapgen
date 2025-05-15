@@ -99,6 +99,7 @@ fn fix_local_edge_bugs(map: &mut Map, top_left: &Position, bot_right: &Position)
         }
     }
 
+    // TODO: function directly changes Hookable blocks outside of playable baths, CAN break chunked
     // TODO: currently i dont check below
 }
 
@@ -1352,6 +1353,7 @@ enum PlatformPosCandidate {
     Grouped,
 }
 
+#[derive(Debug)]
 pub struct FloorPosition {
     pub pos: Position,
     pub freeze_height: usize,
@@ -1373,6 +1375,38 @@ pub struct PlatformCandidate {
 
     /// flood fill distance in the map
     pub flood_fill_dist: usize,
+}
+
+impl PlatformCandidate {
+    pub fn total_width(&self) -> usize {
+        self.offset_left + self.offset_right + 1
+    }
+
+    /// Re-centers the platform around its middle point
+    /// When total width is odd, biases right position, so higher offset_left
+    pub fn re_center(&mut self) {
+        let total_width = self.total_width();
+        let center = self.pos.x - self.offset_left + (total_width / 2);
+        self.offset_left = total_width / 2;
+        self.offset_right = total_width - self.offset_left - 1;
+        self.pos.x = center;
+    }
+
+    /// Shrinks the platform to specified width
+    /// Prefers reducing left, to counterbalance the bias in re_center
+    pub fn shrink(&mut self, shrink_to: usize) {
+        let total_width = self.total_width();
+        if total_width <= shrink_to {
+            return;
+        }
+
+        let shrink_by = total_width - shrink_to;
+        let shrink_left = (shrink_by + 1) / 2; // ceiling division
+        let shrink_right = shrink_by / 2; // floor division
+
+        self.offset_left = self.offset_left.saturating_sub(shrink_left);
+        self.offset_right = self.offset_right.saturating_sub(shrink_right);
+    }
 }
 
 pub fn generate_platforms(
@@ -1472,15 +1506,18 @@ pub fn generate_platforms(
             continue;
         }
 
-        // add platform candidate if flood fill distance can be determined
+        // add final platform candidate
         if let Some(flood_fill_dist) = flood_fill[[floor.pos.x, floor.pos.y - (max_freeze + 1)]] {
-            platforms.push(PlatformCandidate {
+            let mut platform_cand = PlatformCandidate {
                 pos: floor.pos.clone(), // TODO: remove clone
                 offset_left,
                 offset_right,
                 reserved_height: target_height, // for now all platforms use target height
                 flood_fill_dist,
-            });
+            };
+            platform_cand.re_center();
+            platform_cand.shrink(gen_config.plat_max_width);
+            platforms.push(platform_cand);
         }
     }
 
@@ -1529,19 +1566,23 @@ pub fn generate_platforms(
 
     used_plat.sort_unstable_by(|a, b| (a.flood_fill_dist).cmp(&(b.flood_fill_dist)));
 
-    dbg!(&used_plat);
-
+    // check that no platform gap is too large (we allow 100% larger gap than minimum)
+    // TODO: okay for large maps this is absolutely garbage, i need to overhaul 'greedy' gen
+    // TODO: this doesnt yet consider multi-path maps
     let ff_gaps: Vec<usize> = used_plat
         .windows(2)
         .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
         .collect();
-    dbg!(&ff_gaps);
+    let max_gap = (gen_config.plat_min_ff_distance as f32 * 2.00) as usize;
+    if ff_gaps.iter().any(|&gap| gap > max_gap) {
+        return Err("platform distance constrain not fulfilled");
+    }
 
     let eucl_gaps: Vec<f32> = used_plat
         .windows(2)
         .map(|a| a[1].pos.distance(&a[0].pos))
         .collect();
-    dbg!(&eucl_gaps);
+    // dbg!(&eucl_gaps);
 
     if let Some(debug_layers) = debug_layers {
         debug_layers.bool_layers.get_mut("plat_cand").unwrap().grid =
@@ -1604,7 +1645,6 @@ pub fn set_platform(map: &mut Map, plat: &PlatformCandidate) -> Result<(), &'sta
 
             // check if playable path is a one tiler
             if map.check_area_exists(&above_left, &above_right, &BlockType::Freeze)? {
-                dbg!(&above_left, &above_right);
                 // if yes, remove one block above
                 map.set_area(
                     &above_left,

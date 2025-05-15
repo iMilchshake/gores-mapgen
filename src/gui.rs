@@ -556,6 +556,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             "min width",
                             true,
                         );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_max_width,
+                            edit_usize,
+                            "max width",
+                            true,
+                        );
                     });
 
                 CollapsingHeader::new("Momentum")

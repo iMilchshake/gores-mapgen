@@ -425,7 +425,7 @@ impl Generator {
 
         // platforms
         let floor_pos =
-            post::generate_platforms(&mut self.map, gen_config, &ff.distance, debug_layers);
+            post::generate_platforms(&mut self.map, gen_config, &ff.distance, debug_layers)?;
         print_time(&mut timer, "generate platforms", verbose);
 
         post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
@@ -457,10 +457,8 @@ impl Generator {
             let grid = &mut debug_layers.bool_layers.get_mut("floor").unwrap().grid;
 
             // floor
-            if let Ok(floor_pos) = floor_pos {
-                for floor_pos in floor_pos {
-                    grid[floor_pos.pos.as_index()] = true;
-                }
+            for floor_pos in floor_pos {
+                grid[floor_pos.pos.as_index()] = true;
             }
         }
         print_time(&mut timer, "set debug layers", verbose);

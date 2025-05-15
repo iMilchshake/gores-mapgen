@@ -120,6 +120,7 @@ pub struct GenerationConfig {
     pub plat_max_freeze: usize,
     pub plat_height: usize,
     pub plat_min_width: usize,
+    pub plat_max_width: usize,
 
     /// allow "soft" overlaps -> non-empty blocks below platform (e.g. freeze)
     // pub plat_soft_overhang: bool,
@@ -417,6 +418,7 @@ impl Default for GenerationConfig {
             plat_max_freeze: 2,
             plat_height: 4,
             plat_min_width: 3,
+            plat_max_width: 10,
             momentum_prob: 0.01,
             max_distance: 3.0,
             waypoint_reached_dist: 250,
