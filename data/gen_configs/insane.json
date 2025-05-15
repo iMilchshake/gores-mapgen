@@ -10,17 +10,18 @@
   "shift_weights": {
     "values": null,
     "probs": [
-      0.3508772,
-      0.31578946,
-      0.2982456,
-      0.03508772
+      0.35087723,
+      0.3157895,
+      0.29824564,
+      0.035087723
     ]
   },
-  "plat_min_euclidean_distance": 75,
+  "plat_max_euclidean_distance": 75,
   "plat_min_ff_distance": 75,
   "plat_max_freeze": 2,
-  "plat_height": 4,
+  "plat_height": 3,
   "plat_min_width": 3,
+  "plat_max_width": 10,
   "momentum_prob": 0.7,
   "max_distance": 2.2,
   "waypoint_reached_dist": 300,

@@ -16,30 +16,23 @@
       0.11904762
     ]
   },
-  "plat_min_distance": 75,
-  "plat_width_bounds": [
-    3,
-    5
-  ],
-  "plat_height_bounds": [
-    1,
-    2
-  ],
-  "plat_min_empty_height": 4,
-  "plat_soft_overhang": false,
+  "plat_max_euclidean_distance": 125,
+  "plat_min_ff_distance": 125,
+  "plat_max_freeze": 2,
+  "plat_height": 4,
+  "plat_min_width": 3,
+  "plat_max_width": 10,
   "momentum_prob": 0.5,
   "max_distance": 4.0,
-  "waypoint_reached_dist": 16,
+  "waypoint_reached_dist": 31,
   "inner_size_probs": {
     "values": [
       4,
-      3,
-      11
+      3
     ],
     "probs": [
-      0.15000002,
-      0.84391177,
-      0.0060882242
+      0.15091884,
+      0.84908116
     ]
   },
   "outer_margin_probs": {
@@ -80,8 +73,11 @@
   "fade_min_size": 4,
   "max_subwaypoint_dist": 50.0,
   "subwaypoint_max_shift_dist": 5.0,
+  "skip_invalid_waypoints": false,
   "pos_lock_max_dist": 40.0,
   "pos_lock_max_delay": 1500,
-  "lock_kernel_size": 10,
-  "waypoint_lock_distance": 10
+  "enable_kernel_lock": true,
+  "waypoint_lock_distance": 15,
+  "use_dead_end_removal": true,
+  "dead_end_threshold": 10
 }

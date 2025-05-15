@@ -1573,8 +1573,10 @@ pub fn generate_platforms(
         .windows(2)
         .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
         .collect();
-    let max_gap = (gen_config.plat_min_ff_distance as f32 * 2.00) as usize;
-    if ff_gaps.iter().any(|&gap| gap > max_gap) {
+    let max_valid_gap = (gen_config.plat_min_ff_distance as f32 * 1.70) as usize;
+    let max_gap = *ff_gaps.iter().max().unwrap();
+    if max_gap > max_valid_gap {
+        println!("{} > {}", max_gap, max_valid_gap);
         return Err("platform distance constrain not fulfilled");
     }
 

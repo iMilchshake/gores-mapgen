@@ -16,11 +16,12 @@
       0.078431375
     ]
   },
-  "plat_min_euclidean_distance": 75,
-  "plat_min_ff_distance": 75,
+  "plat_max_euclidean_distance": 125,
+  "plat_min_ff_distance": 125,
   "plat_max_freeze": 2,
   "plat_height": 4,
   "plat_min_width": 3,
+  "plat_max_width": 10,
   "momentum_prob": 0.6,
   "max_distance": 4.0,
   "waypoint_reached_dist": 125,
@@ -41,13 +42,11 @@
   "outer_margin_probs": {
     "values": [
       2,
-      4,
-      6
+      4
     ],
     "probs": [
-      0.97118473,
-      0.025719268,
-      0.0030960215
+      0.97420084,
+      0.025799142
     ]
   },
   "circ_probs": {
