@@ -1359,7 +1359,7 @@ pub struct FloorPosition {
     pub freeze_height: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PlatformCandidate {
     /// 'center' position of platform
     pub pos: Position,
@@ -1409,17 +1409,11 @@ impl PlatformCandidate {
     }
 }
 
-pub fn generate_platforms(
-    map: &mut Map,
+pub fn find_floor_positions(
+    map: &Map,
     gen_config: &GenerationConfig,
-    flood_fill: &Array2<Option<usize>>,
-    debug_layers: &mut Option<DebugLayers>,
 ) -> Result<Vec<FloorPosition>, &'static str> {
     let mut floor_pos: Vec<FloorPosition> = Vec::new();
-
-    let max_freeze = gen_config.plat_max_freeze;
-    let target_height = gen_config.plat_height;
-
     for x in 0..map.width {
         for y in 1..map.height {
             if map.grid[[x, y]] != BlockType::Hookable {
@@ -1440,11 +1434,14 @@ pub fn generate_platforms(
                 }
 
                 let freeze_height = pos.y.checked_sub(non_freeze_pos.y + 1).unwrap();
-                if freeze_height > max_freeze {
+                if freeze_height > gen_config.plat_max_freeze {
                     continue;
                 }
 
-                let check_empty_blocks = target_height.checked_sub(freeze_height + 1).unwrap();
+                let check_empty_blocks = gen_config
+                    .plat_height
+                    .checked_sub(freeze_height + 1)
+                    .unwrap();
 
                 if !map.check_area_all(
                     &non_freeze_pos.shifted_by(0, -(check_empty_blocks as i32))?,
@@ -1458,7 +1455,16 @@ pub fn generate_platforms(
             }
         }
     }
+    return Ok(floor_pos);
+}
 
+pub fn generate_platform_candidates(
+    map: &Map,
+    floor_pos: &[FloorPosition],
+    flood_fill: &Array2<Option<usize>>,
+    gen_config: &GenerationConfig,
+    debug_layers: &mut Option<DebugLayers>,
+) -> Result<Vec<PlatformCandidate>, &'static str> {
     // fill candidates
     let mut candidates = Array2::from_elem((map.width, map.height), PlatformPosCandidate::None);
     for floor in floor_pos.iter() {
@@ -1507,12 +1513,14 @@ pub fn generate_platforms(
         }
 
         // add final platform candidate
-        if let Some(flood_fill_dist) = flood_fill[[floor.pos.x, floor.pos.y - (max_freeze + 1)]] {
+        if let Some(flood_fill_dist) =
+            flood_fill[[floor.pos.x, floor.pos.y - (gen_config.plat_max_freeze + 1)]]
+        {
             let mut platform_cand = PlatformCandidate {
                 pos: floor.pos.clone(), // TODO: remove clone
                 offset_left,
                 offset_right,
-                reserved_height: target_height, // for now all platforms use target height
+                reserved_height: gen_config.plat_height, // for now all platforms use target height
                 flood_fill_dist,
             };
             platform_cand.re_center();
@@ -1527,9 +1535,23 @@ pub fn generate_platforms(
             .reverse()
     });
 
+    if let Some(debug_layers) = debug_layers {
+        debug_layers.bool_layers.get_mut("plat_cand").unwrap().grid =
+            candidates.mapv(|v| v == PlatformPosCandidate::Candidate);
+        debug_layers.bool_layers.get_mut("plat_group").unwrap().grid =
+            candidates.mapv(|v| v == PlatformPosCandidate::Grouped);
+    }
+
+    return Ok(platforms);
+}
+
+pub fn greedy_select_platforms(
+    platforms: &[PlatformCandidate],
+    gen_config: &GenerationConfig,
+) -> Result<Vec<PlatformCandidate>, &'static str> {
     let platforms_count = platforms.len();
     let mut platform_blocked = vec![false; platforms_count];
-    let mut used_plat = Vec::new();
+    let mut used_plat: Vec<PlatformCandidate> = Vec::new();
 
     for idx in 0..platforms.len() {
         if platform_blocked[idx] {
@@ -1557,44 +1579,51 @@ pub fn generate_platforms(
             }
         }
 
-        // set platform
-        set_platform(map, plat)?;
-
-        // remember the platforms that are actually used
-        used_plat.push(plat);
+        used_plat.push(plat.clone());
     }
 
     used_plat.sort_unstable_by(|a, b| (a.flood_fill_dist).cmp(&(b.flood_fill_dist)));
 
+    Ok(used_plat)
+}
+
+pub fn generate_platforms(
+    map: &mut Map,
+    gen_config: &GenerationConfig,
+    flood_fill: &Array2<Option<usize>>,
+    debug_layers: &mut Option<DebugLayers>,
+) -> Result<Vec<FloorPosition>, &'static str> {
+    // find potential floor positions
+    let floor_pos = find_floor_positions(map, gen_config)?;
+
+    let platforms =
+        generate_platform_candidates(map, &floor_pos, flood_fill, gen_config, debug_layers)?;
+
+    let selected_platforms = greedy_select_platforms(&platforms, gen_config)?;
+
+    for plat in selected_platforms.iter() {
+        set_platform(map, plat)?;
+    }
+
     // check that no platform gap is too large (we allow 100% larger gap than minimum)
     // TODO: okay for large maps this is absolutely garbage, i need to overhaul 'greedy' gen
     // TODO: this doesnt yet consider multi-path maps
-    let ff_gaps: Vec<usize> = used_plat
+    let ff_gaps: Vec<usize> = selected_platforms
         .windows(2)
         .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
         .collect();
     let max_valid_gap = (gen_config.plat_min_ff_distance as f32 * 1.70) as usize;
     let max_gap = *ff_gaps.iter().max().unwrap();
     if max_gap > max_valid_gap {
-        println!("{} > {}", max_gap, max_valid_gap);
+        // println!("{} > {}", max_gap, max_valid_gap);
         return Err("platform distance constrain not fulfilled");
     }
 
-    let eucl_gaps: Vec<f32> = used_plat
+    let eucl_gaps: Vec<f32> = selected_platforms
         .windows(2)
         .map(|a| a[1].pos.distance(&a[0].pos))
         .collect();
     // dbg!(&eucl_gaps);
-
-    if let Some(debug_layers) = debug_layers {
-        debug_layers.bool_layers.get_mut("plat_cand").unwrap().grid =
-            candidates.mapv(|v| v == PlatformPosCandidate::Candidate);
-    }
-
-    if let Some(debug_layers) = debug_layers {
-        debug_layers.bool_layers.get_mut("plat_group").unwrap().grid =
-            candidates.mapv(|v| v == PlatformPosCandidate::Grouped);
-    }
 
     Ok(floor_pos)
 }
