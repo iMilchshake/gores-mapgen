@@ -1554,12 +1554,6 @@ pub fn generate_platform_candidates(
         }
     }
 
-    platforms.sort_unstable_by(|a, b| {
-        (a.offset_left + a.offset_right)
-            .cmp(&(b.offset_left + b.offset_right))
-            .reverse()
-    });
-
     if let Some(debug_layers) = debug_layers {
         debug_layers.float_layers.get_mut("plat_cand").unwrap().grid =
             candidates.mapv(|v| match v {
@@ -1580,13 +1574,15 @@ pub fn generate_platform_candidates(
     return Ok(platforms);
 }
 
+/// Greedely select all platforms that dont block each other, based on the initial ordering
 pub fn greedy_select_platforms(
     platforms: &[PlatformCandidate],
-    gen_config: &GenerationConfig,
+    min_gap_ff: usize,
+    min_gap_eucl: usize,
 ) -> Result<Vec<PlatformCandidate>, &'static str> {
     let platforms_count = platforms.len();
     let mut platform_blocked = vec![false; platforms_count];
-    let mut used_plat: Vec<PlatformCandidate> = Vec::new();
+    let mut selected_platforms: Vec<PlatformCandidate> = Vec::new();
 
     for idx in 0..platforms.len() {
         if platform_blocked[idx] {
@@ -1604,57 +1600,118 @@ pub fn greedy_select_platforms(
 
             let plat_other = &platforms[idx_other];
             let euclidean_dist = plat.pos.distance(&plat_other.pos);
-            if euclidean_dist < gen_config.plat_max_euclidean_distance as f32 {
+            if euclidean_dist < min_gap_eucl as f32 {
                 let ff_diff = plat.flood_fill_dist.abs_diff(plat_other.flood_fill_dist);
                 // ff uses city block distance, it should always be larger than euclidean
                 // distance. So we can use same or similar value here?
-                if ff_diff < gen_config.plat_min_ff_distance {
+                if ff_diff < min_gap_ff {
                     platform_blocked[idx_other] = true;
                 }
             }
         }
 
-        used_plat.push(plat.clone());
+        selected_platforms.push(plat.clone());
     }
 
-    used_plat.sort_unstable_by(|a, b| (a.flood_fill_dist).cmp(&(b.flood_fill_dist)));
+    Ok(selected_platforms)
+}
 
-    Ok(used_plat)
+fn order_plats_by_gap(
+    platforms: &mut [PlatformCandidate],
+    level_len: usize,
+) -> Vec<PlatformCandidate> {
+    // sort by position
+    platforms.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
+
+    // determine gaps before/after platforms
+    let n = platforms.len();
+    let mut with_gaps: Vec<(usize, &PlatformCandidate)> = Vec::with_capacity(n);
+    for (i, plat) in platforms.iter().enumerate() {
+        let prev_pos = if i == 0 {
+            0
+        } else {
+            platforms[i - 1].flood_fill_dist
+        };
+        let next_pos = if i + 1 == n {
+            level_len
+        } else {
+            platforms[i + 1].flood_fill_dist
+        };
+        let gap_before = plat.flood_fill_dist - prev_pos;
+        let gap_after = next_pos - plat.flood_fill_dist;
+        with_gaps.push((gap_before + gap_after, plat));
+    }
+
+    // sort by total gap descending, return just the platforms in new ordering
+    with_gaps.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+    with_gaps
+        .into_iter()
+        .map(|(_, plat)| plat.clone())
+        .collect()
 }
 
 pub fn generate_platforms(
     map: &mut Map,
     gen_config: &GenerationConfig,
     flood_fill: &Array2<Option<usize>>,
+    ff_map_length: usize,
     debug_layers: &mut Option<DebugLayers>,
 ) -> Result<Vec<FloorPosition>, &'static str> {
     // find potential floor positions
     let floor_pos = find_floor_positions(map, gen_config)?;
 
-    let platforms =
+    let mut all_platforms =
         generate_platform_candidates(map, &floor_pos, flood_fill, gen_config, debug_layers)?;
 
-    let selected_platforms = greedy_select_platforms(&platforms, gen_config)?;
+    // first sweep: prioritize large platforms, but with only half the gap
+    all_platforms.sort_unstable_by(|a, b| {
+        (a.offset_left + a.offset_right)
+            .cmp(&(b.offset_left + b.offset_right))
+            .reverse()
+    });
+    let mut selected_platforms = greedy_select_platforms(
+        &all_platforms,
+        gen_config.plat_max_euclidean_distance / 2,
+        gen_config.plat_min_ff_distance / 2,
+    )?;
 
-    for plat in selected_platforms.iter() {
+    // dbg!(&selected_platforms, &selected_platforms.len());
+
+    // second sweep: priorritize platforms with largest gaps
+    let selected_platforms_ordered = order_plats_by_gap(&mut selected_platforms, ff_map_length);
+    let mut final_platforms = greedy_select_platforms(
+        &selected_platforms_ordered,
+        gen_config.plat_max_euclidean_distance,
+        gen_config.plat_min_ff_distance,
+    )?;
+
+    // TODO: good idea, but the gaps change as soon as i block platforms. but the ordering/gaps are
+    // not updated.. so if i pick many possible platforms this sucks.
+
+    // dbg!(&selected_platforms_ordered);
+
+    for plat in final_platforms.iter() {
         set_platform(map, plat)?;
     }
 
+    final_platforms.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
+    // dbg!(&final_platforms);
     // check that no platform gap is too large (we allow 100% larger gap than minimum)
     // TODO: okay for large maps this is absolutely garbage, i need to overhaul 'greedy' gen
     // TODO: this doesnt yet consider multi-path maps
-    let ff_gaps: Vec<usize> = selected_platforms
+    let ff_gaps: Vec<usize> = final_platforms
         .windows(2)
         .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
         .collect();
     let max_valid_gap = (gen_config.plat_min_ff_distance as f32 * 1.70) as usize;
     let max_gap = *ff_gaps.iter().max().unwrap();
+    // dbg!(ff_gaps);
     if max_gap > max_valid_gap {
         // println!("{} > {}", max_gap, max_valid_gap);
         return Err("platform distance constrain not fulfilled");
     }
 
-    let eucl_gaps: Vec<f32> = selected_platforms
+    let eucl_gaps: Vec<f32> = final_platforms
         .windows(2)
         .map(|a| a[1].pos.distance(&a[0].pos))
         .collect();

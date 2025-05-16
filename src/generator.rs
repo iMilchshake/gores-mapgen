@@ -423,9 +423,17 @@ impl Generator {
         );
         print_time(&mut timer, "generate skips", verbose);
 
+        let ff_map_length =
+            ff.distance[self.walker.pos.as_index()].expect("cant determine map length");
+
         // platforms
-        let floor_pos =
-            post::generate_platforms(&mut self.map, gen_config, &ff.distance, debug_layers)?;
+        let floor_pos = post::generate_platforms(
+            &mut self.map,
+            gen_config,
+            &ff.distance,
+            ff_map_length,
+            debug_layers,
+        )?;
         print_time(&mut timer, "generate platforms", verbose);
 
         post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
