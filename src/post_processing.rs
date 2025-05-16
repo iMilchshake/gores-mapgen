@@ -9,6 +9,7 @@ use crate::{
     utils::safe_slice_mut,
 };
 
+use core::panic;
 use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap, VecDeque},
@@ -1343,19 +1344,21 @@ pub fn fill_dead_ends(
     Ok(filled_blocks)
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 enum PlatformPosCandidate {
     /// location is not platform candidate
     None,
-    /// location is platform candidate, not used yet in a platform group
-    Candidate,
-    /// location is platform candidate and already used for platform group
-    Grouped,
+    /// location is platform candidate, not used yet in a platform group. stores individual empty_height.
+    Candidate(usize),
+    /// location is platform candidate and already used for platform group. stores minumum
+    /// empty_height of group.
+    Grouped(usize),
 }
 
 #[derive(Debug)]
 pub struct FloorPosition {
     pub pos: Position,
+    pub empty_height: usize,
     pub freeze_height: usize,
 }
 
@@ -1425,33 +1428,33 @@ pub fn find_floor_positions(
             }
 
             // shift upwards to find first non freeze block
-            let pos = Position::new(x, y);
+            let base_pos = Position::new(x, y);
             if let Some(non_freeze_pos) =
-                map.shift_pos_until(&pos, ShiftDirection::Up, |b| !b.is_freeze())
+                map.shift_pos_until(&base_pos, ShiftDirection::Up, |b| !b.is_freeze())
             {
                 if map.grid[non_freeze_pos.as_index()] != BlockType::Empty {
                     continue; // above N freeze blocks there must be an empty block
                 }
 
-                let freeze_height = pos.y.checked_sub(non_freeze_pos.y + 1).unwrap();
+                let freeze_height = base_pos.y - (non_freeze_pos.y + 1);
                 if freeze_height > gen_config.plat_max_freeze {
                     continue;
                 }
 
-                let check_empty_blocks = gen_config
-                    .plat_height
-                    .checked_sub(freeze_height + 1)
-                    .unwrap();
+                if let Some(first_non_empty_pos) =
+                    map.shift_pos_until(&non_freeze_pos, ShiftDirection::Up, |b| !b.is_empty())
+                {
+                    let empty_height = non_freeze_pos.y - first_non_empty_pos.y;
+                    if empty_height < gen_config.plat_height {
+                        continue;
+                    }
 
-                if !map.check_area_all(
-                    &non_freeze_pos.shifted_by(0, -(check_empty_blocks as i32))?,
-                    &non_freeze_pos,
-                    &BlockType::Empty,
-                )? {
-                    continue;
+                    floor_pos.push(FloorPosition {
+                        pos: base_pos,
+                        empty_height,
+                        freeze_height,
+                    });
                 }
-
-                floor_pos.push(FloorPosition { pos, freeze_height });
             }
         }
     }
@@ -1468,51 +1471,71 @@ pub fn generate_platform_candidates(
     // fill candidates
     let mut candidates = Array2::from_elem((map.width, map.height), PlatformPosCandidate::None);
     for floor in floor_pos.iter() {
-        let mut view = safe_slice_mut(
-            &mut candidates,
-            &floor.pos.shifted_by(0, -(floor.freeze_height as i32))?, // TODO: add margins
-            &floor.pos,
-            map,
-        )?;
-        view.fill(PlatformPosCandidate::Candidate);
+        for freeze_offset in 0..floor.freeze_height {
+            candidates[[floor.pos.x, floor.pos.y - freeze_offset]] =
+                PlatformPosCandidate::Candidate(
+                    floor.empty_height + floor.freeze_height - freeze_offset,
+                );
+        }
     }
 
     let mut platforms = Vec::new();
 
-    // group candidates
+    // group candidates based on floor positions. So floor positions can be grouped with
+    // freeze_offset candidates, but a group must start at a floor position!
     for floor in floor_pos.iter() {
-        let start_x = floor.pos.x;
-        let start_y = floor.pos.y;
+        let mut min_empty_height: usize;
+
+        // check current position, skip if already grouped
+        if let PlatformPosCandidate::Candidate(empty_height) =
+            candidates[[floor.pos.x, floor.pos.y]]
+        {
+            min_empty_height = empty_height;
+        } else {
+            continue;
+        }
 
         // group to the left
         let mut offset_left = 1;
-        while candidates[[floor.pos.x - offset_left, floor.pos.y]]
-            == PlatformPosCandidate::Candidate
+        while let PlatformPosCandidate::Candidate(empty_height) =
+            candidates[[floor.pos.x - offset_left, floor.pos.y]]
         {
-            candidates[[floor.pos.x - offset_left, floor.pos.y]] = PlatformPosCandidate::Grouped;
+            if empty_height < gen_config.plat_height {
+                continue;
+            }
+            min_empty_height = min_empty_height.min(empty_height);
             offset_left += 1;
         }
         offset_left -= 1;
 
         // group to the right
         let mut offset_right = 1;
-        while candidates[[floor.pos.x + offset_right, floor.pos.y]]
-            == PlatformPosCandidate::Candidate
+        while let PlatformPosCandidate::Candidate(empty_height) =
+            candidates[[floor.pos.x + offset_right, floor.pos.y]]
         {
-            candidates[[floor.pos.x + offset_right, floor.pos.y]] = PlatformPosCandidate::Grouped;
+            if empty_height < gen_config.plat_height {
+                continue;
+            }
+            min_empty_height = min_empty_height.min(empty_height);
             offset_right += 1;
         }
         offset_right -= 1;
 
-        // group starting position
-        candidates[[start_x, start_y]] = PlatformPosCandidate::Grouped;
+        // group all candidates
+        let mut view = safe_slice_mut(
+            &mut candidates,
+            &floor.pos.shifted_by(-(offset_left as i32), 0)?,
+            &floor.pos.shifted_by(offset_right as i32, 0)?,
+            map,
+        )?;
+        view.fill(PlatformPosCandidate::Grouped(min_empty_height));
 
         // skip if platform too narrow
         if offset_left + offset_right + 1 < gen_config.plat_min_width {
             continue;
         }
 
-        // add final platform candidate
+        // derive platform
         if let Some(flood_fill_dist) =
             flood_fill[[floor.pos.x, floor.pos.y - (gen_config.plat_max_freeze + 1)]]
         {
@@ -1520,12 +1543,14 @@ pub fn generate_platform_candidates(
                 pos: floor.pos.clone(), // TODO: remove clone
                 offset_left,
                 offset_right,
-                reserved_height: gen_config.plat_height, // for now all platforms use target height
+                reserved_height: min_empty_height,
                 flood_fill_dist,
             };
             platform_cand.re_center();
             platform_cand.shrink(gen_config.plat_max_width);
             platforms.push(platform_cand);
+        } else {
+            panic!("huh");
         }
     }
 
@@ -1536,10 +1561,20 @@ pub fn generate_platform_candidates(
     });
 
     if let Some(debug_layers) = debug_layers {
-        debug_layers.bool_layers.get_mut("plat_cand").unwrap().grid =
-            candidates.mapv(|v| v == PlatformPosCandidate::Candidate);
-        debug_layers.bool_layers.get_mut("plat_group").unwrap().grid =
-            candidates.mapv(|v| v == PlatformPosCandidate::Grouped);
+        debug_layers.float_layers.get_mut("plat_cand").unwrap().grid =
+            candidates.mapv(|v| match v {
+                PlatformPosCandidate::Candidate(empty_height) => Some(empty_height as f32),
+                _ => None,
+            });
+
+        debug_layers
+            .float_layers
+            .get_mut("plat_group")
+            .unwrap()
+            .grid = candidates.mapv(|v| match v {
+            PlatformPosCandidate::Grouped(empty_height) => Some(empty_height as f32),
+            _ => None,
+        });
     }
 
     return Ok(platforms);
@@ -1651,7 +1686,9 @@ pub fn set_platform(map: &mut Map, plat: &PlatformCandidate) -> Result<(), &'sta
     );
 
     // fix edge bugs
-    fix_local_edge_bugs(map, &top_left, &bot_right);
+    // due to improved platform detection we dont need this anymore, but maybe i'll decide to
+    // add a feature that expands a platform, in that case i'd need this again.
+    // fix_local_edge_bugs(map, &top_left, &bot_right);
 
     // check "soft blocked" parts
     let part_offset = 2;
