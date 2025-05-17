@@ -13,7 +13,7 @@ use core::panic;
 use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap, VecDeque},
-    f32::consts::SQRT_2,
+    f32::{consts::SQRT_2, INFINITY},
 };
 
 use dt::dt_bool;
@@ -1650,6 +1650,58 @@ fn order_plats_by_gap(
         .collect()
 }
 
+/// Pick exactly `wanted` platforms so the sum of squared deviations
+/// (gap − target_gap)² is minimised.  
+/// O(n² · wanted) on ≤100 points → negligible.
+pub fn select_platforms_dp(
+    mut plats: Vec<PlatformCandidate>,
+    wanted: usize,
+    target_gap: usize,
+) -> Result<Vec<PlatformCandidate>, &'static str> {
+    if plats.is_empty() || wanted == 0 || wanted > plats.len() {
+        return Err("no feasible selection");
+    }
+    plats.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
+    let n = plats.len();
+    let k = wanted;
+
+    // dp[chosen-1][i] = (best_cost, predecessor_index)
+    let mut dp = vec![vec![(INFINITY, None); n]; k];
+    for i in 0..n {
+        dp[0][i] = (0.0, None);
+    } // first pick: cost 0
+
+    for chosen in 1..k {
+        for i in chosen..n {
+            let mut best = (INFINITY, None);
+            for j in (chosen - 1)..i {
+                let gap = plats[i].flood_fill_dist - plats[j].flood_fill_dist;
+                let cost = dp[chosen - 1][j].0 + (gap as f32 - target_gap as f32).powi(2);
+                if cost < best.0 {
+                    best = (cost, Some(j));
+                }
+            }
+            dp[chosen][i] = best;
+        }
+    }
+
+    // find cheapest tail
+    let (mut idx, _) = dp[k - 1]
+        .iter()
+        .enumerate()
+        .min_by(|a, b| a.1 .0.partial_cmp(&b.1 .0).unwrap())
+        .ok_or("no feasible selection")?;
+
+    // back-track
+    let mut picked = Vec::with_capacity(k);
+    for chosen in (0..k).rev() {
+        picked.push(idx);
+        idx = dp[chosen][idx].1.unwrap_or(0);
+    }
+    picked.reverse();
+    Ok(picked.into_iter().map(|i| plats[i].clone()).collect())
+}
+
 pub fn generate_platforms(
     map: &mut Map,
     gen_config: &GenerationConfig,
@@ -1671,24 +1723,17 @@ pub fn generate_platforms(
     });
     let mut selected_platforms = greedy_select_platforms(
         &all_platforms,
-        gen_config.plat_max_euclidean_distance / 2,
-        gen_config.plat_min_ff_distance / 2,
+        gen_config.plat_max_euclidean_distance / 3,
+        gen_config.plat_min_ff_distance / 3,
     )?;
 
     // dbg!(&selected_platforms, &selected_platforms.len());
 
-    // second sweep: priorritize platforms with largest gaps
-    let selected_platforms_ordered = order_plats_by_gap(&mut selected_platforms, ff_map_length);
-    let mut final_platforms = greedy_select_platforms(
-        &selected_platforms_ordered,
-        gen_config.plat_max_euclidean_distance,
-        gen_config.plat_min_ff_distance,
-    )?;
-
-    // TODO: good idea, but the gaps change as soon as i block platforms. but the ordering/gaps are
-    // not updated.. so if i pick many possible platforms this sucks.
-
-    // dbg!(&selected_platforms_ordered);
+    let target_gap = gen_config.plat_min_ff_distance; // your “ideal” spacing
+    let est_count = (ff_map_length + target_gap - 1) / target_gap; // ≈len/target_gap, rounded up
+    let wanted = est_count.min(selected_platforms.len()); // cap by available
+                                                          // dbg!(&target_gap, &est_count, &wanted);
+    let mut final_platforms = select_platforms_dp(selected_platforms, wanted, target_gap)?;
 
     for plat in final_platforms.iter() {
         set_platform(map, plat)?;
@@ -1703,10 +1748,12 @@ pub fn generate_platforms(
         .windows(2)
         .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
         .collect();
-    let max_valid_gap = (gen_config.plat_min_ff_distance as f32 * 1.70) as usize;
+    let max_valid_gap = (gen_config.plat_min_ff_distance as f32 * 1.50) as usize;
+    let min_valid_gap = (gen_config.plat_min_ff_distance as f32 / 2.00) as usize;
     let max_gap = *ff_gaps.iter().max().unwrap();
+    let min_gap = *ff_gaps.iter().min().unwrap();
     // dbg!(ff_gaps);
-    if max_gap > max_valid_gap {
+    if max_gap > max_valid_gap || min_gap < min_valid_gap {
         // println!("{} > {}", max_gap, max_valid_gap);
         return Err("platform distance constrain not fulfilled");
     }
