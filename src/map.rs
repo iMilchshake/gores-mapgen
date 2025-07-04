@@ -8,7 +8,6 @@ use ndarray::{s, Array2, Axis};
 use std::path::PathBuf;
 
 const CHUNK_SIZE: usize = 5;
-const MAX_SHIFT_UNTIL_STEPS: usize = 25;
 
 #[derive(PartialEq)]
 pub enum BlockTypeTW {
@@ -327,21 +326,23 @@ impl Map {
         pos: &Position,
         dir: ShiftDirection,
         criterion: F,
+        max_steps: Option<usize>,
     ) -> Option<Position>
     where
         F: Fn(&BlockType) -> bool,
     {
-        let mut shift_pos = pos.clone();
-        for _ in 0..MAX_SHIFT_UNTIL_STEPS {
-            // shift in given direction
-            if shift_pos.shift_inplace(&dir, self).is_err() {
-                return None; // fail while shifting -> abort
-            } else if criterion(&self.grid[shift_pos.as_index()]) {
-                return Some(shift_pos); // criterion fulfilled -> return current position
+        let limit = max_steps.unwrap_or(usize::MAX);
+
+        let mut cur = pos.clone();
+        for _ in 0..limit {
+            if cur.shift_inplace(&dir, self).is_err() {
+                return None; // invalid shift -> abort due to out of bounds
+            }
+            if criterion(&self.grid[cur.as_index()]) {
+                return Some(cur); // criterion fulfilled -> finish
             }
         }
-
-        None // criterion was never fulfilled
+        None // criterion not fulfilled after max_steps, abort
     }
 
     pub fn write_text(&mut self, pos: &Position, text: &str) {

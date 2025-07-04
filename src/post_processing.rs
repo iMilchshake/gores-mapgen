@@ -1428,11 +1428,14 @@ pub fn find_floor_positions(
 
             // shift upwards to find first non freeze block
             let base_pos = Position::new(x, y);
-            if let Some(non_freeze_pos) =
-                map.shift_pos_until(&base_pos, ShiftDirection::Up, |b| !b.is_freeze())
-            {
+            if let Some(non_freeze_pos) = map.shift_pos_until(
+                &base_pos,
+                ShiftDirection::Up,
+                |b| !b.is_freeze(),
+                Some(gen_config.plat_max_freeze + 1),
+            ) {
                 if map.grid[non_freeze_pos.as_index()] != BlockType::Empty {
-                    continue; // above N freeze blocks there must be an empty block
+                    continue; // SKIP: above N freeze blocks there must be an empty block
                 }
 
                 let freeze_height = base_pos.y - (non_freeze_pos.y + 1);
@@ -1440,20 +1443,32 @@ pub fn find_floor_positions(
                     continue;
                 }
 
-                if let Some(first_non_empty_pos) =
-                    map.shift_pos_until(&non_freeze_pos, ShiftDirection::Up, |b| !b.is_empty())
-                {
-                    let empty_height = non_freeze_pos.y - first_non_empty_pos.y;
-                    if empty_height < gen_config.plat_height {
-                        continue;
+                // we scan 10 more blocks than required, as reserving more emtpy space later,
+                // should result in nicer platforms especially for larger ones
+                let empty_scan_height = gen_config.plat_height + 10;
+                let empty_height = match map.shift_pos_until(
+                    &non_freeze_pos,
+                    ShiftDirection::Up,
+                    |b| !b.is_empty(),
+                    Some(empty_scan_height),
+                ) {
+                    // found some non-empty block, measure height
+                    Some(first_non_empty_pos) => {
+                        let empty_height = non_freeze_pos.y - first_non_empty_pos.y;
+                        if empty_height < gen_config.plat_height {
+                            continue; // SKIP: above freeze there must be N empty blocks
+                        }
+                        empty_height
                     }
+                    // never reached non-empty,
+                    None => empty_scan_height, // so we just fall back to maximum scan height
+                };
 
-                    floor_pos.push(FloorPosition {
-                        pos: base_pos,
-                        empty_height,
-                        freeze_height,
-                    });
-                }
+                floor_pos.push(FloorPosition {
+                    pos: base_pos,
+                    empty_height,
+                    freeze_height,
+                });
             }
         }
     }
@@ -1784,6 +1799,7 @@ pub fn generate_platforms(
         .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
         .collect();
     // TODO: introduce these as a parameter?
+    // dbg!(&ff_gaps);
     let max_valid_gap = (gen_config.plat_target_distance as f32 * 1.50) as usize;
     let min_valid_gap = (gen_config.plat_target_distance as f32 / 2.00) as usize;
     let max_gap = *ff_gaps.iter().max().unwrap();
