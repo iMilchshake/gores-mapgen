@@ -9,11 +9,10 @@ use crate::{
     utils::safe_slice_mut,
 };
 
-use core::panic;
 use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap, VecDeque},
-    f32::{consts::SQRT_2, INFINITY},
+    f32::consts::SQRT_2,
 };
 
 use dt::dt_bool;
@@ -986,9 +985,9 @@ pub fn flood_fill(
 //     }
 // }
 
-fn manhattan_distance(a: &Position, b: &Position) -> u32 {
-    ((a.x as i32 - b.x as i32).abs() + (a.y as i32 - b.y as i32).abs()) as u32
-}
+// fn manhattan_distance(a: &Position, b: &Position) -> u32 {
+//     ((a.x as i32 - b.x as i32).abs() + (a.y as i32 - b.y as i32).abs()) as u32
+// }
 
 // pub fn a_star(
 //     map: &Map,
@@ -1549,8 +1548,6 @@ pub fn generate_platform_candidates(
             platform_cand.re_center();
             platform_cand.shrink(gen_config.plat_max_width);
             platforms.push(platform_cand);
-        } else {
-            panic!("huh");
         }
     }
 
@@ -1574,11 +1571,11 @@ pub fn generate_platform_candidates(
     return Ok(platforms);
 }
 
-/// Greedely select all platforms that dont block each other, based on the initial ordering
+/// Greedily select all platforms that dont block each other, based on the initial ordering
 pub fn greedy_select_platforms(
     platforms: &[PlatformCandidate],
     min_gap_ff: usize,
-    min_gap_eucl: usize,
+    // min_gap_eucl: usize,
 ) -> Result<Vec<PlatformCandidate>, &'static str> {
     let platforms_count = platforms.len();
     let mut platform_blocked = vec![false; platforms_count];
@@ -1599,15 +1596,16 @@ pub fn greedy_select_platforms(
             }
 
             let plat_other = &platforms[idx_other];
-            let euclidean_dist = plat.pos.distance(&plat_other.pos);
-            if euclidean_dist < min_gap_eucl as f32 {
-                let ff_diff = plat.flood_fill_dist.abs_diff(plat_other.flood_fill_dist);
-                // ff uses city block distance, it should always be larger than euclidean
-                // distance. So we can use same or similar value here?
-                if ff_diff < min_gap_ff {
-                    platform_blocked[idx_other] = true;
-                }
+            // let euclidean_dist = plat.pos.distance(&plat_other.pos);
+            // if euclidean_dist < min_gap_eucl as f32 {
+            let ff_diff = plat.flood_fill_dist.abs_diff(plat_other.flood_fill_dist);
+            // ff uses city block distance, it should always be larger than euclidean
+            // distance. So we can use same or similar value here?
+            // TODO: cleanup docs, if i remove euclidean here..
+            if ff_diff < min_gap_ff {
+                platform_blocked[idx_other] = true;
             }
+            // }
         }
 
         selected_platforms.push(plat.clone());
@@ -1616,41 +1614,7 @@ pub fn greedy_select_platforms(
     Ok(selected_platforms)
 }
 
-fn order_plats_by_gap(
-    platforms: &mut [PlatformCandidate],
-    level_len: usize,
-) -> Vec<PlatformCandidate> {
-    // sort by position
-    platforms.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
-
-    // determine gaps before/after platforms
-    let n = platforms.len();
-    let mut with_gaps: Vec<(usize, &PlatformCandidate)> = Vec::with_capacity(n);
-    for (i, plat) in platforms.iter().enumerate() {
-        let prev_pos = if i == 0 {
-            0
-        } else {
-            platforms[i - 1].flood_fill_dist
-        };
-        let next_pos = if i + 1 == n {
-            level_len
-        } else {
-            platforms[i + 1].flood_fill_dist
-        };
-        let gap_before = plat.flood_fill_dist - prev_pos;
-        let gap_after = next_pos - plat.flood_fill_dist;
-        with_gaps.push((gap_before + gap_after, plat));
-    }
-
-    // sort by total gap descending, return just the platforms in new ordering
-    with_gaps.sort_unstable_by(|a, b| b.0.cmp(&a.0));
-    with_gaps
-        .into_iter()
-        .map(|(_, plat)| plat.clone())
-        .collect()
-}
-
-/// Dynamic programming solver to minimze sum(gap − target_gap)^2
+/// Dynamic programming solver to minimize sum(gap − target_gap)^2
 pub fn select_platforms_dp(
     mut plats: Vec<PlatformCandidate>,
     keep: usize,
@@ -1668,7 +1632,7 @@ pub fn select_platforms_dp(
     // dp[layer][idx] -> (best_cost, predecessor)
     let mut dp = vec![vec![(f32::INFINITY, None); n]; layers];
 
-    // layer 0 : only one platform; cost = start gap deviation
+    // layer 0: only one platform
     for idx in 0..n {
         let start_gap = plats[idx].flood_fill_dist;
         dp[0][idx].0 = (start_gap as f32 - target_gap as f32).abs();
@@ -1692,6 +1656,8 @@ pub fn select_platforms_dp(
         .iter()
         .enumerate()
         .map(|(idx, &(cost, _))| {
+            // TODO: this assumes that there is no platform further than ff_map_length, but for
+            // maps like maze this can actually happen.. but this entire algorithm doesnt work then lol
             let end_gap = ff_map_length - plats[idx].flood_fill_dist;
             (idx, cost + (end_gap as f32 - target_gap as f32).abs())
         })
@@ -1712,8 +1678,7 @@ pub fn select_platforms_dp(
     Ok((indices, best_total))
 }
 
-/// Pick the layout whose single worst-gap deviation from `target_gap` is minimal.
-/// Ties fall back to the DP’s total |gap-target| cost.
+/// Pick the layout whose worst-gap deviation from target_gap is minimal.
 pub fn select_best_platforms_even(
     mut plats: Vec<PlatformCandidate>,
     target_gap: usize,
@@ -1723,20 +1688,21 @@ pub fn select_best_platforms_even(
         return Err("no candidates");
     }
 
-    // sort once; DP & analysis share the same ordering
     plats.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
     let n = plats.len();
-
     let mut best_indices = Vec::<usize>::new();
     let mut best_max_dev: i32 = i32::MAX;
     let mut best_sum_cost = f32::INFINITY;
 
+    // TODO: in practise the score/worst dev is following the trend of a hyperble. So a
+    // possible optimization would be to start with an approximation, and search minimum
+    // from there, as it'd skip many of the runs
     for k in 1..=n {
         let (idxs, sum_cost) = select_platforms_dp(plats.clone(), k, target_gap, ff_map_length)?;
 
-        // ---- compute worst individual deviation ---------------------------------
+        // compute worst gap deviation
         let mut worst_dev: i32 = 0;
-        let mut prev_pos = 0usize;
+        let mut prev_pos = 0;
         for &idx in &idxs {
             let gap = plats[idx].flood_fill_dist.saturating_sub(prev_pos);
             worst_dev = worst_dev.max((gap as i32 - target_gap as i32).abs());
@@ -1744,31 +1710,30 @@ pub fn select_best_platforms_even(
         }
         let end_gap = ff_map_length.saturating_sub(prev_pos);
         worst_dev = worst_dev.max((end_gap as i32 - target_gap as i32).abs());
-        // -------------------------------------------------------------------------
+        // debug!(
+        //     "k={:<2}  worst_dev={:<4}  sum_cost={}",
+        //     k, worst_dev, sum_cost,
+        // );
 
-        println!(
-            "k={:<2}  worst_dev={:<4}  sum_cost={}",
-            k, worst_dev, sum_cost
-        );
-
-        // keep best according to criteria
+        // keep best according to worst deviation from target gap
+        // Tie-breaker: Fall back to the total summed gap cost
         if worst_dev < best_max_dev || (worst_dev == best_max_dev && sum_cost < best_sum_cost) {
             best_indices = idxs;
             best_max_dev = worst_dev;
             best_sum_cost = sum_cost;
-            println!(
-                "   ↳ new best (k={}, worst_dev={}, sum_cost={})",
-                k, worst_dev, sum_cost
-            );
+            // debug!(
+            //     "   ↳ new best (k={}, worst_dev={}, sum_cost={})",
+            //     k, worst_dev, sum_cost
+            // );
         }
     }
 
-    println!(
-        "Chosen k={}, worst_dev={}, total_cost={}",
-        best_indices.len(),
-        best_max_dev,
-        best_sum_cost
-    );
+    // info!(
+    //     "Chosen k={}, worst_dev={}, total_cost={}",
+    //     best_indices.len(),
+    //     best_max_dev,
+    //     best_sum_cost
+    // );
 
     Ok(best_indices.into_iter().map(|i| plats[i].clone()).collect())
 }
@@ -1783,58 +1748,49 @@ pub fn generate_platforms(
     // find potential floor positions
     let floor_pos = find_floor_positions(map, gen_config)?;
 
+    // generate all valid platform candidates and order by their size
     let mut all_platforms =
         generate_platform_candidates(map, &floor_pos, flood_fill, gen_config, debug_layers)?;
-
-    // first sweep: prioritize large platforms, but with only half the gap
     all_platforms.sort_unstable_by(|a, b| {
         (a.offset_left + a.offset_right)
             .cmp(&(b.offset_left + b.offset_right))
             .reverse()
     });
+
+    // first greedy filter: prioritize large platforms, use only fraction of the target gap
     let selected_platforms = greedy_select_platforms(
         &all_platforms,
-        gen_config.plat_max_euclidean_distance / 5,
-        gen_config.plat_min_ff_distance / 5,
+        // gen_config.plat_max_euclidean_distance / 5, // TODO: introduce fraction as a parameter?
+        gen_config.plat_target_distance / 5,
     )?;
 
-    // dbg!(&selected_platforms, &selected_platforms.len());
+    // now find optimal configuration of platforms
+    let mut final_platforms = select_best_platforms_even(
+        selected_platforms,
+        gen_config.plat_target_distance,
+        ff_map_length,
+    )?;
 
-    let target_gap = gen_config.plat_min_ff_distance; // your “ideal” spacing
-                                                      // let est_count = (ff_map_length + target_gap - 1) / target_gap; // ≈len/target_gap, rounded up
-                                                      // let wanted = est_count.min(selected_platforms.len()); // cap by available
-                                                      //                                                       // dbg!(&target_gap, &est_count, &wanted);
-    let mut final_platforms =
-        select_best_platforms_even(selected_platforms, target_gap, ff_map_length)?;
-
+    // generate final selection of platforms
     for plat in final_platforms.iter() {
         set_platform(map, plat)?;
     }
 
-    final_platforms.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
-    // dbg!(&final_platforms);
-    // check that no platform gap is too large (we allow 100% larger gap than minimum)
-    // TODO: okay for large maps this is absolutely garbage, i need to overhaul 'greedy' gen
+    // check that no platform gap is too large
     // TODO: this doesnt yet consider multi-path maps
+    final_platforms.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
     let ff_gaps: Vec<usize> = final_platforms
         .windows(2)
         .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
         .collect();
-    let max_valid_gap = (gen_config.plat_min_ff_distance as f32 * 1.50) as usize;
-    let min_valid_gap = (gen_config.plat_min_ff_distance as f32 / 2.00) as usize;
+    // TODO: introduce these as a parameter?
+    let max_valid_gap = (gen_config.plat_target_distance as f32 * 1.50) as usize;
+    let min_valid_gap = (gen_config.plat_target_distance as f32 / 2.00) as usize;
     let max_gap = *ff_gaps.iter().max().unwrap();
     let min_gap = *ff_gaps.iter().min().unwrap();
-    dbg!(ff_gaps);
     if max_gap > max_valid_gap || min_gap < min_valid_gap {
-        // println!("{} > {}", max_gap, max_valid_gap);
         return Err("platform distance constrain not fulfilled");
     }
-
-    let eucl_gaps: Vec<f32> = final_platforms
-        .windows(2)
-        .map(|a| a[1].pos.distance(&a[0].pos))
-        .collect();
-    // dbg!(&eucl_gaps);
 
     Ok(floor_pos)
 }
@@ -1905,3 +1861,37 @@ pub fn set_platform(map: &mut Map, plat: &PlatformCandidate) -> Result<(), &'sta
 
     Ok(())
 }
+//
+// fn order_plats_by_gap(
+//     platforms: &mut [PlatformCandidate],
+//     level_len: usize,
+// ) -> Vec<PlatformCandidate> {
+//     // sort by position
+//     platforms.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
+//
+//     // determine gaps before/after platforms
+//     let n = platforms.len();
+//     let mut with_gaps: Vec<(usize, &PlatformCandidate)> = Vec::with_capacity(n);
+//     for (i, plat) in platforms.iter().enumerate() {
+//         let prev_pos = if i == 0 {
+//             0
+//         } else {
+//             platforms[i - 1].flood_fill_dist
+//         };
+//         let next_pos = if i + 1 == n {
+//             level_len
+//         } else {
+//             platforms[i + 1].flood_fill_dist
+//         };
+//         let gap_before = plat.flood_fill_dist - prev_pos;
+//         let gap_after = next_pos - plat.flood_fill_dist;
+//         with_gaps.push((gap_before + gap_after, plat));
+//     }
+//
+//     // sort by total gap descending, return just the platforms in new ordering
+//     with_gaps.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+//     with_gaps
+//         .into_iter()
+//         .map(|(_, plat)| plat.clone())
+//         .collect()
+// }

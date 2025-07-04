@@ -114,16 +114,18 @@ pub struct GenerationConfig {
     pub shift_weights: RandomDistConfig<ShiftDirection>,
 
     // ===================================[ platforms ]==========================================
-    /// min distance between platforms
-    pub plat_max_euclidean_distance: usize,
-    pub plat_min_ff_distance: usize,
+    /// TODO: min euclidean distance between platforms -> the initial idea here was that i could
+    /// have maps with multiple paths, and the generation still work, so that two platforms that
+    /// are equally far on the map, but spaced apart on different paths can co-exist. However,
+    /// the following implementation assumes that there is a single path for fair platform
+    /// placement based on inter-platform gaps.
+    /// TODO: Add a second platform selection algorithm specifically for chaotic presets (e.g. maze)
+    // pub plat_max_euclidean_distance: usize,
+    pub plat_target_distance: usize,
     pub plat_max_freeze: usize,
     pub plat_height: usize,
     pub plat_min_width: usize,
     pub plat_max_width: usize,
-
-    /// allow "soft" overlaps -> non-empty blocks below platform (e.g. freeze)
-    // pub plat_soft_overhang: bool,
 
     // ===================================[ ]==========================================
     /// probability for doing the last shift direction again
@@ -313,8 +315,8 @@ impl GenerationConfig {
             inner_size_mut_prob: rnd.get_unit_ratio(),
             outer_rad_mut_prob: rnd.get_unit_ratio(),
             outer_size_mut_prob: rnd.get_unit_ratio(),
-            plat_max_euclidean_distance: rnd.get_usize_in_range(0, 100),
-            plat_min_ff_distance: rnd.get_usize_in_range(0, 100),
+            // plat_max_euclidean_distance: rnd.get_usize_in_range(0, 100),
+            plat_target_distance: rnd.get_usize_in_range(0, 100),
             plat_max_freeze: rnd.get_usize_in_range(1, 5),
             plat_height: rnd.get_usize_in_range(1, 10),
             plat_min_width: rnd.get_usize_in_range(1, 7),
@@ -413,8 +415,8 @@ impl Default for GenerationConfig {
             outer_rad_mut_prob: 0.25,
             outer_size_mut_prob: 0.5,
             shift_weights: RandomDistConfig::new(None, vec![0.4, 0.22, 0.2, 0.18]),
-            plat_max_euclidean_distance: 150,
-            plat_min_ff_distance: 150,
+            // plat_max_euclidean_distance: 150,
+            plat_target_distance: 150,
             plat_max_freeze: 2,
             plat_height: 4,
             plat_min_width: 3,

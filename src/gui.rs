@@ -511,25 +511,25 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     });
 
                 // plat_min_euclidean_distance: 75,
-                // plat_min_ff_distance: 75,
+                // plat_target_distance: 75,
                 // plat_min_freeze: 2,
                 // plat_height: 5,
                 CollapsingHeader::new("Platforms")
                     .default_open(false)
                     .show(ui, |ui| {
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.plat_max_euclidean_distance,
-                            edit_usize,
-                            "min euclidean dist",
-                            true,
-                        );
+                        // field_edit_widget(
+                        //     ui,
+                        //     &mut editor.gen_config.plat_max_euclidean_distance,
+                        //     edit_usize,
+                        //     "min euclidean dist",
+                        //     true,
+                        // );
 
                         field_edit_widget(
                             ui,
-                            &mut editor.gen_config.plat_min_ff_distance,
+                            &mut editor.gen_config.plat_target_distance,
                             edit_usize,
-                            "min ff dist",
+                            "target distance",
                             true,
                         );
 

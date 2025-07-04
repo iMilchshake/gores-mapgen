@@ -16,8 +16,7 @@
       0.035087723
     ]
   },
-  "plat_max_euclidean_distance": 75,
-  "plat_min_ff_distance": 75,
+  "plat_target_distance": 75,
   "plat_max_freeze": 2,
   "plat_height": 3,
   "plat_min_width": 3,
