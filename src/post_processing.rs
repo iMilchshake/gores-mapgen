@@ -765,298 +765,6 @@ pub fn flood_fill(
     })
 }
 
-// /// stores all relevant information about platform candidates
-// #[derive(Debug, Clone)]
-// pub struct LegacyPlatform {
-//     /// how total height is available for platform generation
-//     pub available_height: usize,
-//
-//     /// how much platform extends to the left
-//     pub width_left: usize,
-//
-//     /// how much platform extends to the right
-//     pub width_right: usize,
-//
-//     /// lowest center position of platform
-//     pub pos: Position,
-// }
-//
-// pub fn get_legacy_opt_plat_cand(
-//     pos: &Position,
-//     map: &Map,
-//     gen_config: &GenerationConfig,
-// ) -> Result<LegacyPlatform, &'static str> {
-//     // how far empty box has been extended
-//     let mut left_limit = 0;
-//     let mut right_limit = 0;
-//     let mut up_limit = 0;
-//
-//     // which directions are already locked due to hitting a limit
-//     let mut left_locked = false;
-//     let mut right_locked = false;
-//     let mut up_locked = false;
-//
-//     while !left_locked || !right_locked || !up_locked {
-//         // try to expand upwards
-//         if !up_locked {
-//             let next_limit_valid = map.check_area_all(
-//                 &pos.shifted_by(-left_limit, -(up_limit + 1))?,
-//                 &pos.shifted_by(right_limit, -(up_limit + 1))?,
-//                 &BlockType::Empty,
-//             )?;
-//
-//             if next_limit_valid {
-//                 up_limit += 1;
-//             } else {
-//                 up_locked = true;
-//             }
-//         }
-//
-//         // try to expand left
-//         if !left_locked {
-//             // check if platform has no overhang
-//             let no_overhang =
-//                 map.check_position_crit(&pos.shifted_by(-(left_limit + 1), 1)?, |b| {
-//                     match (gen_config.plat_soft_overhang, b) {
-//                         (true, block) => !block.is_empty(),
-//                         (false, block) => block.is_solid(),
-//                     }
-//                 });
-//
-//             let next_limit_valid = map.check_area_all(
-//                 &pos.shifted_by(-(left_limit + 1), -up_limit)?,
-//                 &pos.shifted_by(-(left_limit + 1), -1)?, // dont check y=0 as freeze expected
-//                 &BlockType::Empty,
-//             )?;
-//
-//             if no_overhang && next_limit_valid {
-//                 left_limit += 1;
-//             } else {
-//                 left_locked = true;
-//             }
-//         }
-//
-//         // try to expand right
-//         if !right_locked {
-//             let no_overhang = map.check_position_crit(&pos.shifted_by(right_limit + 1, 1)?, |b| {
-//                 match (gen_config.plat_soft_overhang, b) {
-//                     (true, block) => !block.is_empty(),
-//                     (false, block) => block.is_solid(),
-//                 }
-//             });
-//             let next_limit_valid = map.check_area_all(
-//                 &pos.shifted_by(right_limit + 1, -up_limit)?,
-//                 &pos.shifted_by(right_limit + 1, -1)?, // dont check y=0 as freeze expected
-//                 &BlockType::Empty,
-//             )?;
-//
-//             if no_overhang && next_limit_valid {
-//                 right_limit += 1;
-//             } else {
-//                 right_locked = true;
-//             }
-//         }
-//
-//         // early abort if x or y dimension is already locked, but lower bound isnt reached
-//         if up_locked
-//             && (((up_limit + 1) as usize)
-//                 < gen_config.plat_height_bounds.0 + gen_config.plat_min_empty_height)
-//         {
-//             return Err("not enough y space");
-//         } else if left_locked
-//             && right_locked
-//             && (((left_limit + right_limit + 1) as usize) < gen_config.plat_width_bounds.0)
-//         {
-//             return Err("not enough x space");
-//         }
-//         if ((up_limit + 1) as usize)
-//             >= (gen_config.plat_height_bounds.1 + gen_config.plat_min_empty_height)
-//         {
-//             up_locked = true;
-//         }
-//         if ((left_limit + right_limit + 1) as usize) >= gen_config.plat_width_bounds.1 {
-//             left_locked = true;
-//             right_locked = true;
-//         }
-//     }
-//
-//     Ok(LegacyPlatform {
-//         pos: pos.clone(),
-//         width_left: left_limit as usize,
-//         width_right: right_limit as usize,
-//         available_height: (up_limit + 1) as usize,
-//     })
-// }
-//
-// pub fn gen_legacy_all_platforms(
-//     walker_pos_history: &Vec<Position>,
-//     flood_fill: &Array2<Option<usize>>,
-//     map: &mut Map,
-//     gen_config: &GenerationConfig,
-//     debug_layers: &mut Option<DebugLayers>,
-// ) {
-//     let mut platform_candidates: Vec<LegacyPlatform> = Vec::new();
-//     let mut last_platform_level_distance = 0;
-//
-//     for pos in walker_pos_history {
-//         // skip if initial walker pos is non empty
-//         if map.grid[pos.as_index()] != BlockType::Empty {
-//             continue;
-//         }
-//
-//         // skip if previous platform is still to close
-//         let level_distance = flood_fill[pos.as_index()].unwrap();
-//         if level_distance.saturating_sub(last_platform_level_distance)
-//             < gen_config.plat_min_distance
-//         {
-//             continue;
-//         }
-//
-//         // skip if floor pos coulnt be determined
-//         let floor_pos = map.shift_pos_until(pos, ShiftDirection::Down, |b| b.is_solid());
-//         if floor_pos.is_none() {
-//             continue;
-//         }
-//         let floor_pos = floor_pos.unwrap();
-//
-//         // try to get optimal platform candidate
-//         let platform_pos = floor_pos.shifted_by(0, -1).unwrap();
-//         let result = get_legacy_opt_plat_cand(&platform_pos, map, gen_config);
-//         if let Ok(platform) = result {
-//             // debug visualizations
-//             if let Some(debug_layers) = debug_layers {
-//                 let platform_debug_layer = debug_layers.bool_layers.get_mut("platforms").unwrap();
-//                 let mut area = platform_debug_layer.grid.slice_mut(s![
-//                     platform_pos.x - platform.width_left..=platform_pos.x + platform.width_right,
-//                     platform_pos.y - (platform.available_height - 1)..=platform_pos.y
-//                 ]);
-//                 area.fill(true);
-//             }
-//
-//             // save platform
-//             platform_candidates.push(platform);
-//
-//             // update last level distance
-//             last_platform_level_distance = level_distance;
-//         }
-//     }
-//
-//     // generate platforms
-//     for platform_candidate in platform_candidates {
-//         let platform_height =
-//             platform_candidate.available_height - gen_config.plat_min_empty_height;
-//
-//         if platform_height > 0 {
-//             map.set_area(
-//                 &platform_candidate
-//                     .pos
-//                     .shifted_by(
-//                         -(platform_candidate.width_left as i32),
-//                         -(platform_height as i32),
-//                     )
-//                     .unwrap(),
-//                 &platform_candidate
-//                     .pos
-//                     .shifted_by(platform_candidate.width_right as i32, 0)
-//                     .unwrap(),
-//                 &BlockType::Platform,
-//                 &Overwrite::Force,
-//             );
-//         }
-//
-//         map.set_area(
-//             &platform_candidate
-//                 .pos
-//                 .shifted_by(
-//                     -(platform_candidate.width_left as i32),
-//                     -((platform_candidate.available_height - 1) as i32),
-//                 )
-//                 .unwrap(),
-//             &platform_candidate
-//                 .pos
-//                 .shifted_by(
-//                     platform_candidate.width_right as i32,
-//                     -(platform_height as i32),
-//                 )
-//                 .unwrap(),
-//             &BlockType::EmptyReserved,
-//             &Overwrite::Force,
-//         );
-//     }
-// }
-
-// fn manhattan_distance(a: &Position, b: &Position) -> u32 {
-//     ((a.x as i32 - b.x as i32).abs() + (a.y as i32 - b.y as i32).abs()) as u32
-// }
-
-// pub fn a_star(
-//     map: &Map,
-//     start: &Position,
-//     end: &Position,
-//     debug_layers: &mut Option<DebugLayers>,
-// ) -> Result<(), &'static str> {
-//     // cells that will be visited next (f = g + h, g, pos)
-//     let mut open_cells: BinaryHeap<Reverse<(u32, u32, Position)>> = BinaryHeap::new();
-//     let h = manhattan_distance(start, end);
-//     open_cells.push(Reverse((h, 0, start.clone())));
-//
-//     // already have been evaluated
-//     let mut closed_cells: HashSet<Position> = HashSet::new();
-//
-//     // keep track of best distances
-//     let mut best_dist: HashMap<Position, u32> = HashMap::new();
-//     best_dist.insert(start.clone(), 0);
-//
-//     while let Some(Reverse((_, g, pos))) = open_cells.pop() {
-//         let new_g = g + 1; // cityblock
-//
-//         // check neighboring cells
-//         for shift in [
-//             ShiftDirection::Right, // favor right cuz gores maps :)
-//             ShiftDirection::Up,
-//             ShiftDirection::Left,
-//             ShiftDirection::Down,
-//         ] {
-//             let shifted_pos = pos.shifted(&shift, map)?;
-//
-//             // check if goal is found
-//             if shifted_pos == *end {
-//                 println!("goal found :)");
-//                 return Ok(());
-//             }
-//
-//             // skip if already visited
-//             if closed_cells.contains(&shifted_pos) {
-//                 continue;
-//             }
-//
-//             // only consider empty cells on the map
-//             if !matches!(
-//                 map.grid[shifted_pos.as_index()],
-//                 BlockType::Empty | BlockType::EmptyReserved | BlockType::Start | BlockType::Finish
-//             ) {
-//                 continue;
-//             }
-//
-//             // check if a new or better connection has been found
-//             if best_dist.get(&shifted_pos).is_none_or(|&d| d > new_g) {
-//                 best_dist.insert(shifted_pos.clone(), new_g);
-//                 let h = manhattan_distance(&shifted_pos, end);
-//                 let f = new_g + h;
-//                 open_cells.push(Reverse((f, new_g, shifted_pos)));
-//             }
-//         }
-//
-//         // current pos is now fully expanded -> close it
-//         if let Some(debug_layers) = debug_layers {
-//             debug_layers.bool_layers.get_mut("a_star").unwrap().grid[pos.as_index()] = true;
-//         }
-//         closed_cells.insert(pos);
-//     }
-//
-//     Ok(())
-// }
-
 pub fn dijkstra(
     map: &Map,
     start: &Position,
@@ -1586,11 +1294,14 @@ pub fn generate_platform_candidates(
     return Ok(platforms);
 }
 
-/// Greedily select all platforms that dont block each other, based on the initial ordering
+/// Greedily selects platforms that dont violate the minimum gap constraint.
+/// Algorithm considers `platforms` in the order as provided.
+/// Defaults to only floodfill distance, but `use_euclidean` can be enabled,
+/// to add a double constraint that also adds a euclidean based gap check.
 pub fn greedy_select_platforms(
     platforms: &[PlatformCandidate],
-    min_gap_ff: usize,
-    // min_gap_eucl: usize,
+    min_gap: usize,
+    use_euclidean: bool,
 ) -> Result<Vec<PlatformCandidate>, &'static str> {
     let platforms_count = platforms.len();
     let mut platform_blocked = vec![false; platforms_count];
@@ -1611,16 +1322,17 @@ pub fn greedy_select_platforms(
             }
 
             let plat_other = &platforms[idx_other];
-            // let euclidean_dist = plat.pos.distance(&plat_other.pos);
-            // if euclidean_dist < min_gap_eucl as f32 {
-            let ff_diff = plat.flood_fill_dist.abs_diff(plat_other.flood_fill_dist);
-            // ff uses city block distance, it should always be larger than euclidean
-            // distance. So we can use same or similar value here?
-            // TODO: cleanup docs, if i remove euclidean here..
-            if ff_diff < min_gap_ff {
+
+            let ff_gap = plat.flood_fill_dist.abs_diff(plat_other.flood_fill_dist);
+            if ff_gap < min_gap {
+                if use_euclidean {
+                    let euclidean_dist = plat.pos.distance(&plat_other.pos);
+                    if euclidean_dist > min_gap as f32 {
+                        continue; // euclidean constraint is not violated, so we DONT BLOCK
+                    }
+                }
                 platform_blocked[idx_other] = true;
             }
-            // }
         }
 
         selected_platforms.push(plat.clone());
@@ -1629,7 +1341,7 @@ pub fn greedy_select_platforms(
     Ok(selected_platforms)
 }
 
-/// Dynamic programming solver to minimize sum(gap − target_gap)^2
+/// DP solver to minimize total sum of deviations from platform gap to target gap
 pub fn select_platforms_dp(
     mut plats: Vec<PlatformCandidate>,
     keep: usize,
@@ -1671,9 +1383,9 @@ pub fn select_platforms_dp(
         .iter()
         .enumerate()
         .map(|(idx, &(cost, _))| {
-            // TODO: this assumes that there is no platform further than ff_map_length, but for
-            // maps like maze this can actually happen.. but this entire algorithm doesnt work then lol
-            let end_gap = ff_map_length - plats[idx].flood_fill_dist;
+            // There can be platforms with ff_dist higher than the goal, so we saturate to zero.
+            // TODO: this means that such a platform adds zero cost -> problem?
+            let end_gap = ff_map_length.saturating_sub(plats[idx].flood_fill_dist);
             (idx, cost + (end_gap as f32 - target_gap as f32).abs())
         })
         .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
@@ -1693,8 +1405,8 @@ pub fn select_platforms_dp(
     Ok((indices, best_total))
 }
 
-/// Pick the layout whose worst-gap deviation from target_gap is minimal.
-pub fn select_best_platforms_even(
+/// Pick selection of platforms whose worst-gap deviation from target_gap is minimal.
+pub fn select_best_platform_config(
     mut plats: Vec<PlatformCandidate>,
     target_gap: usize,
     ff_map_length: usize,
@@ -1773,14 +1485,11 @@ pub fn generate_platforms(
     });
 
     // first greedy filter: prioritize large platforms, use only fraction of the target gap
-    let selected_platforms = greedy_select_platforms(
-        &all_platforms,
-        // gen_config.plat_max_euclidean_distance / 5, // TODO: introduce fraction as a parameter?
-        gen_config.plat_target_distance / 5,
-    )?;
+    let selected_platforms =
+        greedy_select_platforms(&all_platforms, gen_config.plat_target_distance / 5, false)?;
 
     // now find optimal configuration of platforms
-    let mut final_platforms = select_best_platforms_even(
+    let mut final_platforms = select_best_platform_config(
         selected_platforms,
         gen_config.plat_target_distance,
         ff_map_length,
@@ -1804,8 +1513,12 @@ pub fn generate_platforms(
     let min_valid_gap = (gen_config.plat_target_distance as f32 / 2.00) as usize;
     let max_gap = *ff_gaps.iter().max().unwrap();
     let min_gap = *ff_gaps.iter().min().unwrap();
-    if max_gap > max_valid_gap || min_gap < min_valid_gap {
-        return Err("platform distance constrain not fulfilled");
+    if max_gap > max_valid_gap {
+        // dbg!(min_valid_gap, max_valid_gap, min_gap, max_gap);
+        return Err("maximum plat gap constrain not fulfilled");
+    } else if min_gap < min_valid_gap {
+        // dbg!(min_valid_gap, max_valid_gap, min_gap, max_gap);
+        return Err("minimum plat gap constrain not fulfilled");
     }
 
     Ok(floor_pos)
@@ -1877,37 +1590,3 @@ pub fn set_platform(map: &mut Map, plat: &PlatformCandidate) -> Result<(), &'sta
 
     Ok(())
 }
-//
-// fn order_plats_by_gap(
-//     platforms: &mut [PlatformCandidate],
-//     level_len: usize,
-// ) -> Vec<PlatformCandidate> {
-//     // sort by position
-//     platforms.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
-//
-//     // determine gaps before/after platforms
-//     let n = platforms.len();
-//     let mut with_gaps: Vec<(usize, &PlatformCandidate)> = Vec::with_capacity(n);
-//     for (i, plat) in platforms.iter().enumerate() {
-//         let prev_pos = if i == 0 {
-//             0
-//         } else {
-//             platforms[i - 1].flood_fill_dist
-//         };
-//         let next_pos = if i + 1 == n {
-//             level_len
-//         } else {
-//             platforms[i + 1].flood_fill_dist
-//         };
-//         let gap_before = plat.flood_fill_dist - prev_pos;
-//         let gap_after = next_pos - plat.flood_fill_dist;
-//         with_gaps.push((gap_before + gap_after, plat));
-//     }
-//
-//     // sort by total gap descending, return just the platforms in new ordering
-//     with_gaps.sort_unstable_by(|a, b| b.0.cmp(&a.0));
-//     with_gaps
-//         .into_iter()
-//         .map(|(_, plat)| plat.clone())
-//         .collect()
-// }
