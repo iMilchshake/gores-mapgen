@@ -296,11 +296,6 @@ impl CuteWalker {
                     if current_shift == shifts[0] || self.is_shift_locked(&shifts[0], map) {
                         // if current and greedy shift (can be the same) are locked -> unpark the walker
                         let (unpark_shift, unpark_steps) = self.unpark(25, shifts[0], goal, map)?; // unpark using greedy as target direction
-
-                        // println!(
-                        //     "[{}] UNPARK, steps={}, shift={:?}",
-                        //     self.steps, unpark_steps, unpark_shift
-                        // );
                         self.state = WalkerState::UnParking(unpark_shift, unpark_steps);
                         return Ok(());
                     } else {
