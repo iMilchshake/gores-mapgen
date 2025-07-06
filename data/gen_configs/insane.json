@@ -1,7 +1,7 @@
 {
   "name": "insane",
   "description": null,
-  "difficulty": 4.0,
+  "difficulty": 4.5,
   "version": "1.0",
   "inner_rad_mut_prob": 0.6,
   "inner_size_mut_prob": 1.0,
@@ -10,23 +10,17 @@
   "shift_weights": {
     "values": null,
     "probs": [
-      0.3508772,
-      0.31578946,
-      0.2982456,
-      0.03508772
+      0.35087723,
+      0.3157895,
+      0.29824564,
+      0.035087723
     ]
   },
-  "plat_min_distance": 40,
-  "plat_width_bounds": [
-    2,
-    5
-  ],
-  "plat_height_bounds": [
-    0,
-    0
-  ],
-  "plat_min_empty_height": 3,
-  "plat_soft_overhang": false,
+  "plat_target_distance": 75,
+  "plat_max_freeze": 2,
+  "plat_height": 3,
+  "plat_min_width": 3,
+  "plat_max_width": 10,
   "momentum_prob": 0.7,
   "max_distance": 2.2,
   "waypoint_reached_dist": 300,
@@ -80,9 +74,11 @@
   "fade_min_size": 3,
   "max_subwaypoint_dist": 50.0,
   "subwaypoint_max_shift_dist": 5.0,
+  "skip_invalid_waypoints": false,
   "pos_lock_max_dist": 20.0,
   "pos_lock_max_delay": 1000,
   "enable_kernel_lock": true,
   "waypoint_lock_distance": 10,
+  "use_dead_end_removal": true,
   "dead_end_threshold": 5
 }

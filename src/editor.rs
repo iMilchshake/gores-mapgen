@@ -142,6 +142,12 @@ impl Editor {
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
         let gen = Generator::new(&gen_config, &map_config, &thm_config, Seed::from_u64(0));
 
+        let user_seed = if let Some(ref seed_base64) = args.init_seed {
+            Seed::from_base64(seed_base64).expect("no valid base64 seed")
+        } else {
+            Seed::from_string(&"iMilchshake".to_string(), &SeedType::STRING).unwrap()
+        };
+
         let mut editor = Editor {
             state: EditorState::Paused(PausedState::Setup),
             debug_layers: None,
@@ -157,7 +163,7 @@ impl Editor {
             thm_config: ThemeConfig::default(),
             steps_per_frame: STEPS_PER_FRAME,
             gen,
-            user_seed: Seed::from_string(&"iMilchshake".to_string(), &SeedType::STRING).unwrap(),
+            user_seed,
             user_seed_str: String::new(),
             seed_input_type: SeedType::BASE64,
             instant: args.instant,

@@ -356,7 +356,7 @@ impl CuteWalker {
             map.apply_kernel(&self.pos, &self.outer_kernel, BlockType::Freeze)?;
 
             let empty = if self.steps < gen_config.fade_steps {
-                BlockType::EmptyReserved
+                BlockType::EmptyFade
             } else {
                 BlockType::Empty
             };

@@ -10,23 +10,17 @@
   "shift_weights": {
     "values": null,
     "probs": [
-      0.64516133,
-      0.16129033,
-      0.12903227,
-      0.064516135
+      0.6451613,
+      0.16129032,
+      0.12903225,
+      0.06451613
     ]
   },
-  "plat_min_distance": 40,
-  "plat_width_bounds": [
-    3,
-    5
-  ],
-  "plat_height_bounds": [
-    0,
-    1
-  ],
-  "plat_min_empty_height": 4,
-  "plat_soft_overhang": false,
+  "plat_target_distance": 75,
+  "plat_max_freeze": 2,
+  "plat_height": 3,
+  "plat_min_width": 3,
+  "plat_max_width": 10,
   "momentum_prob": 0.8,
   "max_distance": 4.0,
   "waypoint_reached_dist": 400,

@@ -510,42 +510,58 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                         });
                     });
 
+                // plat_min_euclidean_distance: 75,
+                // plat_target_distance: 75,
+                // plat_min_freeze: 2,
+                // plat_height: 5,
                 CollapsingHeader::new("Platforms")
                     .default_open(false)
                     .show(ui, |ui| {
+                        // field_edit_widget(
+                        //     ui,
+                        //     &mut editor.gen_config.plat_max_euclidean_distance,
+                        //     edit_usize,
+                        //     "min euclidean dist",
+                        //     true,
+                        // );
+
                         field_edit_widget(
                             ui,
-                            &mut editor.gen_config.plat_min_distance,
+                            &mut editor.gen_config.plat_target_distance,
                             edit_usize,
-                            "min distance",
+                            "target distance",
                             true,
                         );
+
                         field_edit_widget(
                             ui,
-                            &mut editor.gen_config.plat_width_bounds,
-                            edit_range_usize,
-                            "width bounds",
-                            true,
-                        );
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.plat_height_bounds,
-                            edit_range_usize,
-                            "height bounds",
-                            true,
-                        );
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.plat_min_empty_height,
+                            &mut editor.gen_config.plat_max_freeze,
                             edit_usize,
-                            "min empty height",
+                            "max freeze",
                             true,
                         );
+
                         field_edit_widget(
                             ui,
-                            &mut editor.gen_config.plat_soft_overhang,
-                            edit_bool,
-                            "soft overhang",
+                            &mut editor.gen_config.plat_height,
+                            edit_usize,
+                            "height",
+                            true,
+                        );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_min_width,
+                            edit_usize,
+                            "min width",
+                            true,
+                        );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.plat_max_width,
+                            edit_usize,
+                            "max width",
                             true,
                         );
                     });

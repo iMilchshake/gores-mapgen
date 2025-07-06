@@ -163,7 +163,7 @@ impl Generator {
         self.map.set_area(
             &top_left,
             &bot_right,
-            &BlockType::EmptyReserved,
+            &BlockType::EmptyRoom,
             &Overwrite::Force,
         );
 
@@ -172,7 +172,7 @@ impl Generator {
             &top_left.shifted_by(-1, -1).unwrap(),
             &bot_right.shifted_by(1, 1).unwrap(),
             &BlockType::Start,
-            &Overwrite::ReplaceNonSolidForce,
+            &Overwrite::ReplaceNonSolidFade,
         );
 
         // set elevated platform
@@ -180,7 +180,7 @@ impl Generator {
             &Position::new(top_left.x, self.spawn.y - 1),
             &Position::new(top_left.x + platform_width, self.spawn.y + 1),
             &BlockType::Hookable,
-            &Overwrite::ReplaceNonSolidForce,
+            &Overwrite::ReplaceNonSolidRoom,
         );
 
         // set spawns
@@ -188,13 +188,13 @@ impl Generator {
             &Position::new(top_left.x, self.spawn.y - 2),
             &Position::new(top_left.x + platform_width, self.spawn.y - 2),
             &BlockType::Spawn,
-            &Overwrite::ReplaceNonSolidForce,
+            &Overwrite::ReplaceNonSolidRoom,
         );
         self.map.set_area(
             &Position::new(top_left.x, bot_right.y),
             &Position::new(top_left.x + platform_width, bot_right.y),
             &BlockType::Spawn,
-            &Overwrite::ReplaceNonSolidForce,
+            &Overwrite::ReplaceNonSolidRoom,
         );
 
         let char_per_line = 14;
@@ -237,7 +237,7 @@ impl Generator {
         self.map.set_area(
             &textbox_top_left,
             &textbox_bot_right,
-            &BlockType::EmptyReserved,
+            &BlockType::EmptyRoom,
             &Overwrite::Force,
         );
 
@@ -366,7 +366,7 @@ impl Generator {
     ) -> Result<(), &'static str> {
         let mut timer = Timer::start();
 
-        let edge_bugs = post::fix_edge_bugs(self).expect("fix edge bugs failed");
+        let edge_bugs = post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
         print_time(&mut timer, "fix edge bugs", verbose);
 
         self.generate_spawn(thm_config);
@@ -392,7 +392,7 @@ impl Generator {
         // fill up dead ends
         if gen_config.use_dead_end_removal {
             let dead_end_blocks =
-                post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance);
+                post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance)?;
             print_time(&mut timer, "fill dead ends", verbose);
 
             // fix stair artifacts resulting from dead end filling
@@ -401,17 +401,8 @@ impl Generator {
         }
 
         // TODO: only perform this for updated blocks?
-        post::fix_edge_bugs(self).expect("fix edge bugs failed");
+        post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
         print_time(&mut timer, "fix edge_bugs #2", verbose);
-
-        post::gen_all_platform_candidates(
-            &self.walker.position_history,
-            &ff.distance,
-            &mut self.map,
-            gen_config,
-            debug_layers,
-        );
-        print_time(&mut timer, "platforms", verbose);
 
         post::generate_all_skips(
             self,
@@ -422,6 +413,19 @@ impl Generator {
             debug_layers,
         );
         print_time(&mut timer, "generate skips", verbose);
+
+        let ff_map_length =
+            ff.distance[self.walker.pos.as_index()].expect("cant determine map length");
+
+        // platforms
+        let floor_pos = post::generate_platforms(
+            &mut self.map,
+            gen_config,
+            &ff.distance,
+            ff_map_length,
+            debug_layers,
+        )?;
+        print_time(&mut timer, "generate platforms", verbose);
 
         post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
         print_time(&mut timer, "place obstacles", verbose);
@@ -448,6 +452,13 @@ impl Generator {
             debug_layers.bool_layers.get_mut("lock").unwrap().grid =
                 self.walker.locked_positions.clone();
             debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
+
+            let grid = &mut debug_layers.bool_layers.get_mut("floor").unwrap().grid;
+
+            // floor
+            for floor_pos in floor_pos {
+                grid[floor_pos.pos.as_index()] = true;
+            }
         }
         print_time(&mut timer, "set debug layers", verbose);
 
@@ -463,13 +474,15 @@ impl Generator {
         verbose: bool,
     ) {
         let mut timer = Timer::start();
-        post::generate_noise_layers(&mut self.map, &mut self.rnd, thm_config, debug_layers);
-        print_time(&mut timer, "generate noise layers", verbose);
 
+        // flip before generating noise, as overlay noise depends on it
         if self.rnd.get_bool_with_prob(0.5) {
             self.map.flip_x_axis();
             print_time(&mut timer, "flip map", verbose);
         }
+
+        post::generate_noise_layers(&mut self.map, &mut self.rnd, thm_config, debug_layers);
+        print_time(&mut timer, "generate noise layers", verbose);
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

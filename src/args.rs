@@ -11,6 +11,9 @@ pub struct EditorArgs {
     /// select initial map config
     pub map_config: Option<String>,
 
+    /// select initial seed (base64)
+    pub init_seed: Option<String>,
+
     /// trigger map generation on startup
     #[arg(short = 'g', long)]
     pub generate: bool,

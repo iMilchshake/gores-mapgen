@@ -11,7 +11,7 @@ use crate::{
 
 use std::{
     cmp::Reverse,
-    collections::{BinaryHeap, HashMap, HashSet, VecDeque},
+    collections::{BinaryHeap, HashMap, VecDeque},
     f32::consts::SQRT_2,
 };
 
@@ -20,7 +20,9 @@ use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel
 /// configurations do not ensure a min. 1-block freeze padding consistently.
-pub fn fix_edge_bugs(gen: &mut Generator) -> Result<Array2<bool>, &'static str> {
+/// This function replaces all empty blocks that have neighbor hookable blocks with freeze,
+/// so it kind of "expands" the existing freeze to ensure that there are no edge bugs.
+pub fn fix_edge_bugs_expanding(gen: &mut Generator) -> Result<Array2<bool>, &'static str> {
     let mut edge_bug = Array2::from_elem((gen.map.width, gen.map.height), false);
     let width = gen.map.width;
     let height = gen.map.height;
@@ -62,6 +64,43 @@ pub fn fix_edge_bugs(gen: &mut Generator) -> Result<Array2<bool>, &'static str> 
     }
 
     Ok(edge_bug)
+}
+
+/// given an empty rectangle, ensure that there are no adjacent hookable blocks.
+/// This is relevant when modifying the map by setting Empty, as it can remove the
+/// layer of freeze blocks around hookable blocks. This function replaces those
+/// hookable blocks with freeze, to retain the empty-area and freeze padding.
+fn fix_local_edge_bugs(map: &mut Map, top_left: &Position, bot_right: &Position) {
+    // vertical borders
+    for y in top_left.y..=bot_right.y {
+        // left neighbour
+        if top_left.x > 0 {
+            let x = top_left.x - 1;
+            if map.grid[[x, y]] == BlockType::Hookable {
+                map.grid[[x, y]] = BlockType::Freeze;
+            }
+        }
+        // right neighbour
+        let x = bot_right.x + 1;
+        if map.grid[[x, y]] == BlockType::Hookable {
+            map.grid[[x, y]] = BlockType::Freeze;
+        }
+    }
+
+    // horizontal border above
+    if top_left.y > 0 {
+        let y_above = top_left.y - 1;
+        let start_x = top_left.x.saturating_sub(1);
+        let end_x = bot_right.x + 1;
+        for x in start_x..=end_x {
+            if map.grid[[x, y_above]] == BlockType::Hookable {
+                map.grid[[x, y_above]] = BlockType::Freeze;
+            }
+        }
+    }
+
+    // TODO: function directly changes Hookable blocks outside of playable baths, CAN break chunked
+    // TODO: currently i dont check below
 }
 
 /// Using a distance transform this function will fill up all empty blocks that are too far
@@ -726,298 +765,6 @@ pub fn flood_fill(
     })
 }
 
-/// stores all relevant information about platform candidates
-#[derive(Debug, Clone)]
-pub struct Platform {
-    /// how total height is available for platform generation
-    pub available_height: usize,
-
-    /// how much platform extends to the left
-    pub width_left: usize,
-
-    /// how much platform extends to the right
-    pub width_right: usize,
-
-    /// lowest center position of platform
-    pub pos: Position,
-}
-
-pub fn get_optimal_greedy_platform_candidate(
-    pos: &Position,
-    map: &Map,
-    gen_config: &GenerationConfig,
-) -> Result<Platform, &'static str> {
-    // how far empty box has been extended
-    let mut left_limit = 0;
-    let mut right_limit = 0;
-    let mut up_limit = 0;
-
-    // which directions are already locked due to hitting a limit
-    let mut left_locked = false;
-    let mut right_locked = false;
-    let mut up_locked = false;
-
-    while !left_locked || !right_locked || !up_locked {
-        // try to expand upwards
-        if !up_locked {
-            let next_limit_valid = map.check_area_all(
-                &pos.shifted_by(-left_limit, -(up_limit + 1))?,
-                &pos.shifted_by(right_limit, -(up_limit + 1))?,
-                &BlockType::Empty,
-            )?;
-
-            if next_limit_valid {
-                up_limit += 1;
-            } else {
-                up_locked = true;
-            }
-        }
-
-        // try to expand left
-        if !left_locked {
-            // check if platform has no overhang
-            let no_overhang =
-                map.check_position_crit(&pos.shifted_by(-(left_limit + 1), 1)?, |b| {
-                    match (gen_config.plat_soft_overhang, b) {
-                        (true, block) => !block.is_empty(),
-                        (false, block) => block.is_solid(),
-                    }
-                });
-
-            let next_limit_valid = map.check_area_all(
-                &pos.shifted_by(-(left_limit + 1), -up_limit)?,
-                &pos.shifted_by(-(left_limit + 1), -1)?, // dont check y=0 as freeze expected
-                &BlockType::Empty,
-            )?;
-
-            if no_overhang && next_limit_valid {
-                left_limit += 1;
-            } else {
-                left_locked = true;
-            }
-        }
-
-        // try to expand right
-        if !right_locked {
-            let no_overhang = map.check_position_crit(&pos.shifted_by(right_limit + 1, 1)?, |b| {
-                match (gen_config.plat_soft_overhang, b) {
-                    (true, block) => !block.is_empty(),
-                    (false, block) => block.is_solid(),
-                }
-            });
-            let next_limit_valid = map.check_area_all(
-                &pos.shifted_by(right_limit + 1, -up_limit)?,
-                &pos.shifted_by(right_limit + 1, -1)?, // dont check y=0 as freeze expected
-                &BlockType::Empty,
-            )?;
-
-            if no_overhang && next_limit_valid {
-                right_limit += 1;
-            } else {
-                right_locked = true;
-            }
-        }
-
-        // early abort if x or y dimension is already locked, but lower bound isnt reached
-        if up_locked
-            && (((up_limit + 1) as usize)
-                < gen_config.plat_height_bounds.0 + gen_config.plat_min_empty_height)
-        {
-            return Err("not enough y space");
-        } else if left_locked
-            && right_locked
-            && (((left_limit + right_limit + 1) as usize) < gen_config.plat_width_bounds.0)
-        {
-            return Err("not enough x space");
-        }
-        if ((up_limit + 1) as usize)
-            >= (gen_config.plat_height_bounds.1 + gen_config.plat_min_empty_height)
-        {
-            up_locked = true;
-        }
-        if ((left_limit + right_limit + 1) as usize) >= gen_config.plat_width_bounds.1 {
-            left_locked = true;
-            right_locked = true;
-        }
-    }
-
-    Ok(Platform {
-        pos: pos.clone(),
-        width_left: left_limit as usize,
-        width_right: right_limit as usize,
-        available_height: (up_limit + 1) as usize,
-    })
-}
-
-pub fn gen_all_platform_candidates(
-    walker_pos_history: &Vec<Position>,
-    flood_fill: &Array2<Option<usize>>,
-    map: &mut Map,
-    gen_config: &GenerationConfig,
-    debug_layers: &mut Option<DebugLayers>,
-) {
-    let mut platform_candidates: Vec<Platform> = Vec::new();
-    let mut last_platform_level_distance = 0;
-
-    for pos in walker_pos_history {
-        // skip if initial walker pos is non empty
-        if map.grid[pos.as_index()] != BlockType::Empty {
-            continue;
-        }
-
-        // skip if previous platform is still to close
-        let level_distance = flood_fill[pos.as_index()].unwrap();
-        if level_distance.saturating_sub(last_platform_level_distance)
-            < gen_config.plat_min_distance
-        {
-            continue;
-        }
-
-        // skip if floor pos coulnt be determined
-        let floor_pos = map.shift_pos_until(pos, ShiftDirection::Down, |b| b.is_solid());
-        if floor_pos.is_none() {
-            continue;
-        }
-        let floor_pos = floor_pos.unwrap();
-
-        // try to get optimal platform candidate
-        let platform_pos = floor_pos.shifted_by(0, -1).unwrap();
-        let result = get_optimal_greedy_platform_candidate(&platform_pos, map, gen_config);
-        if let Ok(platform) = result {
-            // debug visualizations
-            if let Some(debug_layers) = debug_layers {
-                let platform_debug_layer = debug_layers.bool_layers.get_mut("platforms").unwrap();
-                let mut area = platform_debug_layer.grid.slice_mut(s![
-                    platform_pos.x - platform.width_left..=platform_pos.x + platform.width_right,
-                    platform_pos.y - (platform.available_height - 1)..=platform_pos.y
-                ]);
-                area.fill(true);
-            }
-
-            // save platform
-            platform_candidates.push(platform);
-
-            // update last level distance
-            last_platform_level_distance = level_distance;
-        }
-    }
-
-    // generate platforms
-    for platform_candidate in platform_candidates {
-        let platform_height =
-            platform_candidate.available_height - gen_config.plat_min_empty_height;
-
-        if platform_height > 0 {
-            map.set_area(
-                &platform_candidate
-                    .pos
-                    .shifted_by(
-                        -(platform_candidate.width_left as i32),
-                        -(platform_height as i32),
-                    )
-                    .unwrap(),
-                &platform_candidate
-                    .pos
-                    .shifted_by(platform_candidate.width_right as i32, 0)
-                    .unwrap(),
-                &BlockType::Platform,
-                &Overwrite::Force,
-            );
-        }
-
-        map.set_area(
-            &platform_candidate
-                .pos
-                .shifted_by(
-                    -(platform_candidate.width_left as i32),
-                    -((platform_candidate.available_height - 1) as i32),
-                )
-                .unwrap(),
-            &platform_candidate
-                .pos
-                .shifted_by(
-                    platform_candidate.width_right as i32,
-                    -(platform_height as i32),
-                )
-                .unwrap(),
-            &BlockType::EmptyReserved,
-            &Overwrite::Force,
-        );
-    }
-}
-
-fn manhattan_distance(a: &Position, b: &Position) -> u32 {
-    ((a.x as i32 - b.x as i32).abs() + (a.y as i32 - b.y as i32).abs()) as u32
-}
-
-pub fn a_star(
-    map: &Map,
-    start: &Position,
-    end: &Position,
-    debug_layers: &mut Option<DebugLayers>,
-) -> Result<(), &'static str> {
-    // cells that will be visited next (f = g + h, g, pos)
-    let mut open_cells: BinaryHeap<Reverse<(u32, u32, Position)>> = BinaryHeap::new();
-    let h = manhattan_distance(start, end);
-    open_cells.push(Reverse((h, 0, start.clone())));
-
-    // already have been evaluated
-    let mut closed_cells: HashSet<Position> = HashSet::new();
-
-    // keep track of best distances
-    let mut best_dist: HashMap<Position, u32> = HashMap::new();
-    best_dist.insert(start.clone(), 0);
-
-    while let Some(Reverse((_, g, pos))) = open_cells.pop() {
-        let new_g = g + 1; // cityblock
-
-        // check neighboring cells
-        for shift in [
-            ShiftDirection::Right, // favor right cuz gores maps :)
-            ShiftDirection::Up,
-            ShiftDirection::Left,
-            ShiftDirection::Down,
-        ] {
-            let shifted_pos = pos.shifted(&shift, map)?;
-
-            // check if goal is found
-            if shifted_pos == *end {
-                println!("goal found :)");
-                return Ok(());
-            }
-
-            // skip if already visited
-            if closed_cells.contains(&shifted_pos) {
-                continue;
-            }
-
-            // only consider empty cells on the map
-            if !matches!(
-                map.grid[shifted_pos.as_index()],
-                BlockType::Empty | BlockType::EmptyReserved | BlockType::Start | BlockType::Finish
-            ) {
-                continue;
-            }
-
-            // check if a new or better connection has been found
-            if best_dist.get(&shifted_pos).is_none_or(|&d| d > new_g) {
-                best_dist.insert(shifted_pos.clone(), new_g);
-                let h = manhattan_distance(&shifted_pos, end);
-                let f = new_g + h;
-                open_cells.push(Reverse((f, new_g, shifted_pos)));
-            }
-        }
-
-        // current pos is now fully expanded -> close it
-        if let Some(debug_layers) = debug_layers {
-            debug_layers.bool_layers.get_mut("a_star").unwrap().grid[pos.as_index()] = true;
-        }
-        closed_cells.insert(pos);
-    }
-
-    Ok(())
-}
-
 pub fn dijkstra(
     map: &Map,
     start: &Position,
@@ -1049,9 +796,15 @@ pub fn dijkstra(
                 return Ok(());
             }
 
+            // we only consider "playable" blocks aka. parts the player can pass (except freeze)
             if !matches!(
                 map.grid[neighbor.as_index()],
-                BlockType::Empty | BlockType::EmptyReserved | BlockType::Start | BlockType::Finish
+                BlockType::Empty
+                    | BlockType::EmptyRoom
+                    | BlockType::EmptyFade
+                    | BlockType::EmptyPlatform
+                    | BlockType::Start
+                    | BlockType::Finish
             ) {
                 continue;
             }
@@ -1245,7 +998,7 @@ pub fn generate_finish_room(
     gen.map.set_area(
         &top_left,
         &bot_right,
-        &BlockType::EmptyReserved,
+        &BlockType::EmptyRoom,
         &Overwrite::Force,
     );
 
@@ -1254,7 +1007,7 @@ pub fn generate_finish_room(
         &top_left.shifted_by(-1, -1)?,
         &bot_right.shifted_by(1, 1)?,
         &BlockType::Finish,
-        &Overwrite::ReplaceNonSolidForce,
+        &Overwrite::ReplaceNonSolid,
     );
 
     gen.map.write_text(&pos.shifted_by(-2, 0)?, "GG :3");
@@ -1266,22 +1019,574 @@ pub fn fill_dead_ends(
     map: &mut Map,
     gen_config: &GenerationConfig,
     main_path_distance: &Array2<Option<usize>>,
-) -> Vec<Position> {
-    let mut filled_blocks: Vec<Position> = Vec::new();
-    for ((x, y), map_block) in map.grid.indexed_iter_mut() {
-        // only consider empty or freeze blocks
-        if !(*map_block == BlockType::Empty || *map_block == BlockType::Freeze) {
-            continue;
-        }
+) -> Result<Vec<Position>, &'static str> {
+    let mut filled_blocks = Vec::new();
 
-        // if distance to main path is too large -> fill up with hookable blocks
-        if let Some(dist) = main_path_distance[[x, y]] {
-            if dist > gen_config.dead_end_threshold {
-                *map_block = BlockType::Hookable;
-                filled_blocks.push(Position::new(x, y));
+    for x in 0..map.width {
+        for y in 0..map.height {
+            let block = &map.grid[(x, y)];
+
+            if block != &BlockType::Empty && block != &BlockType::Freeze {
+                continue;
+            }
+
+            if map.check_area_exists(
+                &Position::new(x - 1, y - 1),
+                &Position::new(x + 1, y + 1),
+                &BlockType::EmptyFade,
+            )? {
+                continue;
+            }
+
+            // if too far, fill up with hookables.
+            if let Some(dist) = main_path_distance[[x, y]] {
+                if dist > gen_config.dead_end_threshold {
+                    map.grid[(x, y)] = BlockType::Hookable;
+                    filled_blocks.push(Position::new(x, y));
+                }
             }
         }
     }
 
-    filled_blocks
+    Ok(filled_blocks)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum PlatformPosCandidate {
+    /// location is not platform candidate
+    None,
+    /// location is platform candidate, not used yet in a platform group. stores individual empty_height.
+    Candidate(usize),
+    /// location is platform candidate and already used for platform group. stores minumum
+    /// empty_height of group.
+    Grouped(usize),
+}
+
+#[derive(Debug)]
+pub struct FloorPosition {
+    pub pos: Position,
+    pub empty_height: usize,
+    pub freeze_height: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlatformCandidate {
+    /// 'center' position of platform
+    pub pos: Position,
+
+    /// inclusive offset of left platform position
+    pub offset_left: usize,
+
+    /// inclusive offset of right platform position
+    pub offset_right: usize,
+
+    /// reserved height above platform
+    pub reserved_height: usize,
+
+    /// flood fill distance in the map
+    pub flood_fill_dist: usize,
+}
+
+impl PlatformCandidate {
+    pub fn total_width(&self) -> usize {
+        self.offset_left + self.offset_right + 1
+    }
+
+    /// Re-centers the platform around its middle point
+    /// When total width is odd, biases right position, so higher offset_left
+    pub fn re_center(&mut self) {
+        let total_width = self.total_width();
+        let center = self.pos.x - self.offset_left + (total_width / 2);
+        self.offset_left = total_width / 2;
+        self.offset_right = total_width - self.offset_left - 1;
+        self.pos.x = center;
+    }
+
+    /// Shrinks the platform to specified width
+    /// Prefers reducing left, to counterbalance the bias in re_center
+    pub fn shrink(&mut self, shrink_to: usize) {
+        let total_width = self.total_width();
+        if total_width <= shrink_to {
+            return;
+        }
+
+        let shrink_by = total_width - shrink_to;
+        let shrink_left = (shrink_by + 1) / 2; // ceiling division
+        let shrink_right = shrink_by / 2; // floor division
+
+        self.offset_left = self.offset_left.saturating_sub(shrink_left);
+        self.offset_right = self.offset_right.saturating_sub(shrink_right);
+    }
+}
+
+pub fn find_floor_positions(
+    map: &Map,
+    gen_config: &GenerationConfig,
+) -> Result<Vec<FloorPosition>, &'static str> {
+    let mut floor_pos: Vec<FloorPosition> = Vec::new();
+    for x in 0..map.width {
+        for y in 1..map.height {
+            if map.grid[[x, y]] != BlockType::Hookable {
+                continue; // current block must be hookable
+            }
+
+            if map.grid[[x, y - 1]] != BlockType::Freeze {
+                continue; // block above must be freeze
+            }
+
+            // shift upwards to find first non freeze block
+            let base_pos = Position::new(x, y);
+            if let Some(non_freeze_pos) = map.shift_pos_until(
+                &base_pos,
+                ShiftDirection::Up,
+                |b| !b.is_freeze(),
+                Some(gen_config.plat_max_freeze + 1),
+            ) {
+                if map.grid[non_freeze_pos.as_index()] != BlockType::Empty {
+                    continue; // SKIP: above N freeze blocks there must be an empty block
+                }
+
+                let freeze_height = base_pos.y - (non_freeze_pos.y + 1);
+                if freeze_height > gen_config.plat_max_freeze {
+                    continue;
+                }
+
+                // we scan 10 more blocks than required, as reserving more emtpy space later,
+                // should result in nicer platforms especially for larger ones
+                let empty_scan_height = gen_config.plat_height + 10;
+                let empty_height = match map.shift_pos_until(
+                    &non_freeze_pos,
+                    ShiftDirection::Up,
+                    |b| !b.is_empty(),
+                    Some(empty_scan_height),
+                ) {
+                    // found some non-empty block, measure height
+                    Some(first_non_empty_pos) => {
+                        let empty_height = non_freeze_pos.y - first_non_empty_pos.y;
+                        if empty_height < gen_config.plat_height {
+                            continue; // SKIP: above freeze there must be N empty blocks
+                        }
+                        empty_height
+                    }
+                    // never reached non-empty,
+                    None => empty_scan_height, // so we just fall back to maximum scan height
+                };
+
+                floor_pos.push(FloorPosition {
+                    pos: base_pos,
+                    empty_height,
+                    freeze_height,
+                });
+            }
+        }
+    }
+    return Ok(floor_pos);
+}
+
+pub fn generate_platform_candidates(
+    map: &Map,
+    floor_pos: &[FloorPosition],
+    flood_fill: &Array2<Option<usize>>,
+    gen_config: &GenerationConfig,
+    debug_layers: &mut Option<DebugLayers>,
+) -> Result<Vec<PlatformCandidate>, &'static str> {
+    // fill candidates
+    let mut candidates = Array2::from_elem((map.width, map.height), PlatformPosCandidate::None);
+    for floor in floor_pos.iter() {
+        for freeze_offset in 0..floor.freeze_height {
+            candidates[[floor.pos.x, floor.pos.y - freeze_offset]] =
+                PlatformPosCandidate::Candidate(
+                    floor.empty_height + floor.freeze_height - freeze_offset,
+                );
+        }
+    }
+
+    let mut platforms = Vec::new();
+
+    // group candidates based on floor positions. So floor positions can be grouped with
+    // freeze_offset candidates, but a group must start at a floor position!
+    for floor in floor_pos.iter() {
+        let mut min_empty_height: usize;
+
+        // check current position, skip if already grouped
+        if let PlatformPosCandidate::Candidate(empty_height) =
+            candidates[[floor.pos.x, floor.pos.y]]
+        {
+            min_empty_height = empty_height;
+        } else {
+            continue;
+        }
+
+        // group to the left
+        let mut offset_left = 1;
+        while let PlatformPosCandidate::Candidate(empty_height) =
+            candidates[[floor.pos.x - offset_left, floor.pos.y]]
+        {
+            if empty_height < gen_config.plat_height {
+                continue;
+            }
+            min_empty_height = min_empty_height.min(empty_height);
+            offset_left += 1;
+        }
+        offset_left -= 1;
+
+        // group to the right
+        let mut offset_right = 1;
+        while let PlatformPosCandidate::Candidate(empty_height) =
+            candidates[[floor.pos.x + offset_right, floor.pos.y]]
+        {
+            if empty_height < gen_config.plat_height {
+                continue;
+            }
+            min_empty_height = min_empty_height.min(empty_height);
+            offset_right += 1;
+        }
+        offset_right -= 1;
+
+        // group all candidates
+        let mut view = safe_slice_mut(
+            &mut candidates,
+            &floor.pos.shifted_by(-(offset_left as i32), 0)?,
+            &floor.pos.shifted_by(offset_right as i32, 0)?,
+            map,
+        )?;
+        view.fill(PlatformPosCandidate::Grouped(min_empty_height));
+
+        // skip if platform too narrow
+        if offset_left + offset_right + 1 < gen_config.plat_min_width {
+            continue;
+        }
+
+        // derive platform
+        if let Some(flood_fill_dist) =
+            flood_fill[[floor.pos.x, floor.pos.y - (gen_config.plat_max_freeze + 1)]]
+        {
+            let mut platform_cand = PlatformCandidate {
+                pos: floor.pos.clone(), // TODO: remove clone
+                offset_left,
+                offset_right,
+                reserved_height: min_empty_height,
+                flood_fill_dist,
+            };
+            platform_cand.re_center();
+            platform_cand.shrink(gen_config.plat_max_width);
+            platforms.push(platform_cand);
+        }
+    }
+
+    if let Some(debug_layers) = debug_layers {
+        debug_layers.float_layers.get_mut("plat_cand").unwrap().grid =
+            candidates.mapv(|v| match v {
+                PlatformPosCandidate::Candidate(empty_height) => Some(empty_height as f32),
+                _ => None,
+            });
+
+        debug_layers
+            .float_layers
+            .get_mut("plat_group")
+            .unwrap()
+            .grid = candidates.mapv(|v| match v {
+            PlatformPosCandidate::Grouped(empty_height) => Some(empty_height as f32),
+            _ => None,
+        });
+    }
+
+    return Ok(platforms);
+}
+
+/// Greedily selects platforms that dont violate the minimum gap constraint.
+/// Algorithm considers `platforms` in the order as provided.
+/// Defaults to only floodfill distance, but `use_euclidean` can be enabled,
+/// to add a double constraint that also adds a euclidean based gap check.
+pub fn greedy_select_platforms(
+    platforms: &[PlatformCandidate],
+    min_gap: usize,
+    use_euclidean: bool,
+) -> Result<Vec<PlatformCandidate>, &'static str> {
+    let platforms_count = platforms.len();
+    let mut platform_blocked = vec![false; platforms_count];
+    let mut selected_platforms: Vec<PlatformCandidate> = Vec::new();
+
+    for idx in 0..platforms.len() {
+        if platform_blocked[idx] {
+            continue;
+        }
+
+        // not blocked so we place platform
+        let plat = &platforms[idx];
+
+        // but block all near platforms
+        for idx_other in idx..platforms_count {
+            if platform_blocked[idx_other] {
+                continue; // skip if already blocked
+            }
+
+            let plat_other = &platforms[idx_other];
+
+            let ff_gap = plat.flood_fill_dist.abs_diff(plat_other.flood_fill_dist);
+            if ff_gap < min_gap {
+                if use_euclidean {
+                    let euclidean_dist = plat.pos.distance(&plat_other.pos);
+                    if euclidean_dist > min_gap as f32 {
+                        continue; // euclidean constraint is not violated, so we DONT BLOCK
+                    }
+                }
+                platform_blocked[idx_other] = true;
+            }
+        }
+
+        selected_platforms.push(plat.clone());
+    }
+
+    Ok(selected_platforms)
+}
+
+/// DP solver to minimize total sum of deviations from platform gap to target gap
+pub fn select_platforms_dp(
+    mut plats: Vec<PlatformCandidate>,
+    keep: usize,
+    target_gap: usize,
+    ff_map_length: usize,
+) -> Result<(Vec<usize>, f32), &'static str> {
+    if plats.is_empty() || keep == 0 || keep > plats.len() {
+        return Err("no feasible selection");
+    }
+
+    plats.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
+    let n = plats.len();
+    let layers = keep;
+
+    // dp[layer][idx] -> (best_cost, predecessor)
+    let mut dp = vec![vec![(f32::INFINITY, None); n]; layers];
+
+    // layer 0: only one platform
+    for idx in 0..n {
+        let start_gap = plats[idx].flood_fill_dist;
+        dp[0][idx].0 = (start_gap as f32 - target_gap as f32).abs();
+    }
+
+    // fill further layers
+    for chosen in 1..layers {
+        for cur in chosen..n {
+            for prev in (chosen - 1)..cur {
+                let gap = plats[cur].flood_fill_dist - plats[prev].flood_fill_dist;
+                let cost = dp[chosen - 1][prev].0 + (gap as f32 - target_gap as f32).abs();
+                if cost < dp[chosen][cur].0 {
+                    dp[chosen][cur] = (cost, Some(prev));
+                }
+            }
+        }
+    }
+
+    // pick best tail: add end-gap penalty
+    let (best_tail_idx, best_total) = dp[layers - 1]
+        .iter()
+        .enumerate()
+        .map(|(idx, &(cost, _))| {
+            // There can be platforms with ff_dist higher than the goal, so we saturate to zero.
+            // TODO: this means that such a platform adds zero cost -> problem?
+            let end_gap = ff_map_length.saturating_sub(plats[idx].flood_fill_dist);
+            (idx, cost + (end_gap as f32 - target_gap as f32).abs())
+        })
+        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        .ok_or("no feasible selection")?;
+
+    // back-track indices
+    let mut indices = Vec::with_capacity(layers);
+    let mut idx = best_tail_idx;
+    for layer in (0..layers).rev() {
+        indices.push(idx);
+        if let Some(prev) = dp[layer][idx].1 {
+            idx = prev;
+        }
+    }
+    indices.reverse();
+
+    Ok((indices, best_total))
+}
+
+/// Pick selection of platforms whose worst-gap deviation from target_gap is minimal.
+pub fn select_best_platform_config(
+    mut plats: Vec<PlatformCandidate>,
+    target_gap: usize,
+    ff_map_length: usize,
+) -> Result<Vec<PlatformCandidate>, &'static str> {
+    if plats.is_empty() {
+        return Err("no candidates");
+    }
+
+    plats.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
+    let n = plats.len();
+    let mut best_indices = Vec::<usize>::new();
+    let mut best_max_dev: i32 = i32::MAX;
+    let mut best_sum_cost = f32::INFINITY;
+
+    // TODO: in practise the score/worst dev is following the trend of a hyperble. So a
+    // possible optimization would be to start with an approximation, and search minimum
+    // from there, as it'd skip many of the runs
+    for k in 1..=n {
+        let (idxs, sum_cost) = select_platforms_dp(plats.clone(), k, target_gap, ff_map_length)?;
+
+        // compute worst gap deviation
+        let mut worst_dev: i32 = 0;
+        let mut prev_pos = 0;
+        for &idx in &idxs {
+            let gap = plats[idx].flood_fill_dist.saturating_sub(prev_pos);
+            worst_dev = worst_dev.max((gap as i32 - target_gap as i32).abs());
+            prev_pos = plats[idx].flood_fill_dist;
+        }
+        let end_gap = ff_map_length.saturating_sub(prev_pos);
+        worst_dev = worst_dev.max((end_gap as i32 - target_gap as i32).abs());
+        // debug!(
+        //     "k={:<2}  worst_dev={:<4}  sum_cost={}",
+        //     k, worst_dev, sum_cost,
+        // );
+
+        // keep best according to worst deviation from target gap
+        // Tie-breaker: Fall back to the total summed gap cost
+        if worst_dev < best_max_dev || (worst_dev == best_max_dev && sum_cost < best_sum_cost) {
+            best_indices = idxs;
+            best_max_dev = worst_dev;
+            best_sum_cost = sum_cost;
+            // debug!(
+            //     "   ↳ new best (k={}, worst_dev={}, sum_cost={})",
+            //     k, worst_dev, sum_cost
+            // );
+        }
+    }
+
+    // info!(
+    //     "Chosen k={}, worst_dev={}, total_cost={}",
+    //     best_indices.len(),
+    //     best_max_dev,
+    //     best_sum_cost
+    // );
+
+    Ok(best_indices.into_iter().map(|i| plats[i].clone()).collect())
+}
+
+pub fn generate_platforms(
+    map: &mut Map,
+    gen_config: &GenerationConfig,
+    flood_fill: &Array2<Option<usize>>,
+    ff_map_length: usize,
+    debug_layers: &mut Option<DebugLayers>,
+) -> Result<Vec<FloorPosition>, &'static str> {
+    // find potential floor positions
+    let floor_pos = find_floor_positions(map, gen_config)?;
+
+    // generate all valid platform candidates and order by their size
+    let mut all_platforms =
+        generate_platform_candidates(map, &floor_pos, flood_fill, gen_config, debug_layers)?;
+    all_platforms.sort_unstable_by(|a, b| {
+        (a.offset_left + a.offset_right)
+            .cmp(&(b.offset_left + b.offset_right))
+            .reverse()
+    });
+
+    // first greedy filter: prioritize large platforms, use only fraction of the target gap
+    let selected_platforms =
+        greedy_select_platforms(&all_platforms, gen_config.plat_target_distance / 5, false)?;
+
+    // now find optimal configuration of platforms
+    let mut final_platforms = select_best_platform_config(
+        selected_platforms,
+        gen_config.plat_target_distance,
+        ff_map_length,
+    )?;
+
+    // generate final selection of platforms
+    for plat in final_platforms.iter() {
+        set_platform(map, plat)?;
+    }
+
+    // check that no platform gap is too large
+    // TODO: this doesnt yet consider multi-path maps
+    final_platforms.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
+    let ff_gaps: Vec<usize> = final_platforms
+        .windows(2)
+        .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
+        .collect();
+    // TODO: introduce these as a parameter?
+    // dbg!(&ff_gaps);
+    let max_valid_gap = (gen_config.plat_target_distance as f32 * 1.50) as usize;
+    let min_valid_gap = (gen_config.plat_target_distance as f32 / 2.00) as usize;
+    let max_gap = *ff_gaps.iter().max().unwrap();
+    let min_gap = *ff_gaps.iter().min().unwrap();
+    if max_gap > max_valid_gap {
+        // dbg!(min_valid_gap, max_valid_gap, min_gap, max_gap);
+        return Err("maximum plat gap constrain not fulfilled");
+    } else if min_gap < min_valid_gap {
+        // dbg!(min_valid_gap, max_valid_gap, min_gap, max_gap);
+        return Err("minimum plat gap constrain not fulfilled");
+    }
+
+    Ok(floor_pos)
+}
+
+pub fn set_platform(map: &mut Map, plat: &PlatformCandidate) -> Result<(), &'static str> {
+    let left = plat.pos.x - plat.offset_left;
+    let right = plat.pos.x + plat.offset_right;
+    let top = plat.pos.y - plat.reserved_height;
+
+    let top_left = Position::new(left, top);
+    let bot_right = Position::new(right, plat.pos.y - 1);
+
+    map.set_area(
+        &Position::new(left, plat.pos.y),
+        &Position::new(right, plat.pos.y),
+        &BlockType::Platform,
+        &Overwrite::Force,
+    );
+
+    map.set_area(
+        &top_left,
+        &bot_right,
+        &BlockType::EmptyPlatform,
+        &Overwrite::Force,
+    );
+
+    // fix edge bugs
+    // due to improved platform detection we dont need this anymore, but maybe i'll decide to
+    // add a feature that expands a platform, in that case i'd need this again.
+    // fix_local_edge_bugs(map, &top_left, &bot_right);
+
+    // check "soft blocked" parts
+    let part_offset = 2;
+
+    // consider left and right
+    for &dir in &[-1, 1] {
+        let entry_x = if dir == 1 { right + 1 } else { left - 1 };
+        let part_entry = Position::new(entry_x, plat.pos.y - 1);
+        let part_exit = part_entry.shifted_by(part_offset * dir, 0)?;
+
+        // ensure correct order for position access
+        let (left, right) = if dir == 1 {
+            (part_entry, part_exit)
+        } else {
+            (part_exit, part_entry)
+        };
+
+        // check if part is empty = "playable"
+        if map.check_area_all(&left, &right, &BlockType::Empty)? {
+            let above_left = left.shifted_by(0, -1)?;
+            let above_right = right.shifted_by(0, -1)?;
+
+            // check if playable path is a one tiler
+            if map.check_area_exists(&above_left, &above_right, &BlockType::Freeze)? {
+                // if yes, remove one block above
+                map.set_area(
+                    &above_left,
+                    &above_right,
+                    &BlockType::Empty,
+                    &Overwrite::ReplaceNonSolid,
+                );
+
+                // and fix potential resulting edge bugs
+                fix_local_edge_bugs(map, &above_left, &above_right);
+            }
+        }
+    }
+
+    Ok(())
 }
