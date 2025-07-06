@@ -6,7 +6,7 @@ use crate::{
     noise,
     position::{Position, ShiftDirection},
     random::Random,
-    utils::safe_slice_mut,
+    utils::{safe_slice, safe_slice_mut},
 };
 
 use std::{
@@ -271,6 +271,7 @@ pub fn remove_unused_blocks(map: &mut Map, position_lock: &Array2<bool>) {
     }
 }
 
+#[derive(Debug)]
 pub struct Skip {
     start_pos: Position,
     end_pos: Position,
@@ -974,8 +975,10 @@ pub fn detect_stair(map: &Map, pos: &Position) -> Option<(i32, i32)> {
 }
 
 pub fn generate_finish_room(
-    gen: &mut Generator,
     pos: &Position,
+    map: &mut Map,
+    locked_positions: &Array2<bool>,
+    ff_dist: &Array2<Option<usize>>,
     room_size: usize,
 ) -> Result<(), &'static str> {
     let room_size: i32 = room_size as i32;
@@ -983,19 +986,30 @@ pub fn generate_finish_room(
     let top_left = pos.shifted_by(-room_size, -room_size)?;
     let bot_right = pos.shifted_by(room_size, room_size)?;
 
-    // abort if area already locked
-    let lock_area = safe_slice_mut(
-        &mut gen.walker.locked_positions,
-        &top_left,
-        &bot_right,
-        &gen.map,
-    )?;
-    if lock_area.iter().any(|v| *v) {
-        return Err("Cant place finish room, area is already locked!");
+    // check if area already locked
+    let area_locked = safe_slice(locked_positions, &top_left, &bot_right, &map)?;
+    let locked = area_locked.iter().any(|v| *v);
+    if locked {
+        // if its locked, we ensure that we actually overlap with playable parts
+
+        let flood_fill_area = safe_slice(
+            ff_dist,
+            &top_left.shifted_by(-1, -1)?,
+            &bot_right.shifted_by(1, 1)?,
+            &map,
+        )?;
+        let min_ff_dist = flood_fill_area.iter().filter_map(|v| *v).min().unwrap();
+        let goal_ff_dist = ff_dist[pos.as_index()].unwrap();
+        let ff_diff = goal_ff_dist.saturating_sub(min_ff_dist);
+
+        // TODO: introduce constant?
+        if ff_diff > 40 {
+            return Err("Cant place finish room, overlapping with playable part!");
+        }
     }
 
     // carve room
-    gen.map.set_area(
+    map.set_area(
         &top_left,
         &bot_right,
         &BlockType::EmptyRoom,
@@ -1003,14 +1017,14 @@ pub fn generate_finish_room(
     );
 
     // set start/finish line
-    gen.map.set_area_border(
+    map.set_area_border(
         &top_left.shifted_by(-1, -1)?,
         &bot_right.shifted_by(1, 1)?,
         &BlockType::Finish,
         &Overwrite::ReplaceNonSolid,
     );
 
-    gen.map.write_text(&pos.shifted_by(-2, 0)?, "GG :3");
+    map.write_text(&pos.shifted_by(-2, 0)?, "GG :0");
 
     Ok(())
 }

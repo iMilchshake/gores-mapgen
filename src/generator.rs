@@ -288,31 +288,30 @@ impl Generator {
             }
         }
 
-        if !self.walker.finished {
-            if validate {
-                gen_config.validate()?;
-            }
-
-            // randomly mutate kernel
-            if self.walker.steps > gen_config.fade_steps {
-                self.walker.mutate_kernel(gen_config, &mut self.rnd);
-            } else {
-                self.walker.set_fade_kernel(
-                    self.walker.steps,
-                    gen_config.fade_min_size,
-                    gen_config.fade_max_size,
-                    gen_config.fade_steps,
-                );
-            }
-
-            // perform one step
-            self.walker.probabilistic_step(
-                &mut self.map,
-                gen_config,
-                &mut self.rnd,
-                debug_layers,
-            )?;
+        // if final waypoint was reached -> abort
+        if self.walker.finished {
+            return Ok(());
         }
+
+        if validate {
+            gen_config.validate()?;
+        }
+
+        // randomly mutate kernel
+        if self.walker.steps > gen_config.fade_steps {
+            self.walker.mutate_kernel(gen_config, &mut self.rnd);
+        } else {
+            self.walker.set_fade_kernel(
+                self.walker.steps,
+                gen_config.fade_min_size,
+                gen_config.fade_max_size,
+                gen_config.fade_steps,
+            );
+        }
+
+        // perform one step
+        self.walker
+            .probabilistic_step(&mut self.map, gen_config, &mut self.rnd, debug_layers)?;
 
         Ok(())
     }
@@ -366,17 +365,8 @@ impl Generator {
     ) -> Result<(), &'static str> {
         let mut timer = Timer::start();
 
-        let edge_bugs = post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
-        print_time(&mut timer, "fix edge bugs", verbose);
-
         self.generate_spawn(thm_config);
-        post::generate_finish_room(self, &self.walker.pos.clone(), 4)?;
-        print_time(&mut timer, "place rooms", verbose);
-
-        // lock all remaining blocks
-        self.walker
-            .lock_previous_location(&self.map, gen_config, true)?;
-        print_time(&mut timer, "finish walker lock", verbose);
+        print_time(&mut timer, "place start room", verbose);
 
         if gen_config.min_freeze_size > 0 {
             // TODO: Maybe add some alternative function for the case of min_freeze_size=1
@@ -386,6 +376,27 @@ impl Generator {
 
         let ff = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
         print_time(&mut timer, "flood fill", verbose);
+
+        // we do expanding edge bugs after determining ff, because otherwise it might overlap end
+        // position with new padded freeze.. idk if i like this order tho because many freeze
+        // blocks will now have a ff distance?
+        let edge_bugs = post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
+        print_time(&mut timer, "fix edge bugs", verbose);
+
+        post::generate_finish_room(
+            &self.walker.pos.clone(),
+            &mut self.map,
+            &self.walker.locked_positions,
+            &ff.distance,
+            4,
+        )?;
+        print_time(&mut timer, "place finish room", verbose);
+
+        // lock all remaining blocks
+        self.walker
+            .lock_previous_location(&self.map, gen_config, true)?;
+        print_time(&mut timer, "finish walker lock", verbose);
+
         let ff_main_path = flood_fill(self, ff.path.as_ref().unwrap(), None, true)?;
         print_time(&mut timer, "flood fill (main path dist)", verbose);
 
