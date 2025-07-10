@@ -5,6 +5,7 @@ use tinyfiledialogs;
 
 use crate::{
     editor::{window_frame, Editor, SeedType},
+    map::BlockType,
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
 };
@@ -900,6 +901,7 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
         map_mouse_pos.x.floor() as usize,
         map_mouse_pos.y.floor() as usize,
     );
+    let block_type = editor.gen.map.grid.get(map_mouse_pos_cell);
 
     egui::Window::new("debug_layers_window")
         .frame(window_frame())
@@ -934,8 +936,8 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
             });
 
             ui.label(format!(
-                "({}, {})",
-                map_mouse_pos_cell.0, map_mouse_pos_cell.1
+                "({}, {}): {:?}",
+                map_mouse_pos_cell.0, map_mouse_pos_cell.1, block_type
             ));
         });
 }

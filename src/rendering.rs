@@ -120,7 +120,7 @@ pub fn draw_walker(walker: &CuteWalker) {
         1.0,
         1.0,
         2.0,
-        colors::YELLOW,
+        Color::new(1.0, 1.0, 0.0, 0.2),
     );
     draw_circle(
         walker.pos.x as f32 + 0.5,
