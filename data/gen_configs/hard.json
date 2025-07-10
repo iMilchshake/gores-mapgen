@@ -18,7 +18,7 @@
   },
   "plat_target_distance": 125,
   "plat_max_freeze": 2,
-  "plat_height": 4,
+  "plat_height": 3,
   "plat_min_width": 3,
   "plat_max_width": 10,
   "momentum_prob": 0.6,

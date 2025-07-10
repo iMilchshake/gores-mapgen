@@ -389,6 +389,20 @@ impl Generator {
         let ff_main_path = flood_fill(self, ff.path.as_ref().unwrap(), None, true)?;
         print_time(&mut timer, "flood fill (main path dist)", verbose);
 
+        if let Some(debug_layers) = debug_layers {
+            debug_layers
+                .float_layers
+                .get_mut("flood_fill")
+                .unwrap()
+                .grid = ff.distance.map(|v| v.map(|v| v as f32));
+            if let Some(path) = ff.path.as_ref() {
+                let path_grid = &mut debug_layers.bool_layers.get_mut("path").unwrap().grid;
+                for pos in path {
+                    path_grid[pos.as_index()] = true;
+                }
+            }
+        }
+
         // fill up dead ends
         if gen_config.use_dead_end_removal {
             let dead_end_blocks =
@@ -433,17 +447,6 @@ impl Generator {
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
         if let Some(debug_layers) = debug_layers {
-            debug_layers
-                .float_layers
-                .get_mut("flood_fill")
-                .unwrap()
-                .grid = ff.distance.map(|v| v.map(|v| v as f32));
-            if let Some(path) = ff.path.as_ref() {
-                let path_grid = &mut debug_layers.bool_layers.get_mut("path").unwrap().grid;
-                for pos in path {
-                    path_grid[pos.as_index()] = true;
-                }
-            }
             debug_layers
                 .float_layers
                 .get_mut("main_path_dist")

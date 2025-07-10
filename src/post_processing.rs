@@ -1161,16 +1161,14 @@ pub fn find_floor_positions(
                     Some(empty_scan_height),
                 ) {
                     // found some non-empty block, measure height
-                    Some(first_non_empty_pos) => {
-                        let empty_height = non_freeze_pos.y - first_non_empty_pos.y;
-                        if empty_height < gen_config.plat_height {
-                            continue; // SKIP: above freeze there must be N empty blocks
-                        }
-                        empty_height
-                    }
+                    Some(first_non_empty_pos) => non_freeze_pos.y - first_non_empty_pos.y,
                     // never reached non-empty,
                     None => empty_scan_height, // so we just fall back to maximum scan height
                 };
+
+                if empty_height + freeze_height < gen_config.plat_height {
+                    continue;
+                }
 
                 floor_pos.push(FloorPosition {
                     pos: base_pos,
@@ -1209,23 +1207,21 @@ pub fn generate_platform_candidates(
         let mut min_empty_height: usize;
 
         // check current position, skip if already grouped
-        if let PlatformPosCandidate::Candidate(empty_height) =
-            candidates[[floor.pos.x, floor.pos.y]]
-        {
-            min_empty_height = empty_height;
+        if let PlatformPosCandidate::Candidate(height) = candidates[[floor.pos.x, floor.pos.y]] {
+            min_empty_height = height;
         } else {
             continue;
         }
 
         // group to the left
         let mut offset_left = 1;
-        while let PlatformPosCandidate::Candidate(empty_height) =
+        while let PlatformPosCandidate::Candidate(height) =
             candidates[[floor.pos.x - offset_left, floor.pos.y]]
         {
-            if empty_height < gen_config.plat_height {
-                continue;
+            if height < gen_config.plat_height {
+                break;
             }
-            min_empty_height = min_empty_height.min(empty_height);
+            min_empty_height = min_empty_height.min(height);
             offset_left += 1;
         }
         offset_left -= 1;
@@ -1236,7 +1232,7 @@ pub fn generate_platform_candidates(
             candidates[[floor.pos.x + offset_right, floor.pos.y]]
         {
             if empty_height < gen_config.plat_height {
-                continue;
+                break;
             }
             min_empty_height = min_empty_height.min(empty_height);
             offset_right += 1;
