@@ -1299,6 +1299,10 @@ pub fn generate_platform_candidates(
             PlatformPosCandidate::Grouped(empty_height) => Some(empty_height as f32),
             _ => None,
         });
+
+        for plat in platforms.iter() {
+            debug_layers.bool_layers.get_mut("plat").unwrap().grid[plat.pos.as_index()] = true;
+        }
     }
 
     return Ok(platforms);
@@ -1497,6 +1501,16 @@ pub fn generate_platforms(
     // first greedy filter: prioritize large platforms, use only fraction of the target gap
     let selected_platforms =
         greedy_select_platforms(&all_platforms, gen_config.plat_target_distance / 5, false)?;
+
+    if let Some(debug_layers) = debug_layers {
+        for plat in selected_platforms.iter() {
+            debug_layers
+                .bool_layers
+                .get_mut("selected_plat")
+                .unwrap()
+                .grid[plat.pos.as_index()] = true;
+        }
+    }
 
     // now find optimal configuration of platforms
     let mut final_platforms = select_best_platform_config(
