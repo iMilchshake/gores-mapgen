@@ -1521,7 +1521,7 @@ pub fn generate_platforms(
 
     // generate final selection of platforms
     for plat in final_platforms.iter() {
-        set_platform(map, plat)?;
+        set_platform(map, plat, gen_config.plat_height)?;
     }
 
     // check that no platform gap is too large
@@ -1548,40 +1548,42 @@ pub fn generate_platforms(
     Ok(floor_pos)
 }
 
-pub fn set_platform(map: &mut Map, plat: &PlatformCandidate) -> Result<(), &'static str> {
-    let left = plat.pos.x - plat.offset_left;
-    let right = plat.pos.x + plat.offset_right;
-    let top = plat.pos.y - plat.reserved_height;
+pub fn set_platform(
+    map: &mut Map,
+    plat: &PlatformCandidate,
+    plat_height: usize,
+) -> Result<(), &'static str> {
+    let x_left = plat.pos.x - plat.offset_left;
+    let x_right = plat.pos.x + plat.offset_right;
 
-    let top_left = Position::new(left, top);
-    let bot_right = Position::new(right, plat.pos.y - 1);
+    // how many blocks in height are available on top of the required minimum height
+    let height_margin = plat.reserved_height - plat_height;
+
+    // TODO: determine perfect platform height
+
+    let y_top_platform = plat.pos.y - height_margin;
+    let y_top_empty = plat.pos.y - plat.reserved_height;
 
     map.set_area(
-        &Position::new(left, plat.pos.y),
-        &Position::new(right, plat.pos.y),
+        &Position::new(x_left, y_top_platform),
+        &Position::new(x_right, plat.pos.y),
         &BlockType::Platform,
         &Overwrite::Force,
     );
 
     map.set_area(
-        &top_left,
-        &bot_right,
+        &Position::new(x_left, y_top_empty),
+        &Position::new(x_right, y_top_platform - 1),
         &BlockType::EmptyPlatform,
         &Overwrite::Force,
     );
 
-    // fix edge bugs
-    // due to improved platform detection we dont need this anymore, but maybe i'll decide to
-    // add a feature that expands a platform, in that case i'd need this again.
-    // fix_local_edge_bugs(map, &top_left, &bot_right);
-
-    // check "soft blocked" parts
-    let part_offset = 2;
-
-    // consider left and right
+    // check "soft blocked" parts: Meaning 1-tilers next to and one block above the platform which
+    // makes the entry into the 1-tiler difficult/annoying, so we just increase its height by one.
+    let part_offset = 2; // how many blocks to the sides to check
     for &dir in &[-1, 1] {
-        let entry_x = if dir == 1 { right + 1 } else { left - 1 };
-        let part_entry = Position::new(entry_x, plat.pos.y - 1);
+        let entry_x = if dir == 1 { x_right + 1 } else { x_left - 1 };
+        let part_entry = Position::new(entry_x, y_top_platform - 1);
         let part_exit = part_entry.shifted_by(part_offset * dir, 0)?;
 
         // ensure correct order for position access
@@ -1596,7 +1598,7 @@ pub fn set_platform(map: &mut Map, plat: &PlatformCandidate) -> Result<(), &'sta
             let above_left = left.shifted_by(0, -1)?;
             let above_right = right.shifted_by(0, -1)?;
 
-            // check if playable path is a one tiler
+            // check if playable path is a 1-tiler
             if map.check_area_exists(&above_left, &above_right, &BlockType::Freeze)? {
                 // if yes, remove one block above
                 map.set_area(

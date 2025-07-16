@@ -5,7 +5,6 @@ use tinyfiledialogs;
 
 use crate::{
     editor::{window_frame, Editor, SeedType},
-    map::BlockType,
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
 };
