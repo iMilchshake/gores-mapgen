@@ -1551,17 +1551,20 @@ pub fn generate_platforms(
 pub fn set_platform(
     map: &mut Map,
     plat: &PlatformCandidate,
-    plat_height: usize,
+    min_plat_empty_height: usize,
 ) -> Result<(), &'static str> {
     let x_left = plat.pos.x - plat.offset_left;
     let x_right = plat.pos.x + plat.offset_right;
 
     // how many blocks in height are available on top of the required minimum height
-    let height_margin = plat.reserved_height - plat_height;
+    let height_margin = plat.reserved_height - min_plat_empty_height;
 
-    // TODO: determine perfect platform height
+    // TODO: determine "perfect" platform height by analyzing the height
+    // of the freeze blocks left and right of the platform
+    // NOTE: in practice, clamping this to a max of 2 seems to lead to good height
+    let platform_blocks_height = height_margin.clamp(0, 2); // extend platform by a max of 2
 
-    let y_top_platform = plat.pos.y - height_margin;
+    let y_top_platform = plat.pos.y - platform_blocks_height;
     let y_top_empty = plat.pos.y - plat.reserved_height;
 
     map.set_area(
@@ -1578,38 +1581,43 @@ pub fn set_platform(
         &Overwrite::Force,
     );
 
-    // check "soft blocked" parts: Meaning 1-tilers next to and one block above the platform which
-    // makes the entry into the 1-tiler difficult/annoying, so we just increase its height by one.
+    // Check and fix blocked parts: parts that have a low ceiling right next to platform can be
+    // annoying even if the part is technically not blocked by the platform.
+    // So if we detect such a part, we increase its height by one upwards so entry is easier.
+    // If the platform is extended upwards we do this check for every possible height offset to
+    // ensure that the height extension does not block a part.
     let part_offset = 2; // how many blocks to the sides to check
-    for &dir in &[-1, 1] {
-        let entry_x = if dir == 1 { x_right + 1 } else { x_left - 1 };
-        let part_entry = Position::new(entry_x, y_top_platform - 1);
-        let part_exit = part_entry.shifted_by(part_offset * dir, 0)?;
+    for height_offset in 0..=platform_blocks_height {
+        for &dir in &[-1, 1] {
+            let entry_x = if dir == 1 { x_right + 1 } else { x_left - 1 };
+            let part_entry = Position::new(entry_x, plat.pos.y - height_offset - 1);
+            let part_exit = part_entry.shifted_by(part_offset * dir, 0)?;
 
-        // ensure correct order for position access
-        let (left, right) = if dir == 1 {
-            (part_entry, part_exit)
-        } else {
-            (part_exit, part_entry)
-        };
+            // ensure correct order for position access
+            let (left, right) = if dir == 1 {
+                (part_entry, part_exit)
+            } else {
+                (part_exit, part_entry)
+            };
 
-        // check if part is empty = "playable"
-        if map.check_area_all(&left, &right, &BlockType::Empty)? {
-            let above_left = left.shifted_by(0, -1)?;
-            let above_right = right.shifted_by(0, -1)?;
+            // check if part is empty = "playable"
+            if map.check_area_all(&left, &right, &BlockType::Empty)? {
+                let above_left = left.shifted_by(0, -1)?;
+                let above_right = right.shifted_by(0, -1)?;
 
-            // check if playable path is a 1-tiler
-            if map.check_area_exists(&above_left, &above_right, &BlockType::Freeze)? {
-                // if yes, remove one block above
-                map.set_area(
-                    &above_left,
-                    &above_right,
-                    &BlockType::Empty,
-                    &Overwrite::ReplaceNonSolid,
-                );
+                // check if playable path is a 1-tiler
+                if map.check_area_exists(&above_left, &above_right, &BlockType::Freeze)? {
+                    // if yes, remove one block above
+                    map.set_area(
+                        &above_left,
+                        &above_right,
+                        &BlockType::Empty,
+                        &Overwrite::ReplaceNonSolid,
+                    );
 
-                // and fix potential resulting edge bugs
-                fix_local_edge_bugs(map, &above_left, &above_right);
+                    // and fix potential resulting edge bugs
+                    fix_local_edge_bugs(map, &above_left, &above_right);
+                }
             }
         }
     }
