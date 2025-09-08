@@ -457,6 +457,14 @@ impl Generator {
 
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
+        // do final ff run to ensure there is a playable path to finish
+        let ff_final = flood_fill(self, &[self.spawn.clone()], None, false)?;
+        let end_distance = ff_final.distance[self.walker.pos.as_index()];
+        if end_distance.is_none() {
+            return Err("No valid path to finish");
+        }
+        print_time(&mut timer, "map path validation", verbose);
+
         if let Some(debug_layers) = debug_layers {
             debug_layers
                 .float_layers
