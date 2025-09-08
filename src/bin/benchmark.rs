@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::panic;
 use std::time::{Duration, Instant};
 
@@ -27,6 +28,10 @@ pub struct Args {
     /// Specify which seed/seeds to use. Default 0 to 99
     #[command(subcommand)]
     pub seeds: Option<Seeds>,
+
+    /// Print detailed error summary
+    #[arg(short = 'e')]
+    pub error_summary: bool,
 }
 
 /// derive seed iter from cli args, use default 0 to 99 if non is specified
@@ -75,6 +80,7 @@ fn main() {
             let mut panic_count = 0;
             let mut error_count = 0;
             let mut valid_count = 0;
+            let mut error_summary: HashMap<String, usize> = HashMap::new();
 
             let pb = ProgressBar::new(seed_count as u64);
             pb.set_style(
@@ -107,6 +113,8 @@ fn main() {
                     // no panic, but map generation failed
                     Ok(Err(_generation_error)) => {
                         error_count += 1;
+                        let error_message = format!("{:?}", _generation_error);
+                        *error_summary.entry(error_message).or_insert(0) += 1;
                     }
                     // map generation panic
                     Err(_panic_info) => {
@@ -128,6 +136,13 @@ fn main() {
                 "GEN {:<15} | AVG_TIME={:<12} | ERROR_RATE={:<4.2} | PANIC_RATE={:<4.2}",
                 gen_config.name, avg_elapsed_text, error_rate, panic_rate
             );
+
+            if args.error_summary && !error_summary.is_empty() {
+                println!("  Error summary:");
+                for (err, count) in error_summary.iter() {
+                    println!("    {}x {}", count, err);
+                }
+            }
         }
     }
 }
