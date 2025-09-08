@@ -126,6 +126,7 @@ pub struct GenerationConfig {
     pub plat_height: usize,
     pub plat_min_width: usize,
     pub plat_max_width: usize,
+    pub plat_part_width: usize,
 
     // ===================================[ ]==========================================
     /// probability for doing the last shift direction again
@@ -421,6 +422,7 @@ impl Default for GenerationConfig {
             plat_height: 4,
             plat_min_width: 3,
             plat_max_width: 10,
+            plat_part_width: 2,
             momentum_prob: 0.01,
             max_distance: 3.0,
             waypoint_reached_dist: 250,

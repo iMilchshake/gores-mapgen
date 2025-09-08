@@ -1521,7 +1521,12 @@ pub fn generate_platforms(
 
     // generate final selection of platforms
     for plat in final_platforms.iter() {
-        set_platform(map, plat, gen_config.plat_height)?;
+        set_platform(
+            map,
+            plat,
+            gen_config.plat_height,
+            gen_config.plat_part_width,
+        )?;
     }
 
     // check that no platform gap is too large
@@ -1552,6 +1557,7 @@ pub fn set_platform(
     map: &mut Map,
     plat: &PlatformCandidate,
     min_plat_empty_height: usize,
+    check_part_length: usize,
 ) -> Result<(), &'static str> {
     let x_left = plat.pos.x - plat.offset_left;
     let x_right = plat.pos.x + plat.offset_right;
@@ -1586,12 +1592,11 @@ pub fn set_platform(
     // So if we detect such a part, we increase its height by one upwards so entry is easier.
     // If the platform is extended upwards we do this check for every possible height offset to
     // ensure that the height extension does not block a part.
-    let part_offset = 2; // how many blocks to the sides to check
     for height_offset in 0..=platform_blocks_height {
         for &dir in &[-1, 1] {
             let entry_x = if dir == 1 { x_right + 1 } else { x_left - 1 };
             let part_entry = Position::new(entry_x, plat.pos.y - height_offset - 1);
-            let part_exit = part_entry.shifted_by(part_offset * dir, 0)?;
+            let part_exit = part_entry.shifted_by((check_part_length as i32) * dir, 0)?;
 
             // ensure correct order for position access
             let (left, right) = if dir == 1 {
