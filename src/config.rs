@@ -422,7 +422,7 @@ impl Default for GenerationConfig {
             plat_height: 4,
             plat_min_width: 3,
             plat_max_width: 10,
-            plat_part_width: 2,
+            plat_part_width: 1,
             momentum_prob: 0.01,
             max_distance: 3.0,
             waypoint_reached_dist: 250,

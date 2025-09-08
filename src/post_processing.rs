@@ -1592,6 +1592,8 @@ pub fn set_platform(
     // So if we detect such a part, we increase its height by one upwards so entry is easier.
     // If the platform is extended upwards we do this check for every possible height offset to
     // ensure that the height extension does not block a part.
+    // TODO: part width = 1 will ensure that no part is blocked, but it also doesnt clean up longer
+    // parts as nicely. A good solution for this would be to introduce a min and max part width.
     for height_offset in 0..=platform_blocks_height {
         for &dir in &[-1, 1] {
             let entry_x = if dir == 1 { x_right + 1 } else { x_left - 1 };
