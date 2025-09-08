@@ -1,6 +1,6 @@
 [package]
 name = "gores-mapgen"
-version = "1.0.5"
+version = "1.0.6-beta"
 edition = "2021"
 default-run = "editor"
 
