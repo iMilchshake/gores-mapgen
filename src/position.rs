@@ -194,3 +194,10 @@ impl Position {
         shifts
     }
 }
+
+pub fn sanitize_rect_positions(a: Position, b: Position) -> (Position, Position) {
+    (
+        Position::new(a.x.min(b.x), a.y.min(b.y)),
+        Position::new(a.x.max(b.x), a.y.max(b.y)),
+    )
+}

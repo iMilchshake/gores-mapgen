@@ -4,7 +4,7 @@ use crate::{
     generator::Generator,
     map::{BlockType, Map, Overwrite},
     noise,
-    position::{Position, ShiftDirection},
+    position::{sanitize_rect_positions, Position, ShiftDirection},
     random::Random,
     utils::{safe_slice, safe_slice_mut},
 };
@@ -1595,18 +1595,29 @@ pub fn set_platform(
     // TODO: part width = 1 will ensure that no part is blocked, but it also doesnt clean up longer
     // parts as nicely. A good solution for this would be to introduce a min and max part width.
     for height_offset in 0..=platform_blocks_height {
-        for &dir in &[-1, 1] {
-            let entry_x = if dir == 1 { x_right + 1 } else { x_left - 1 };
-            let part_entry = Position::new(entry_x, plat.pos.y - height_offset - 1);
-            let part_exit = part_entry.shifted_by((check_part_length as i32) * dir, 0)?;
+        for shift in [ShiftDirection::Left, ShiftDirection::Right] {
+            let part_entry = Position::new(
+                if shift == ShiftDirection::Right {
+                    x_right + 1
+                } else {
+                    x_left - 1
+                },
+                plat.pos.y - height_offset - 1,
+            );
 
-            // ensure correct order for position access
-            let (left, right) = if dir == 1 {
-                (part_entry, part_exit)
-            } else {
-                (part_exit, part_entry)
-            };
+            let part_exit = map
+                .shift_pos_until(
+                    &part_entry,
+                    shift,
+                    |b| !b.is_empty(),
+                    None, //Some(check_part_length),
+                )
+                .ok_or("could not shift part end pos")?
+                .shifted(&shift.get_opposite(), map)?;
 
+            let (left, right) = sanitize_rect_positions(part_entry, part_exit);
+
+            dbg!(&left, &right);
             // check if part is empty = "playable"
             if map.check_area_all(&left, &right, &BlockType::Empty)? {
                 let above_left = left.shifted_by(0, -1)?;
