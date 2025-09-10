@@ -1607,15 +1607,11 @@ pub fn set_platform(
                 plat.pos.y - height_offset - 1,
             );
 
-            let part_exit = map
-                .shift_pos_until(
-                    &part_entry,
-                    shift,
-                    |b| !b.is_empty(),
-                    None, //Some(check_part_length),
-                )
-                .ok_or("could not shift part end pos")?
-                .shifted(&shift.get_opposite(), map)?;
+            let Some(part_exit) =
+                map.find_last_valid_pos(&part_entry, shift, |b| b.is_empty(), check_part_length)
+            else {
+                continue; // skip, if no part exit can be determined
+            };
 
             let (left, right) = sanitize_rect_positions(part_entry, part_exit);
 

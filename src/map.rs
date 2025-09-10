@@ -345,6 +345,39 @@ impl Map {
         None // criterion not fulfilled after max_steps, abort
     }
 
+    /// finds the farthest position in `dir` where criterion holds, up to `max_steps`
+    /// `None` if no such position exists or shift fails
+    pub fn find_last_valid_pos<F>(
+        &self,
+        pos: &Position,
+        dir: ShiftDirection,
+        criterion: F,
+        max_steps: usize,
+    ) -> Option<Position>
+    where
+        F: Fn(&BlockType) -> bool,
+    {
+        let mut cur = pos.clone();
+
+        if !criterion(&self.grid[cur.as_index()]) {
+            return None; // starting position already fails
+        }
+
+        let mut last_valid = cur.clone();
+
+        for _ in 0..max_steps {
+            if cur.shift_inplace(&dir, self).is_err() {
+                break; // out of bounds ends the walk
+            }
+            if !criterion(&self.grid[cur.as_index()]) {
+                break; // stop at first failure
+            }
+            last_valid = cur.clone();
+        }
+
+        Some(last_valid)
+    }
+
     pub fn write_text(&mut self, pos: &Position, text: &str) {
         let mut cursor = pos.clone();
 
