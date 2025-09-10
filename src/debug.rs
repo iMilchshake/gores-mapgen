@@ -44,6 +44,21 @@ pub struct DebugLayers {
 }
 
 impl DebugLayers {
+    pub fn bool_grid(&mut self, key: &'static str) -> &mut Array2<bool> {
+        &mut self
+            .bool_layers
+            .get_mut(key)
+            .expect("missing bool layer")
+            .grid
+    }
+    pub fn float_grid(&mut self, key: &'static str) -> &mut Array2<Option<f32>> {
+        &mut self
+            .float_layers
+            .get_mut(key)
+            .expect("missing float layer")
+            .grid
+    }
+
     pub fn new(
         shape: (usize, usize),
         default_alpha: f32,
@@ -108,6 +123,10 @@ impl DebugLayers {
             ),
             (
                 "selected_plat",
+                BoolLayer::new(shape, Color::new(0.76, 0.16, 0.88, default_alpha), false),
+            ),
+            (
+                "plat_part",
                 BoolLayer::new(shape, Color::new(0.76, 0.16, 0.88, default_alpha), false),
             ),
         ]);

@@ -1526,6 +1526,7 @@ pub fn generate_platforms(
             plat,
             gen_config.plat_height,
             gen_config.plat_part_width,
+            debug_layers,
         )?;
     }
 
@@ -1558,6 +1559,7 @@ pub fn set_platform(
     plat: &PlatformCandidate,
     min_plat_empty_height: usize,
     check_part_length: usize,
+    debug_layers: &mut Option<DebugLayers>,
 ) -> Result<(), &'static str> {
     let x_left = plat.pos.x - plat.offset_left;
     let x_right = plat.pos.x + plat.offset_right;
@@ -1617,7 +1619,6 @@ pub fn set_platform(
 
             let (left, right) = sanitize_rect_positions(part_entry, part_exit);
 
-            dbg!(&left, &right);
             // check if part is empty = "playable"
             if map.check_area_all(&left, &right, &BlockType::Empty)? {
                 let above_left = left.shifted_by(0, -1)?;
@@ -1635,6 +1636,11 @@ pub fn set_platform(
 
                     // and fix potential resulting edge bugs
                     fix_local_edge_bugs(map, &above_left, &above_right);
+
+                    if let Some(debug_layers) = debug_layers {
+                        safe_slice_mut(debug_layers.bool_grid("plat_part"), &left, &right, map)?
+                            .fill(true);
+                    }
                 }
             }
         }
