@@ -123,7 +123,7 @@ async fn main() {
         if editor.use_chunked_rendering {
             draw_chunked_grid(
                 &editor.gen.map.grid,
-                &editor.gen.map.chunk_edited,
+                editor.gen.map.chunk_edited.as_ref().expect("chunk tracking not enabled"),
                 editor.gen.map.chunk_size,
             );
         } else {

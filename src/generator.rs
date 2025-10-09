@@ -38,8 +38,9 @@ impl Generator {
         map_config: &MapConfig,
         thm_config: &ThemeConfig,
         seed: Seed,
+        chunk_tracking: bool,
     ) -> Generator {
-        let map = Map::new(map_config.width, map_config.height, BlockType::Hookable);
+        let map = Map::new(map_config.width, map_config.height, BlockType::Hookable, chunk_tracking);
         let spawn = map_config.waypoints.first().unwrap().clone();
         let mut rnd = Random::new(seed, gen_config);
 
@@ -518,7 +519,7 @@ impl Generator {
         thm_config: &ThemeConfig,
         export_preprocess: bool,
     ) -> Result<Map, &'static str> {
-        let mut gen = Generator::new(gen_config, map_config, thm_config, seed.clone());
+        let mut gen = Generator::new(gen_config, map_config, thm_config, seed.clone(), false);
 
         // validate config
         gen_config.validate()?;

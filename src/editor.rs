@@ -140,7 +140,7 @@ impl Editor {
     ) -> Editor {
         let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
-        let gen = Generator::new(&gen_config, &map_config, &thm_config, Seed::from_u64(0));
+        let gen = Generator::new(&gen_config, &map_config, &thm_config, Seed::from_u64(0), true);
 
         let user_seed = if let Some(ref seed_base64) = args.init_seed {
             Seed::from_base64(seed_base64).expect("no valid base64 seed")
@@ -322,6 +322,7 @@ impl Editor {
             &self.map_config,
             &self.thm_config,
             self.user_seed.clone(),
+            true,
         );
 
         // reset debug layers, if used

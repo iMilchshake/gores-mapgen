@@ -134,12 +134,21 @@ pub struct Map {
     pub noise_background: Option<Array2<bool>>,
     pub height: usize,
     pub width: usize,
-    pub chunk_edited: Array2<bool>, // TODO: make this optional in case editor is not used!
+    pub chunk_edited: Option<Array2<bool>>,
     pub chunk_size: usize,
 }
 
 impl Map {
-    pub fn new(width: usize, height: usize, default: BlockType) -> Map {
+    pub fn new(width: usize, height: usize, default: BlockType, chunk_tracking: bool) -> Map {
+        let chunk_edited = if chunk_tracking {
+            Some(Array2::from_elem(
+                (width.div_ceil(CHUNK_SIZE), height.div_ceil(CHUNK_SIZE)),
+                false,
+            ))
+        } else {
+            None
+        };
+
         Map {
             grid: Array2::from_elem((width, height), default),
             font_layer: Array2::from_elem((width, height), None),
@@ -147,10 +156,7 @@ impl Map {
             noise_background: None,
             width,
             height,
-            chunk_edited: Array2::from_elem(
-                (width.div_ceil(CHUNK_SIZE), height.div_ceil(CHUNK_SIZE)),
-                false,
-            ),
+            chunk_edited,
             chunk_size: CHUNK_SIZE,
         }
     }
@@ -188,8 +194,10 @@ impl Map {
                     self.grid[absolute_pos.as_index()] = new_type;
                 }
 
-                let chunk_pos = self.pos_to_chunk_pos(absolute_pos);
-                self.chunk_edited[chunk_pos.as_index()] = true;
+                if self.chunk_edited.is_some() {
+                    let chunk_pos = self.pos_to_chunk_pos(absolute_pos);
+                    self.chunk_edited.as_mut().unwrap()[chunk_pos.as_index()] = true;
+                }
             }
         }
 
@@ -296,9 +304,11 @@ impl Map {
             if overide.will_override(current_value) {
                 *current_value = value.clone();
 
-                let chunk_pos =
-                    Position::new((top_left.x + x) / chunk_size, (top_left.y + y) / chunk_size);
-                self.chunk_edited[chunk_pos.as_index()] = true;
+                if let Some(ref mut chunk_edited) = self.chunk_edited {
+                    let chunk_pos =
+                        Position::new((top_left.x + x) / chunk_size, (top_left.y + y) / chunk_size);
+                    chunk_edited[chunk_pos.as_index()] = true;
+                }
             }
         }
     }
