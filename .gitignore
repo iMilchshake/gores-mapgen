@@ -12,3 +12,7 @@ Cargo.lock
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
+
+# Insta snapshot testing - ignore temporary files, commit .snap files
+*.snap.new
+*.pending-snap

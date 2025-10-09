@@ -16,3 +16,9 @@ For documentation on all the possible settings check out the docstrings for the 
 - `r`: Refocus camera
 - `d`: View debug layer hover
 
+## Snapshot Testing
+Snapshot tests ensure code changes don't unintentionally alter map generation. For comfortable interactive usage `cargo install cargo-insta`.
+
+**Run tests:** `cargo insta test`
+**Review changes:** `cargo insta review`
+**Accept all:** `cargo insta accept`
