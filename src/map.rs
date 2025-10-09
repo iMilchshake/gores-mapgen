@@ -128,6 +128,7 @@ pub enum KernelType {
 
 #[derive(Debug)]
 pub struct Map {
+    // TODO: make private and use safe set functions (`set_block()`, `set_area()`, ...) to ensure chunk tracking
     pub grid: Array2<BlockType>,
     pub font_layer: Array2<Option<char>>,
     pub noise_overlay: Option<Array2<bool>>,
@@ -195,7 +196,7 @@ impl Map {
                 }
 
                 if self.chunk_edited.is_some() {
-                    let chunk_pos = self.pos_to_chunk_pos(absolute_pos);
+                    let chunk_pos = self.pos_to_chunk_pos(&absolute_pos);
                     self.chunk_edited.as_mut().unwrap()[chunk_pos.as_index()] = true;
                 }
             }
@@ -204,7 +205,7 @@ impl Map {
         Ok(())
     }
 
-    fn pos_to_chunk_pos(&self, pos: Position) -> Position {
+    fn pos_to_chunk_pos(&self, pos: &Position) -> Position {
         Position::new(pos.x / self.chunk_size, pos.y / self.chunk_size)
     }
 
@@ -280,6 +281,20 @@ impl Map {
         match self.grid.get(pos.as_index()) {
             Some(value) => criterion(value),
             None => false,
+        }
+    }
+
+    /// sets a single block at position and updates chunk tracking if enabled
+    pub fn set_block(&mut self, pos: &Position, value: BlockType) {
+        if !self.pos_in_bounds(pos) {
+            return;
+        }
+
+        self.grid[pos.as_index()] = value;
+
+        if self.chunk_edited.is_some() {
+            let chunk_pos = self.pos_to_chunk_pos(pos);
+            self.chunk_edited.as_mut().unwrap()[chunk_pos.as_index()] = true;
         }
     }
 

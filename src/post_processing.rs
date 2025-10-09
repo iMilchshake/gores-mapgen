@@ -57,7 +57,7 @@ pub fn fix_edge_bugs_expanding(gen: &mut Generator) -> Result<Array2<bool>, &'st
                 if edge_bug[[x, y]] {
                     // this doesnt break chunking, as we only consider
                     // Empty (and therefore already edited) cells
-                    gen.map.grid[[x, y]] = BlockType::Freeze;
+                    gen.map.set_block(&Position::new(x, y), BlockType::Freeze);
                 }
             }
         }
@@ -77,13 +77,13 @@ fn fix_local_edge_bugs(map: &mut Map, top_left: &Position, bot_right: &Position)
         if top_left.x > 0 {
             let x = top_left.x - 1;
             if map.grid[[x, y]] == BlockType::Hookable {
-                map.grid[[x, y]] = BlockType::Freeze;
+                map.set_block(&Position::new(x, y), BlockType::Freeze);
             }
         }
         // right neighbour
         let x = bot_right.x + 1;
         if map.grid[[x, y]] == BlockType::Hookable {
-            map.grid[[x, y]] = BlockType::Freeze;
+            map.set_block(&Position::new(x, y), BlockType::Freeze);
         }
     }
 
@@ -94,7 +94,7 @@ fn fix_local_edge_bugs(map: &mut Map, top_left: &Position, bot_right: &Position)
         let end_x = bot_right.x + 1;
         for x in start_x..=end_x {
             if map.grid[[x, y_above]] == BlockType::Hookable {
-                map.grid[[x, y_above]] = BlockType::Freeze;
+                map.set_block(&Position::new(x, y_above), BlockType::Freeze);
             }
         }
     }
@@ -660,7 +660,7 @@ pub fn remove_freeze_blobs(
 
                         // remove small blobs
                         if blob_size < min_freeze_size {
-                            gen.map.grid[visited_pos.as_index()] = BlockType::Empty;
+                            gen.map.set_block(&visited_pos, BlockType::Empty);
                         }
                     }
                 }
@@ -899,7 +899,7 @@ pub fn fix_stairs(map: &mut Map, filled_positions: Vec<Position>, rnd: &mut Rand
             if rnd.get_bool_with_prob(0.5) {
                 // = 50%
                 // remove center block
-                map.grid[pos.as_index()] = BlockType::Empty;
+                map.set_block(pos, BlockType::Empty);
             } else if rnd.get_bool_with_prob(0.5) {
                 // = 25%
                 // remove all hookable blocks
@@ -1055,7 +1055,7 @@ pub fn fill_dead_ends(
             // if too far, fill up with hookables.
             if let Some(dist) = main_path_distance[[x, y]] {
                 if dist > gen_config.dead_end_threshold {
-                    map.grid[(x, y)] = BlockType::Hookable;
+                    map.set_block(&Position::new(x, y), BlockType::Hookable);
                     filled_blocks.push(Position::new(x, y));
                 }
             }
