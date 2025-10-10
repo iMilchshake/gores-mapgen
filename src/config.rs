@@ -212,6 +212,19 @@ pub struct GenerationConfig {
 
     /// how far empty blocks need be be apart from "main path" for them to count as a dead end
     pub dead_end_threshold: usize,
+
+    // ===================================[ Pillars ]======================================
+    /// minimum pillar length to be considered valid
+    pub pillar_min_length: usize,
+
+    /// maximum pillar length
+    pub pillar_max_length: usize,
+
+    /// number of empty blocks to keep at pillar tip (safety margin)
+    pub pillar_tip_margin: usize,
+
+    /// how many empty blocks to ensure on each side of the pillar (perpendicular)
+    pub pillar_side_margin: usize,
 }
 
 impl GenerationConfig {
@@ -348,6 +361,10 @@ impl GenerationConfig {
             // inner_size_probs: RandomDistConfig::new(Some(vec![3, 5]), vec![0.25, 0.75]),
             // fade_max_size: 6,
             // fade_min_size: 3,
+            pillar_min_length: rnd.get_usize_in_range(1, 5),
+            pillar_max_length: rnd.get_usize_in_range(5, 30),
+            pillar_tip_margin: rnd.get_usize_in_range(1, 5),
+            pillar_side_margin: rnd.get_usize_in_range(1, 3),
             ..Default::default()
         }
     }
@@ -449,6 +466,10 @@ impl Default for GenerationConfig {
             waypoint_lock_distance: 10,
             use_dead_end_removal: true,
             dead_end_threshold: 10,
+            pillar_min_length: 2,
+            pillar_max_length: 20,
+            pillar_tip_margin: 2,
+            pillar_side_margin: 1,
         }
     }
 }

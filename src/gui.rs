@@ -808,6 +808,42 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             );
                         });
                     });
+
+                CollapsingHeader::new("Pillars")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.pillar_min_length,
+                            edit_usize,
+                            "min length",
+                            true,
+                        );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.pillar_max_length,
+                            edit_usize,
+                            "max length",
+                            true,
+                        );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.pillar_tip_margin,
+                            edit_usize,
+                            "tip margin",
+                            true,
+                        );
+
+                        field_edit_widget(
+                            ui,
+                            &mut editor.gen_config.pillar_side_margin,
+                            edit_usize,
+                            "side margin",
+                            true,
+                        );
+                    });
             }
 
             // =======================================[ MAP CONFIG EDIT ]===================================

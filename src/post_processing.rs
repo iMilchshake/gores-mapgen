@@ -1643,3 +1643,190 @@ pub fn set_platform(
 
     Ok(())
 }
+
+// ===================================[ Pillars ]==========================================
+
+/// Detects hookable blocks with L-shaped freeze patterns in 3×3 neighborhoods
+/// Returns freeze corner positions and pillar directions (corners can generate 2 candidates)
+fn find_pillar_corners(map: &Map) -> Vec<(Position, ShiftDirection)> {
+    let mut candidates = Vec::new();
+
+    for x in 1..(map.width - 1) {
+        for y in 1..(map.height - 1) {
+            let pos = Position::new(x, y);
+
+            // Must be hookable
+            if map.grid[pos.as_index()] != BlockType::Hookable {
+                continue;
+            }
+
+            // Check 4 corner patterns
+            // Top-left corner: freeze at left, top, top-left
+            // Pillar starts from the diagonal freeze block (top-left)
+            if map.grid[[x - 1, y]].is_freeze()
+                && map.grid[[x, y - 1]].is_freeze()
+                && map.grid[[x - 1, y - 1]].is_freeze()
+            {
+                let corner_pos = Position::new(x - 1, y - 1);
+                candidates.push((corner_pos.clone(), ShiftDirection::Up));
+                candidates.push((corner_pos, ShiftDirection::Left));
+            }
+
+            // Top-right corner: freeze at right, top, top-right
+            // Pillar starts from the diagonal freeze block (top-right)
+            if map.grid[[x + 1, y]].is_freeze()
+                && map.grid[[x, y - 1]].is_freeze()
+                && map.grid[[x + 1, y - 1]].is_freeze()
+            {
+                let corner_pos = Position::new(x + 1, y - 1);
+                candidates.push((corner_pos.clone(), ShiftDirection::Up));
+                candidates.push((corner_pos, ShiftDirection::Right));
+            }
+
+            // Bottom-left corner: freeze at left, bottom, bottom-left
+            // Pillar starts from the diagonal freeze block (bottom-left)
+            if map.grid[[x - 1, y]].is_freeze()
+                && map.grid[[x, y + 1]].is_freeze()
+                && map.grid[[x - 1, y + 1]].is_freeze()
+            {
+                let corner_pos = Position::new(x - 1, y + 1);
+                candidates.push((corner_pos.clone(), ShiftDirection::Down));
+                candidates.push((corner_pos, ShiftDirection::Left));
+            }
+
+            // Bottom-right corner: freeze at right, bottom, bottom-right
+            // Pillar starts from the diagonal freeze block (bottom-right)
+            if map.grid[[x + 1, y]].is_freeze()
+                && map.grid[[x, y + 1]].is_freeze()
+                && map.grid[[x + 1, y + 1]].is_freeze()
+            {
+                let corner_pos = Position::new(x + 1, y + 1);
+                candidates.push((corner_pos.clone(), ShiftDirection::Down));
+                candidates.push((corner_pos, ShiftDirection::Right));
+            }
+        }
+    }
+
+    candidates
+}
+
+/// Validates pillar path by checking that perpendicular margins are Empty
+/// Returns usable pillar length (minus tip margin), or None if invalid
+/// Note: start is the freeze corner position, so we shift once first to begin validation
+fn validate_pillar_path(
+    map: &Map,
+    start: &Position,
+    dir: &ShiftDirection,
+    min_length: usize,
+    max_length: usize,
+    tip_margin: usize,
+    side_margin: usize,
+) -> Option<usize> {
+    let ortho_dirs = dir.get_orthogonal_shifts();
+
+    // Start from the position AFTER the freeze corner block
+    let mut cur = match start.shifted(dir, map) {
+        Ok(pos) => pos,
+        Err(_) => return None, // can't even shift once from corner
+    };
+
+    let mut length: usize = 0;
+
+    loop {
+        // Check center is Empty
+        if map.grid[cur.as_index()] != BlockType::Empty {
+            break;
+        }
+
+        // Check perpendicular side margins are Empty
+        for ortho_dir in &ortho_dirs {
+            // Check all blocks up to side_margin distance
+            for margin_dist in 1..=side_margin {
+                let mut check_pos = cur.clone();
+                for _ in 0..margin_dist {
+                    match check_pos.shifted(ortho_dir, map) {
+                        Ok(pos) => check_pos = pos,
+                        Err(_) => return None, // out of bounds
+                    }
+                }
+                if map.grid[check_pos.as_index()] != BlockType::Empty {
+                    return None;
+                }
+            }
+        }
+
+        length += 1;
+
+        // Stop if we've reached max length
+        if length >= max_length {
+            break;
+        }
+
+        // Try to shift to next position
+        if cur.shift_inplace(dir, map).is_err() {
+            break;
+        }
+    }
+
+    let usable_length = length.saturating_sub(tip_margin);
+    if usable_length >= min_length {
+        Some(usable_length)
+    } else {
+        None
+    }
+}
+
+/// Generates freeze pillars extending from hookable corners
+/// Processes candidates sequentially so later pillars see earlier ones as obstacles
+pub fn generate_all_pillars(
+    map: &mut Map,
+    config: &GenerationConfig,
+    debug_layers: &mut Option<DebugLayers>,
+) {
+    let corner_candidates = find_pillar_corners(map);
+
+    // Debug: Mark all detected corner candidates
+    if let Some(debug_layers) = debug_layers {
+        for (corner_pos, _) in &corner_candidates {
+            debug_layers
+                .bool_layers
+                .get_mut("pillar_candidates")
+                .unwrap()
+                .grid[corner_pos.as_index()] = true;
+        }
+    }
+
+    // Process in iteration order (no sorting/shuffling)
+    for (corner_pos, pillar_dir) in corner_candidates {
+        // Validate path (sees already-placed pillars as Freeze)
+        if let Some(length) = validate_pillar_path(
+            map,
+            &corner_pos,
+            &pillar_dir,
+            config.pillar_min_length,
+            config.pillar_max_length,
+            config.pillar_tip_margin,
+            config.pillar_side_margin,
+        ) {
+            // Place pillar immediately, starting from position after corner
+            let mut cur = corner_pos.shifted(&pillar_dir, map).unwrap();
+            for _ in 0..length {
+                map.set_block(&cur, BlockType::Freeze);
+                if cur.shift_inplace(&pillar_dir, map).is_err() {
+                    break; // reached map boundary
+                }
+            }
+
+            // Debug: Mark corners where pillars were actually placed
+            if let Some(debug_layers) = debug_layers {
+                debug_layers
+                    .bool_layers
+                    .get_mut("pillar_placed")
+                    .unwrap()
+                    .grid[corner_pos.as_index()] = true;
+            }
+        }
+    }
+
+    // TODO: consider whether pillars should update chunk_edited tracking more explicitly
+}
