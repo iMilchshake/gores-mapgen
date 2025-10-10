@@ -99,8 +99,7 @@ fn fix_local_edge_bugs(map: &mut Map, top_left: &Position, bot_right: &Position)
         }
     }
 
-    // TODO: function directly changes Hookable blocks outside of playable baths, CAN break chunked
-    // TODO: currently i dont check below
+    // TODO: currently doesn't check horizontal border below the empty rectangle
 }
 
 /// Using a distance transform this function will fill up all empty blocks that are too far
