@@ -105,7 +105,7 @@ impl MapCamera {
 
     pub fn get_map_mouse_pos(&self) -> Vec2 {
         let viewport_ratio = self.viewport_ratio.expect("viewport not defined");
-        let cam = self.cam.expect("macroquad cam not defined");
+        let cam = self.cam.as_ref().expect("macroquad cam not defined");
         let viewport_y_offset = self
             .viewport_y_offset
             .expect("viewport y offset not defined");
@@ -120,7 +120,7 @@ impl MapCamera {
     /// debug draws
     pub fn draw_cam_debug(&self) {
         let map_size = self.map_size.expect("map size not defined!");
-        let cam = self.cam.expect("macroquad cam not defined");
+        let cam = self.cam.as_ref().expect("macroquad cam not defined");
         let mouse_pos = self.get_map_mouse_pos();
 
         draw_circle(mouse_pos.x, mouse_pos.y, 1.0, BLUE);

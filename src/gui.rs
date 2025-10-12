@@ -151,7 +151,7 @@ pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
 }
 
 pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
-    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::MAX));
+    ui.add(egui::DragValue::new(value).range(0..=isize::MAX));
 }
 
 pub fn edit_f32_slider_bounded(min: f32, max: f32) -> impl Fn(&mut Ui, &mut f32) {
@@ -213,9 +213,9 @@ pub fn edit_position(ui: &mut Ui, position: &mut Position) {
 pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
     ui.horizontal(|ui| {
         ui.label("min:");
-        ui.add(egui::widgets::DragValue::new(&mut values.0).clamp_range(0..=values.1));
+        ui.add(egui::widgets::DragValue::new(&mut values.0).range(0..=values.1));
         ui.label("max:");
-        ui.add(egui::widgets::DragValue::new(&mut values.1).clamp_range(values.0..=usize::MAX));
+        ui.add(egui::widgets::DragValue::new(&mut values.1).range(values.0..=usize::MAX));
     });
 }
 
@@ -311,7 +311,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             .monospace(),
                     );
                     if ui.button("📋").clicked() {
-                        ui.output_mut(|o| o.copied_text = editor.user_seed.to_base64());
+                        ui.ctx().copy_text(editor.user_seed.to_base64());
                     }
                 });
                 egui::ComboBox::from_label("seed type")

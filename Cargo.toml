@@ -14,10 +14,14 @@ name = "config_points"
 name = "benchmark"
 
 [dependencies]
-egui-macroquad = "0.15.0"
-egui = "0.21.0"
-egui-miniquad = "0.14.0"
-macroquad = "0.3.25"
+# egui-macroquad = "0.15.0"
+egui-macroquad = "0.17.3"
+#egui = "0.21.0"
+egui = "0.31.1"
+#egui-miniquad = "0.14.0"
+egui-miniquad = "0.16.0"
+# macroquad = "0.3.25"
+macroquad = "0.4.14"
 ndarray = "0.15.6"
 rand = {version="0.8.5", features=['small_rng']}
 seahash = "4.1.0"

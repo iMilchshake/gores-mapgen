@@ -30,7 +30,7 @@ const AVG_FPS_FACTOR: f32 = 0.025; // how much current fps is weighted into the 
 pub fn window_frame() -> Frame {
     Frame {
         fill: Color32::from_gray(0),
-        inner_margin: Margin::same(5.0),
+        inner_margin: Margin::same(5),
         shadow: Shadow::NONE,
         ..Default::default()
     }
