@@ -814,35 +814,45 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     .show(ui, |ui| {
                         field_edit_widget(
                             ui,
-                            &mut editor.gen_config.pillar_min_length,
-                            edit_usize,
-                            "min length",
-                            true,
+                            &mut editor.gen_config.enable_pillars,
+                            edit_bool,
+                            "enable pillars",
+                            false,
                         );
 
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.pillar_max_length,
-                            edit_usize,
-                            "max length",
-                            true,
-                        );
+                        ui.add_enabled_ui(editor.gen_config.enable_pillars, |ui| {
+                            field_edit_widget(
+                                ui,
+                                &mut editor.gen_config.pillar_min_length,
+                                edit_usize,
+                                "min length",
+                                true,
+                            );
 
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.pillar_tip_margin,
-                            edit_usize,
-                            "tip margin",
-                            true,
-                        );
+                            field_edit_widget(
+                                ui,
+                                &mut editor.gen_config.pillar_max_length,
+                                edit_usize,
+                                "max length",
+                                true,
+                            );
 
-                        field_edit_widget(
-                            ui,
-                            &mut editor.gen_config.pillar_side_margin,
-                            edit_usize,
-                            "side margin",
-                            true,
-                        );
+                            field_edit_widget(
+                                ui,
+                                &mut editor.gen_config.pillar_tip_margin,
+                                edit_usize,
+                                "tip margin",
+                                true,
+                            );
+
+                            field_edit_widget(
+                                ui,
+                                &mut editor.gen_config.pillar_side_margin,
+                                edit_usize,
+                                "side margin",
+                                true,
+                            );
+                        });
                     });
             }
 

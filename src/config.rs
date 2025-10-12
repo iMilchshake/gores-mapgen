@@ -214,6 +214,9 @@ pub struct GenerationConfig {
     pub dead_end_threshold: usize,
 
     // ===================================[ Pillars ]======================================
+    /// enable pillar generation
+    pub enable_pillars: bool,
+
     /// minimum pillar length to be considered valid
     pub pillar_min_length: usize,
 
@@ -361,6 +364,7 @@ impl GenerationConfig {
             // inner_size_probs: RandomDistConfig::new(Some(vec![3, 5]), vec![0.25, 0.75]),
             // fade_max_size: 6,
             // fade_min_size: 3,
+            enable_pillars: rnd.get_bool_with_prob(0.5),
             pillar_min_length: rnd.get_usize_in_range(1, 5),
             pillar_max_length: rnd.get_usize_in_range(5, 30),
             pillar_tip_margin: rnd.get_usize_in_range(1, 5),
@@ -466,6 +470,7 @@ impl Default for GenerationConfig {
             waypoint_lock_distance: 10,
             use_dead_end_removal: true,
             dead_end_threshold: 10,
+            enable_pillars: false,
             pillar_min_length: 2,
             pillar_max_length: 20,
             pillar_tip_margin: 2,
