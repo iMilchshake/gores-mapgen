@@ -435,11 +435,6 @@ impl Generator {
         post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
         print_time(&mut timer, "fix edge_bugs #2", verbose);
 
-        if gen_config.enable_pillars {
-            post::generate_all_pillars(&mut self.map, gen_config, debug_layers);
-            print_time(&mut timer, "generate pillars", verbose);
-        }
-
         post::generate_all_skips(
             self,
             gen_config.skip_length_bounds,
@@ -462,6 +457,12 @@ impl Generator {
             debug_layers,
         )?;
         print_time(&mut timer, "generate platforms", verbose);
+
+        // pillars
+        if gen_config.enable_pillars {
+            post::generate_all_pillars(&mut self.map, gen_config, &mut self.rnd, debug_layers);
+            print_time(&mut timer, "generate pillars", verbose);
+        }
 
         post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
         print_time(&mut timer, "place obstacles", verbose);

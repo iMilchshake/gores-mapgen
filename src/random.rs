@@ -116,10 +116,7 @@ impl Seed {
             SeedType::STRING => Some(Self::from_u64(hash(seed_str.as_bytes()))),
 
             // parse string to u64
-            SeedType::U64 => seed_str
-                .parse::<u64>()
-                .ok()
-                .map(Self::from_u64),
+            SeedType::U64 => seed_str.parse::<u64>().ok().map(Self::from_u64),
 
             SeedType::BASE64 => Self::from_base64(seed_str),
         }
@@ -218,6 +215,11 @@ impl Random {
     /// uniformly pick one element from a given slice
     pub fn pick_from_slice<'a, T>(&'a mut self, values: &'a [T]) -> &'a T {
         &values[self.get_usize_in_range(0, values.len() - 1)]
+    }
+
+    /// shuffle a mutable slice using Fisher-Yates algorithm
+    pub fn shuffle<T>(&mut self, values: &mut [T]) {
+        values.shuffle(&mut self.gen);
     }
 
     /// generate a f32 in range [0, 1]

@@ -1776,16 +1776,16 @@ fn validate_pillar_path(
     }
 }
 
-/// Generates freeze pillars extending from hookable corners
-/// Processes candidates sequentially so later pillars see earlier ones as obstacles
+/// Generates freeze pillars extending from corners
 pub fn generate_all_pillars(
     map: &mut Map,
     config: &GenerationConfig,
+    rnd: &mut Random,
     debug_layers: &mut Option<DebugLayers>,
 ) {
-    let corner_candidates = find_pillar_corners(map);
+    let mut corner_candidates = find_pillar_corners(map);
+    rnd.shuffle(&mut corner_candidates); // remove positional bias
 
-    // Debug: Mark all detected corner candidates
     if let Some(debug_layers) = debug_layers {
         for (corner_pos, _) in &corner_candidates {
             debug_layers
@@ -1796,9 +1796,7 @@ pub fn generate_all_pillars(
         }
     }
 
-    // Process in iteration order (no sorting/shuffling)
     for (corner_pos, pillar_dir) in corner_candidates {
-        // Validate path (sees already-placed pillars as Freeze)
         if let Some(length) = validate_pillar_path(
             map,
             &corner_pos,
@@ -1808,16 +1806,14 @@ pub fn generate_all_pillars(
             config.pillar_tip_margin,
             config.pillar_side_margin,
         ) {
-            // Place pillar immediately, starting from position after corner
             let mut cur = corner_pos.shifted(&pillar_dir, map).unwrap();
             for _ in 0..length {
                 map.set_block(&cur, BlockType::Freeze);
                 if cur.shift_inplace(&pillar_dir, map).is_err() {
-                    break; // reached map boundary
+                    break;
                 }
             }
 
-            // Debug: Mark corners where pillars were actually placed
             if let Some(debug_layers) = debug_layers {
                 debug_layers
                     .bool_layers
@@ -1827,6 +1823,4 @@ pub fn generate_all_pillars(
             }
         }
     }
-
-    // TODO: consider whether pillars should update chunk_edited tracking more explicitly
 }
