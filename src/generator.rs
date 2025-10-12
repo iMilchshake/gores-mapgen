@@ -15,7 +15,7 @@ use crate::{
 
 pub fn print_time(timer: &mut Timer, message: &str, print: bool) {
     if print {
-        println!("{}: {:?}", message, timer.elapsed());
+        log::debug!("{}: {:?}", message, timer.elapsed());
         *timer = Timer::start() // start new timer
     }
 }

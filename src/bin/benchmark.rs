@@ -69,7 +69,7 @@ fn main() {
     panic::set_hook(Box::new(|_info| {}));
 
     for map_config in init_map_configs.iter() {
-        println!(
+        log::info!(
             "\n### LAYOUT={} | LENGTH={:.1}",
             map_config.name,
             map_config.get_map_length()
@@ -132,15 +132,15 @@ fn main() {
             let error_rate = (error_count as f32) / (seed_count as f32);
             let panic_rate = (panic_count as f32) / (seed_count as f32);
 
-            println!(
+            log::info!(
                 "GEN {:<15} | AVG_TIME={:<12} | ERROR_RATE={:<4.2} | PANIC_RATE={:<4.2}",
                 gen_config.name, avg_elapsed_text, error_rate, panic_rate
             );
 
             if args.error_summary && !error_summary.is_empty() {
-                println!("  Error summary:");
+                log::info!("  Error summary:");
                 for (err, count) in error_summary.iter() {
-                    println!("    {}x {}", count, err);
+                    log::info!("    {}x {}", count, err);
                 }
             }
         }

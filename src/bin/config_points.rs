@@ -6,7 +6,7 @@ fn main() {
 
     for map_config in init_map_configs.iter() {
         let map_length_mod = map_config.get_map_length() / MAP_LENGTH_BASELINE;
-        println!(
+        log::info!(
             "\n### {:<23} | LENGTH={:<9.1} | LENGTH_MODIFIER={:.2}",
             map_config.name,
             map_config.get_map_length(),
@@ -14,7 +14,7 @@ fn main() {
         );
 
         for gen_config in init_gen_configs.iter() {
-            println!(
+            log::info!(
                 "\tGEN {:<15} | DIFFICULTY={:<5} | POINTS={:<5.2} | FINAL={:}",
                 gen_config.name,
                 gen_config.difficulty,

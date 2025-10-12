@@ -418,7 +418,7 @@ impl CuteWalker {
     }
 
     pub fn cuddle(&self) {
-        println!("Cute walker was cuddled!");
+        log::info!("Cute walker was cuddled!");
     }
 
     /// fades kernel size from max_size to min_size for fade_steps

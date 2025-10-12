@@ -793,7 +793,7 @@ pub fn dijkstra(
             let neighbor = pos.shifted(&shift, map)?;
 
             if neighbor == *end {
-                println!("goal found :) ");
+                log::debug!("goal found :) ");
                 return Ok(());
             }
 

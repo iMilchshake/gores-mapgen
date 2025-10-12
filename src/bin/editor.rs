@@ -1,4 +1,4 @@
-#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+// #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use clap::Parser;
 use gores_mapgen::{
@@ -69,7 +69,7 @@ async fn main() {
                 .gen
                 .step(&editor.gen_config, true, &mut editor.debug_layers)
                 .unwrap_or_else(|err| {
-                    println!("Walker Step Failed: {:}", err);
+                    log::error!("Walker Step Failed: {:}", err);
                     editor.set_setup();
 
                     if editor.retry_on_failure {
@@ -98,7 +98,7 @@ async fn main() {
                         editor.verbose_post_process,
                     )
                     .unwrap_or_else(|err| {
-                        println!("Post Processing Failed: {:}", err);
+                        log::error!("Post Processing Failed: {:}", err);
                     });
 
                 if editor.export_preprocess {

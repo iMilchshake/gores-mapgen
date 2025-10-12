@@ -345,7 +345,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     {
                         editor.user_seed = new_seed;
                     } else {
-                        println!(
+                        log::warn!(
                             "invalid seed='{}', type={:?}",
                             &editor.user_seed_str, &editor.seed_input_type
                         );

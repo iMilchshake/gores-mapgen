@@ -241,7 +241,7 @@ impl TwExport {
 
         TwExport::process_game_layer(&mut tw_map, map);
 
-        println!("exporting map to {:?}", &path);
+        log::info!("exporting map to {:?}", &path);
         let mut file = std::fs::File::create(path).unwrap();
         tw_map.save(&mut file).expect("failed to write map file");
     }
