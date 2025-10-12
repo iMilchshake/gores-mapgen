@@ -40,7 +40,12 @@ impl Generator {
         seed: Seed,
         chunk_tracking: bool,
     ) -> Generator {
-        let map = Map::new(map_config.width, map_config.height, BlockType::Hookable, chunk_tracking);
+        let map = Map::new(
+            map_config.width,
+            map_config.height,
+            BlockType::Hookable,
+            chunk_tracking,
+        );
         let spawn = map_config.waypoints.first().unwrap().clone();
         let mut rnd = Random::new(seed, gen_config);
 
@@ -462,7 +467,7 @@ impl Generator {
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
         // do final ff run to ensure there is a playable path to finish
-        let ff_final = flood_fill(self, &[self.spawn.clone()], None, false)?;
+        let ff_final = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
         let end_distance = ff_final.distance[self.walker.pos.as_index()];
         if end_distance.is_none() {
             return Err("No valid path to finish");
@@ -478,6 +483,13 @@ impl Generator {
             debug_layers.bool_layers.get_mut("lock").unwrap().grid =
                 self.walker.locked_positions.clone();
             debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
+
+            if let Some(path) = ff_final.path.as_ref() {
+                let path_grid = &mut debug_layers.bool_layers.get_mut("valid_path").unwrap().grid;
+                for pos in path {
+                    path_grid[pos.as_index()] = true;
+                }
+            }
 
             let grid = &mut debug_layers.bool_layers.get_mut("floor").unwrap().grid;
 
