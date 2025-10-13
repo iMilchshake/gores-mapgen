@@ -1,3 +1,15 @@
+//! # Generator Module
+//!
+//! The [`Generator`] struct controls the map generation process, managing the walker
+//! and coordinating all generation stages.
+//!
+//! # Key Methods
+//!
+//! - [`Generator::generate_map`] - One-shot function to generate complete map
+//! - [`Generator::new`] - Initializes generator with configuration and seed
+//! - [`Generator::step`] - Performs single walker step
+//! - [`Generator::perform_all_post_processing`] - Executes all post-processing steps
+
 use clap::crate_version;
 use timing::Timer;
 

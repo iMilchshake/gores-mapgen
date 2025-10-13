@@ -1,3 +1,62 @@
+//! # Walker Module
+//!
+//! The [`CuteWalker`] is responsible for carving the main structure of the map by traversing a given
+//! list of waypoints.
+//!
+//! **Note:** [`CuteWalker`] is controlled by [`crate::generator::Generator`]. For configuration parameters, see [`GenerationConfig`].
+//!
+//! ## Kernels
+//!
+//! [`CuteWalker::probabilistic_step`] applies two overlapping kernels at each step:
+//! the inner kernel carves empty space while the outer kernel creates a freeze padding
+//! layer around it. Kernel sizes and circularity are randomly mutated via [`CuteWalker::mutate_kernel`]
+//! to create varied tunnel widths and shapes throughout the map.
+//! If the kernel configuration does not ensure that hookable blocks have proper freeze separation from
+//! empty space, [`crate::post_processing::fix_edge_bugs_expanding`] will add the required freeze padding instead.
+//!
+//! ## Waypoint Navigation
+//!
+//! [`CuteWalker::probabilistic_step`] moves the walker toward waypoints using probabilistic
+//! shifting. Each step evaluates four possible directions, rating them by distance to the
+//! goal, then samples a direction using weighted probabilities that favor better-rated
+//! shifts. Optional momentum causes the walker to continue in the same direction with
+//! some probability, creating straighter paths.
+//!
+//! ## Locking Mechanism
+//!
+//! [`CuteWalker::lock_previous_location`] prevents the walker from backtracking or crossing
+//! its own path by marking areas around previously visited positions as locked. The lock
+//! size is calculated based on maximum possible kernel size. [`CuteWalker::update_waypoint_locks`]
+//! additionally locks areas around future waypoints to prevent them from being blocked
+//! before the walker reaches them.
+//!
+//! ## Unparking
+//!
+//! When the walker encounters locked positions blocking its path, [`CuteWalker::unpark`]
+//! calculates an escape route by testing orthogonal directions until finding a path that
+//! avoids the locked area. The walker then enters an unparking state, following this
+//! predetermined direction for several steps before resuming normal navigation.
+//!
+//! ## Kernel Mutation
+//!
+//! [`CuteWalker::mutate_kernel`] randomly adjusts kernel parameters during generation based
+//! on configured mutation probabilities. This includes inner/outer kernel size and circularity,
+//! creating organic variation in tunnel width and shape throughout the map.
+//!
+//! ## Pulse Effect
+//!
+//! [`CuteWalker::probabilistic_step`] can create periodic wider sections (pulses) when the
+//! walker maintains the same direction for a configured number of steps. When triggered,
+//! temporarily larger kernels are applied to create rooms or wider areas along straight
+//! corridors or after corners. This improves consistency of very hard maps, providing some
+//! safe areas.
+//!
+//! ## Fade Effect
+//!
+//! [`CuteWalker::set_fade_kernel`] gradually reduces kernel size from a large initial value
+//! to a smaller target size over a configured number of steps. This creates a smooth
+//! transition at the map start, preventing abrupt changes in tunnel width.
+
 use std::fmt;
 
 use ndarray::{s, Array2};

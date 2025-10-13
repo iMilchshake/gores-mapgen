@@ -1,3 +1,20 @@
+//! # Configuration Module
+//!
+//! Contains all configuration structs for map generation, including generation parameters,
+//! map layout, and visual theme settings.
+//!
+//! ## Configuration Types
+//!
+//! - [`GenerationConfig`]: Controls the behavior of the walker and all post-processing steps. Parameters are
+//! grouped by the feature they control.
+//! - [`MapConfig`]: Defines the layout of the map.
+//! - [`ThemeConfig`]: Controls visual appearance.
+//!
+//! ## Storage
+//!
+//! Configurations are stored as JSON files. Configs in the `data/` folder are embedded
+//! into binaries at compile time using `rust-embed`.
+
 use crate::noise::Noise;
 use crate::position::{Position, ShiftDirection};
 use crate::random::{Random, RandomDistConfig};

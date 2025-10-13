@@ -1,3 +1,52 @@
+//! # Post-Processing Module
+//!
+//! Contains algorithms that further refine the walker-generated map.
+//!
+//! **Note:** Might not cover all post processing steps, see [`Generator::perform_all_post_processing`].
+//! For configuration parameters, see [`GenerationConfig`].
+//!
+//! ## Freeze Blob Removal
+//!
+//! [`remove_freeze_blobs`] removes small isolated freeze clusters that are not connected
+//! to solid blocks, preventing floating freeze artifacts in the map.
+//!
+//! ## Edge Bug Fixing
+//!
+//! Edge bugs occur when empty tiles are adjacent to hookable tiles without a freeze
+//! padding layer. This violates the constraint that hookable blocks must have at least
+//! one freeze tile separation from empty space. [`fix_edge_bugs_expanding`] expands
+//! freeze around all hookable blocks to ensure proper padding.
+//!
+//! ## Dead End Removal
+//!
+//! [`fill_dead_ends`] removes areas too far from the main path to prevent overly long
+//! dead ends using flood fill distance with a configurable threshold. This may create
+//! diagonal staircase patterns which is smoothed out using [`fix_stairs`] to avoid
+//! repetitive visual artifacts.
+//!
+//! ## Skip Generation
+//!
+//! [`generate_all_skips`] creates shortcuts through walls by detecting inward corners where
+//! tunnels can be carved. Validates skips based on length, spacing, and map progression
+//! constraints.
+//!
+//! ## Platform Generation
+//!
+//! [`generate_platforms`] generates flat platforms throughout the map using a multi-stage
+//! algorithm that detects suitable floor positions, applies greedy filtering to prioritize
+//! large platforms, and uses dynamic programming to select the final set of platforms that
+//! minimize the deviation to a given target gap.
+//!
+//! ## Pillar Generation
+//!
+//! [`generate_all_pillars`] adds freeze pillars extending from outwards corners into
+//! empty space, ensuring clear perpendicular margins to avoid blocking paths.
+//!
+//! ## Distance-Based Filling
+//!
+//! [`fill_open_areas`] places obstacles in large open areas using euclidean distance
+//! transform. Fills areas beyond a maximum distance threshold with hookable/freeze blocks.
+
 use crate::{
     config::{GenerationConfig, ThemeConfig},
     debug::DebugLayers,
