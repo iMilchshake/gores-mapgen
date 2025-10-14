@@ -22,6 +22,7 @@
 pub mod args;
 pub mod config;
 pub mod debug;
+pub mod dt;
 pub mod editor;
 pub mod fps_control;
 pub mod generator;

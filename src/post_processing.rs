@@ -64,7 +64,7 @@ use std::{
     f32::consts::SQRT_2,
 };
 
-use dt::dt_bool;
+use crate::dt::dt_bool;
 use ndarray::{s, Array2, ArrayBase, Dim, Ix2, ViewRepr};
 
 /// Post processing step to fix all existing edge-bugs, as certain inner/outer kernel

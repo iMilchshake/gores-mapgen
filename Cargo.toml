@@ -28,7 +28,7 @@ serde = "1.0.197"
 serde_json = "1.0.115"
 rust-embed = "8.3.0"
 tinyfiledialogs = "3.9.1"
-dt = {git = "https://github.com/iMilchshake/dt"}
+num = "0.4"
 derivative = "2.2.0"
 timing = "0.2.3"
 log = "0.4.22"
