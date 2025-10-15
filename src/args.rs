@@ -37,6 +37,10 @@ pub struct EditorArgs {
     /// comma seperated list of debug layers to enable on startup
     #[arg(short = 'e', long, value_delimiter = ',', num_args = 1..)]
     pub enable_layers: Option<Vec<String>>,
+
+    /// maximum number of retries when generation fails
+    #[arg(short = 'r', long, default_value = "25")]
+    pub max_retries: usize,
 }
 
 #[derive(Parser, Debug)]

@@ -103,6 +103,12 @@ pub struct Editor {
     /// whether to keep using the same seed for next generations
     pub retry_on_failure: bool,
 
+    /// maximum number of retries when generation fails
+    pub max_retries: usize,
+
+    /// current number of retries for the current generation attempt
+    pub retry_count: usize,
+
     /// Whether to perform map export preparation such as generation of noise layers.
     /// This is computational expensive and should only be done for debugging purposes,
     /// or if the map is intended to be exported.
@@ -164,6 +170,8 @@ impl Editor {
             edit_gen_config: false,
             edit_map_config: false,
             retry_on_failure: false,
+            max_retries: args.max_retries,
+            retry_count: 0,
             show_theme_widget: false,
             show_debug_widget: false,
             show_debug_layers: false,
@@ -204,10 +212,7 @@ impl Editor {
         }
 
         if args.generate {
-            if editor.gen.status == GenerationStatus::Initialized {
-                editor.initialize_generator();
-            }
-            editor.playback_mode = PlaybackMode::Playing;
+            editor.reset_generation(true, true);
         }
 
         editor
@@ -262,7 +267,7 @@ impl Editor {
         });
     }
 
-    pub fn initialize_generator(&mut self) {
+    fn initialize_generator(&mut self) {
         if !self.fixed_seed {
             self.user_seed = Seed::from_random(&mut self.gen.rnd);
         }
@@ -318,11 +323,12 @@ impl Editor {
         is_key_pressed(KeyCode::LeftShift);
 
         if is_key_pressed(KeyCode::Space) {
-            self.retry_on_failure = is_key_down(KeyCode::LeftShift);
             if self.gen.status.is_finished() {
-                self.initialize_generator();
+                self.retry_on_failure = is_key_down(KeyCode::LeftShift);
+                self.reset_generation(true, true);
+            } else {
+                self.playback_mode = PlaybackMode::Playing; // just resume
             }
-            self.playback_mode = PlaybackMode::Playing;
         }
 
         if is_key_pressed(KeyCode::R) {
@@ -370,5 +376,17 @@ impl Editor {
         } else {
             Err("Generation config not found!")
         }
+    }
+
+    /// Utility function to cleanly start a new generation.
+    pub fn reset_generation(&mut self, start: bool, reset_retry: bool) {
+        self.initialize_generator();
+        if reset_retry {
+            self.retry_count = 0;
+        }
+        self.playback_mode = match start {
+            true => PlaybackMode::Playing,
+            false => PlaybackMode::Paused,
+        };
     }
 }

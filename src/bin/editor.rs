@@ -52,9 +52,8 @@ async fn main() {
         // "auto generate": start generating next map right away
         if editor.playback_mode == PlaybackMode::Paused && editor.auto_generate {
             if editor.gen.status.is_finished() {
-                editor.initialize_generator();
+                editor.reset_generation(true, true);
             }
-            editor.playback_mode = PlaybackMode::Playing;
         }
 
         // "instant": perform maximum possible amount of generation steps
@@ -72,7 +71,7 @@ async fn main() {
                 .gen
                 .step(&editor.gen_config, true, &mut editor.debug_layers)
                 .unwrap_or_else(|err| {
-                    println!("Walker Step Failed: {:}", err);
+                    log::error!("Walker Step Failed: {:}", err);
                     editor.playback_mode = PlaybackMode::Paused;
                     editor.gen.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
                 });
@@ -95,23 +94,35 @@ async fn main() {
                     editor.prepare_export,
                 )
                 .unwrap_or_else(|err| {
-                    println!("Post Processing Failed: {:}", err);
+                    log::error!("Post Processing Failed: {:}", err);
                 });
 
             // check status to handle success/failure
-            if let GenerationStatus::Failed(ref msg) = editor.gen.status {
-                println!("Generation failed: {}", msg);
+            if editor.retry_on_failure && editor.gen.status == GenerationStatus::Success {
+                editor.retry_count = 0;
             }
 
-            // pause playback (status will be reset when initialize_generator creates new Generator)
             editor.playback_mode = PlaybackMode::Paused;
         }
 
-        // unified retry for all failure types (walker, post-processing, panics)
-        if editor.retry_on_failure {
+        // handle retry on failure: in [0, N-1] -> retry | == N warn | > N dont do anything.
+        if editor.retry_on_failure && editor.retry_count <= editor.max_retries {
             if let GenerationStatus::Failed(_) = editor.gen.status {
-                editor.initialize_generator();
-                editor.playback_mode = PlaybackMode::Playing;
+                if editor.retry_count < editor.max_retries {
+                    editor.retry_count += 1;
+                    log::info!(
+                        "Retrying generation ({}/{})",
+                        editor.retry_count,
+                        editor.max_retries
+                    );
+                    editor.reset_generation(true, false);
+                } else {
+                    log::warn!(
+                        "Max retries ({}) reached, stopping automatic retries",
+                        editor.max_retries
+                    );
+                    editor.retry_count += 1; // we further increment by one signaling to stop
+                }
             }
         }
 

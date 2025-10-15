@@ -318,8 +318,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     }
                 } else if editor.gen.status.is_finished() {
                     if ui.button("start").clicked() {
-                        editor.initialize_generator();
-                        editor.playback_mode = PlaybackMode::Playing;
+                        editor.reset_generation(true, true);
                     }
                 } else if editor.playback_mode == PlaybackMode::Paused {
                     if ui.button("resume").clicked() {
@@ -328,18 +327,13 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 } else if ui.button("pause").clicked() {
                     editor.playback_mode = PlaybackMode::Paused;
                 }
-
                 if ui.button("single step").clicked() {
-                    if editor.gen.status.is_finished() {
-                        editor.initialize_generator();
-                    }
                     editor.playback_mode = PlaybackMode::SingleStep;
                 }
             });
 
             if editor.gen.status != GenerationStatus::Initialized && ui.button("reset").clicked() {
-                editor.initialize_generator();
-                editor.playback_mode = PlaybackMode::Paused;
+                editor.reset_generation(false, true);
             }
         });
 
