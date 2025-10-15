@@ -75,11 +75,6 @@ async fn main() {
                     println!("Walker Step Failed: {:}", err);
                     editor.playback_mode = PlaybackMode::Paused;
                     editor.gen.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
-
-                    if editor.retry_on_failure {
-                        editor.initialize_generator();
-                        editor.playback_mode = PlaybackMode::Playing;
-                    }
                 });
 
             // walker did a step using SingleStep -> now pause
@@ -110,6 +105,14 @@ async fn main() {
 
             // pause playback (status will be reset when initialize_generator creates new Generator)
             editor.playback_mode = PlaybackMode::Paused;
+        }
+
+        // unified retry for all failure types (walker, post-processing, panics)
+        if editor.retry_on_failure {
+            if let GenerationStatus::Failed(_) = editor.gen.status {
+                editor.initialize_generator();
+                editor.playback_mode = PlaybackMode::Playing;
+            }
         }
 
         editor.define_egui();
