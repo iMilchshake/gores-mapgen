@@ -248,7 +248,7 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
                 }
             });
             ui.menu_button("Settings", |ui| {
-                ui.checkbox(&mut editor.export_preprocess, "export preprocess");
+                ui.checkbox(&mut editor.prepare_export, "prepare export");
                 ui.checkbox(&mut editor.verbose_post_process, "verbose post");
                 ui.checkbox(&mut editor.use_chunked_rendering, "chunked render");
             });
@@ -271,19 +271,35 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     ui.label("Initialized");
                 }
                 GenerationStatus::Walking => {
-                    let text = if is_paused { "⏺ Walking (Paused)" } else { "⏺ Walking" };
+                    let text = if is_paused {
+                        "⏺ Walking (Paused)"
+                    } else {
+                        "⏺ Walking"
+                    };
                     ui.label(RichText::new(text).color(egui::Color32::YELLOW));
                 }
                 GenerationStatus::PostProcessing => {
-                    let text = if is_paused { "⏺ Post-Processing (Paused)" } else { "⏺ Post-Processing" };
+                    let text = if is_paused {
+                        "⏺ Post-Processing (Paused)"
+                    } else {
+                        "⏺ Post-Processing"
+                    };
                     ui.label(RichText::new(text).color(egui::Color32::YELLOW));
                 }
                 GenerationStatus::Success => {
-                    let text = if is_paused { "⏺ Success (Paused)" } else { "⏺ Success" };
+                    let text = if is_paused {
+                        "⏺ Success (Paused)"
+                    } else {
+                        "⏺ Success"
+                    };
                     ui.label(RichText::new(text).color(egui::Color32::GREEN));
                 }
                 GenerationStatus::Failed(msg) => {
-                    let text = if is_paused { "⏺ Failed (Paused)" } else { "⏺ Failed" };
+                    let text = if is_paused {
+                        "⏺ Failed (Paused)"
+                    } else {
+                        "⏺ Failed"
+                    };
                     ui.label(RichText::new(text).color(egui::Color32::RED))
                         .on_hover_text(msg);
                 }
@@ -298,14 +314,15 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             ui.add_enabled_ui(enable_playback_control, |ui| {
                 if editor.gen.status == GenerationStatus::Initialized {
                     if ui.button("start").clicked() {
+                        editor.playback_mode = PlaybackMode::Playing;
+                    }
+                } else if editor.gen.status.is_finished() {
+                    if ui.button("start").clicked() {
                         editor.initialize_generator();
                         editor.playback_mode = PlaybackMode::Playing;
                     }
                 } else if editor.playback_mode == PlaybackMode::Paused {
                     if ui.button("resume").clicked() {
-                        if editor.gen.status == GenerationStatus::Initialized {
-                            editor.initialize_generator();
-                        }
                         editor.playback_mode = PlaybackMode::Playing;
                     }
                 } else if ui.button("pause").clicked() {
@@ -313,7 +330,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 }
 
                 if ui.button("single step").clicked() {
-                    if editor.gen.status == GenerationStatus::Initialized {
+                    if editor.gen.status.is_finished() {
                         editor.initialize_generator();
                     }
                     editor.playback_mode = PlaybackMode::SingleStep;
@@ -518,34 +535,37 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             true,
                         );
 
-                        ui.add_enabled_ui(editor.gen.status == GenerationStatus::Initialized, |ui| {
-                            random_dist_cfg_edit(
-                                ui,
-                                &mut editor.gen_config.inner_size_probs,
-                                Some(edit_usize),
-                                "inner size probs",
-                                true,
-                                false,
-                            );
+                        ui.add_enabled_ui(
+                            editor.gen.status == GenerationStatus::Initialized,
+                            |ui| {
+                                random_dist_cfg_edit(
+                                    ui,
+                                    &mut editor.gen_config.inner_size_probs,
+                                    Some(edit_usize),
+                                    "inner size probs",
+                                    true,
+                                    false,
+                                );
 
-                            random_dist_cfg_edit(
-                                ui,
-                                &mut editor.gen_config.outer_margin_probs,
-                                Some(edit_usize),
-                                "outer margin probs",
-                                true,
-                                false,
-                            );
+                                random_dist_cfg_edit(
+                                    ui,
+                                    &mut editor.gen_config.outer_margin_probs,
+                                    Some(edit_usize),
+                                    "outer margin probs",
+                                    true,
+                                    false,
+                                );
 
-                            random_dist_cfg_edit(
-                                ui,
-                                &mut editor.gen_config.circ_probs,
-                                Some(edit_f32_slider_prob),
-                                "circularity probs",
-                                true,
-                                false,
-                            );
-                        });
+                                random_dist_cfg_edit(
+                                    ui,
+                                    &mut editor.gen_config.circ_probs,
+                                    Some(edit_f32_slider_prob),
+                                    "circularity probs",
+                                    true,
+                                    false,
+                                );
+                            },
+                        );
                     });
 
                 // plat_min_euclidean_distance: 75,

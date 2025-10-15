@@ -6,7 +6,7 @@ use crate::{
     args::EditorArgs,
     config::{GenerationConfig, MapConfig, ThemeConfig},
     debug::DebugLayers,
-    generator::Generator,
+    generator::{GenerationStatus, Generator},
     gui,
     map_camera::MapCamera,
     random::Seed,
@@ -103,10 +103,10 @@ pub struct Editor {
     /// whether to keep using the same seed for next generations
     pub retry_on_failure: bool,
 
-    /// Whether to perform map export preprocessing such as generation of noise layers.
+    /// Whether to perform map export preparation such as generation of noise layers.
     /// This is computational expensive and should only be done for debugging purposes,
     /// or if the map is intended to be exported.
-    pub export_preprocess: bool,
+    pub prepare_export: bool,
 
     pub verbose_post_process: bool,
 
@@ -126,7 +126,13 @@ impl Editor {
     ) -> Editor {
         let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
         let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
-        let gen = Generator::new(&gen_config, &map_config, &thm_config, Seed::from_u64(0), true);
+        let gen = Generator::new(
+            &gen_config,
+            &map_config,
+            &thm_config,
+            Seed::from_u64(0),
+            true,
+        );
 
         let user_seed = if let Some(ref seed_base64) = args.init_seed {
             Seed::from_base64(seed_base64).expect("no valid base64 seed")
@@ -161,7 +167,7 @@ impl Editor {
             show_theme_widget: false,
             show_debug_widget: false,
             show_debug_layers: false,
-            export_preprocess: false,
+            prepare_export: false,
             verbose_post_process: false,
             use_chunked_rendering: true,
             use_map_flip: false,
@@ -198,7 +204,7 @@ impl Editor {
         }
 
         if args.generate {
-            if editor.gen.status == crate::generator::GenerationStatus::Initialized {
+            if editor.gen.status == GenerationStatus::Initialized {
                 editor.initialize_generator();
             }
             editor.playback_mode = PlaybackMode::Playing;
@@ -299,10 +305,10 @@ impl Editor {
         let cwd = env::current_dir().unwrap();
         let initial_path = cwd.join("name.map").to_string_lossy().to_string();
         if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
-            // perform export preprocessing, if not enabled in editor
-            if !self.export_preprocess {
+            // perform export preparation, if not enabled in editor
+            if !self.prepare_export {
                 self.gen
-                    .export_preprocess(&self.thm_config, &mut self.debug_layers, false);
+                    .prepare_export(&self.thm_config, &mut self.debug_layers, false);
             }
             self.gen.map.export(&PathBuf::from_str(&path_out).unwrap());
         }
@@ -313,15 +319,7 @@ impl Editor {
 
         if is_key_pressed(KeyCode::Space) {
             self.retry_on_failure = is_key_down(KeyCode::LeftShift);
-            // let mut new_config;
-            // while {
-            //     new_config = GenerationConfig::random(&mut self.gen.rnd);
-            //     new_config.validate()
-            // }
-            // .is_err()
-            // {}
-            // self.gen_config = new_config;
-            if self.gen.status == crate::generator::GenerationStatus::Initialized {
+            if self.gen.status.is_finished() {
                 self.initialize_generator();
             }
             self.playback_mode = PlaybackMode::Playing;

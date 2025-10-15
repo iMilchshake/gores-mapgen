@@ -208,7 +208,7 @@ fn test_all_config_permutations() {
                     &gen_config,
                     &map_config,
                     &thm_config,
-                    false, // no export preprocessing for tests
+                    false, // no prepare export for tests
                 ) {
                     map = Some(generated_map);
                     seed_used = TEST_SEED + retry;

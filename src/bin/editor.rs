@@ -13,7 +13,6 @@ use gores_mapgen::{
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
 use simple_logger::SimpleLogger;
-use std::panic::{self, AssertUnwindSafe};
 
 const DISABLE_VSYNC: bool = true;
 
@@ -52,7 +51,7 @@ async fn main() {
 
         // "auto generate": start generating next map right away
         if editor.playback_mode == PlaybackMode::Paused && editor.auto_generate {
-            if editor.gen.status == GenerationStatus::Initialized {
+            if editor.gen.status.is_finished() {
                 editor.initialize_generator();
             }
             editor.playback_mode = PlaybackMode::Playing;
@@ -75,12 +74,10 @@ async fn main() {
                 .unwrap_or_else(|err| {
                     println!("Walker Step Failed: {:}", err);
                     editor.playback_mode = PlaybackMode::Paused;
-                    editor.gen.status = GenerationStatus::Initialized;
+                    editor.gen.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
 
                     if editor.retry_on_failure {
-                        if editor.gen.status == GenerationStatus::Initialized {
-                            editor.initialize_generator();
-                        }
+                        editor.initialize_generator();
                         editor.playback_mode = PlaybackMode::Playing;
                     }
                 });
@@ -91,40 +88,28 @@ async fn main() {
             }
         }
 
-        // this is called ONCE (!= initialized) after map was generated
-        if editor.gen.walker.finished && editor.gen.status != GenerationStatus::Initialized {
-            // kinda crappy, but ensure that even a panic doesnt crash the program
-            let panic_result = panic::catch_unwind(AssertUnwindSafe(|| {
-                editor
-                    .gen
-                    .perform_all_post_processing(
-                        &editor.gen_config,
-                        &editor.thm_config,
-                        &mut editor.debug_layers,
-                        editor.verbose_post_process,
-                    )
-                    .unwrap_or_else(|err| {
-                        println!("Post Processing Failed: {:}", err);
-                    });
+        // this is called ONCE when walker just finished (status still Walking)
+        if editor.gen.walker.finished && editor.gen.status == GenerationStatus::Walking {
+            editor
+                .gen
+                .perform_all_post_processing(
+                    &editor.gen_config,
+                    &editor.thm_config,
+                    &mut editor.debug_layers,
+                    editor.verbose_post_process,
+                    editor.prepare_export,
+                )
+                .unwrap_or_else(|err| {
+                    println!("Post Processing Failed: {:}", err);
+                });
 
-                if editor.export_preprocess {
-                    editor.gen.export_preprocess(
-                        &editor.thm_config,
-                        &mut editor.debug_layers,
-                        editor.verbose_post_process,
-                    );
-                }
-            }));
-
-            if panic_result.is_err() {
-                editor.gen.status =
-                    GenerationStatus::Failed("Post-processing panicked".to_string());
-                println!("Post-processing panicked!");
+            // check status to handle success/failure
+            if let GenerationStatus::Failed(ref msg) = editor.gen.status {
+                println!("Generation failed: {}", msg);
             }
 
-            // switch into default state for next map
+            // pause playback (status will be reset when initialize_generator creates new Generator)
             editor.playback_mode = PlaybackMode::Paused;
-            editor.gen.status = GenerationStatus::Initialized;
         }
 
         editor.define_egui();
