@@ -6,6 +6,7 @@ use gores_mapgen::{
     config::{GenerationConfig, MapConfig, ThemeConfig},
     editor::*,
     fps_control::*,
+    generator::GenerationStatus,
     map::*,
     rendering::*,
 };
@@ -50,8 +51,11 @@ async fn main() {
         editor.on_frame_start();
 
         // "auto generate": start generating next map right away
-        if editor.is_paused() && editor.auto_generate {
-            editor.set_playing();
+        if editor.playback_mode == PlaybackMode::Paused && editor.auto_generate {
+            if editor.gen.status == GenerationStatus::Initialized {
+                editor.initialize_generator();
+            }
+            editor.playback_mode = PlaybackMode::Playing;
         }
 
         // "instant": perform maximum possible amount of generation steps
@@ -61,7 +65,7 @@ async fn main() {
         };
 
         for _ in 0..generation_steps {
-            if editor.is_paused() || editor.gen.walker.finished {
+            if editor.playback_mode == PlaybackMode::Paused || editor.gen.walker.finished {
                 break;
             }
 
@@ -70,25 +74,27 @@ async fn main() {
                 .step(&editor.gen_config, true, &mut editor.debug_layers)
                 .unwrap_or_else(|err| {
                     println!("Walker Step Failed: {:}", err);
-                    editor.set_setup();
+                    editor.playback_mode = PlaybackMode::Paused;
+                    editor.gen.status = GenerationStatus::Initialized;
 
                     if editor.retry_on_failure {
-                        editor.set_playing();
+                        if editor.gen.status == GenerationStatus::Initialized {
+                            editor.initialize_generator();
+                        }
+                        editor.playback_mode = PlaybackMode::Playing;
                     }
                 });
 
             // walker did a step using SingleStep -> now pause
-            if editor.is_single_setp() {
-                editor.set_stopped();
+            if editor.playback_mode == PlaybackMode::SingleStep {
+                editor.playback_mode = PlaybackMode::Paused;
             }
         }
 
-        // this is called ONCE after map was generated
-        // TODO: handling successfull generation via 'setup' state is kinda stupid, i should
-        // just add a new state variable for this, in the generator?
-        if editor.gen.walker.finished && !editor.is_setup() {
+        // this is called ONCE (!= initialized) after map was generated
+        if editor.gen.walker.finished && editor.gen.status != GenerationStatus::Initialized {
             // kinda crappy, but ensure that even a panic doesnt crash the program
-            let _ = panic::catch_unwind(AssertUnwindSafe(|| {
+            let panic_result = panic::catch_unwind(AssertUnwindSafe(|| {
                 editor
                     .gen
                     .perform_all_post_processing(
@@ -110,8 +116,15 @@ async fn main() {
                 }
             }));
 
-            // switch into setup mode for next map
-            editor.set_setup();
+            if panic_result.is_err() {
+                editor.gen.status =
+                    GenerationStatus::Failed("Post-processing panicked".to_string());
+                println!("Post-processing panicked!");
+            }
+
+            // switch into default state for next map
+            editor.playback_mode = PlaybackMode::Paused;
+            editor.gen.status = GenerationStatus::Initialized;
         }
 
         editor.define_egui();
@@ -123,7 +136,12 @@ async fn main() {
         if editor.use_chunked_rendering {
             draw_chunked_grid(
                 &editor.gen.map.grid,
-                editor.gen.map.chunk_edited.as_ref().expect("chunk tracking not enabled"),
+                editor
+                    .gen
+                    .map
+                    .chunk_edited
+                    .as_ref()
+                    .expect("chunk tracking not enabled"),
                 editor.gen.map.chunk_size,
             );
         } else {

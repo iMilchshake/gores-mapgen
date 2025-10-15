@@ -37,27 +37,13 @@ pub fn window_frame() -> Frame {
 }
 
 #[derive(PartialEq, Debug)]
-enum EditorState {
-    Playing(PlayingState),
-    Paused(PausedState),
-}
-
-#[derive(PartialEq, Debug)]
-enum PlayingState {
-    /// keep generating (default)
-    Continuous,
-
-    /// only perform one generation step
+pub enum PlaybackMode {
+    /// run generation steps continuously
+    Playing,
+    /// stopped, not running
+    Paused,
+    /// run one step then auto-pause
     SingleStep,
-}
-
-#[derive(PartialEq, Debug)]
-enum PausedState {
-    /// temporarily stopped/paused generation
-    Stopped,
-
-    /// dont start generation yet to allow setup configuration
-    Setup,
 }
 
 #[derive(Debug, PartialEq)]
@@ -68,7 +54,7 @@ pub enum SeedType {
 }
 
 pub struct Editor {
-    state: EditorState,
+    pub playback_mode: PlaybackMode,
     // TODO: shouldnt these be part of generator??
     pub gen_config: GenerationConfig,
     pub map_config: MapConfig,
@@ -149,7 +135,7 @@ impl Editor {
         };
 
         let mut editor = Editor {
-            state: EditorState::Paused(PausedState::Setup),
+            playback_mode: PlaybackMode::Paused,
             debug_layers: None,
             disable_debug_layers: args.disable_debug,
             init_gen_configs,
@@ -212,7 +198,10 @@ impl Editor {
         }
 
         if args.generate {
-            editor.set_playing()
+            if editor.gen.status == crate::generator::GenerationStatus::Initialized {
+                editor.initialize_generator();
+            }
+            editor.playback_mode = PlaybackMode::Playing;
         }
 
         editor
@@ -267,52 +256,7 @@ impl Editor {
         });
     }
 
-    pub fn is_playing(&self) -> bool {
-        matches!(self.state, EditorState::Playing(_))
-    }
-
-    pub fn is_paused(&self) -> bool {
-        matches!(self.state, EditorState::Paused(_))
-    }
-
-    pub fn is_setup(&self) -> bool {
-        matches!(self.state, EditorState::Paused(PausedState::Setup))
-    }
-
-    pub fn is_single_setp(&self) -> bool {
-        matches!(self.state, EditorState::Playing(PlayingState::SingleStep))
-    }
-
-    pub fn toggle(&mut self) {
-        match self.state {
-            EditorState::Paused(_) => self.set_playing(),
-            EditorState::Playing(_) => self.set_stopped(),
-        };
-    }
-
-    pub fn set_playing(&mut self) {
-        if self.is_setup() {
-            self.initialize_generator();
-        }
-        self.state = EditorState::Playing(PlayingState::Continuous);
-    }
-
-    pub fn set_single_step(&mut self) {
-        if self.is_setup() {
-            self.initialize_generator();
-        }
-        self.state = EditorState::Playing(PlayingState::SingleStep);
-    }
-
-    pub fn set_setup(&mut self) {
-        self.state = EditorState::Paused(PausedState::Setup);
-    }
-
-    pub fn set_stopped(&mut self) {
-        self.state = EditorState::Paused(PausedState::Stopped);
-    }
-
-    fn initialize_generator(&mut self) {
+    pub fn initialize_generator(&mut self) {
         if !self.fixed_seed {
             self.user_seed = Seed::from_random(&mut self.gen.rnd);
         }
@@ -377,7 +321,10 @@ impl Editor {
             // .is_err()
             // {}
             // self.gen_config = new_config;
-            self.set_playing();
+            if self.gen.status == crate::generator::GenerationStatus::Initialized {
+                self.initialize_generator();
+            }
+            self.playback_mode = PlaybackMode::Playing;
         }
 
         if is_key_pressed(KeyCode::R) {

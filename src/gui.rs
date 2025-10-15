@@ -4,7 +4,8 @@ use egui::{Align2, RichText};
 use tinyfiledialogs;
 
 use crate::{
-    editor::{window_frame, Editor, SeedType},
+    editor::{window_frame, Editor, PlaybackMode, SeedType},
+    generator::GenerationStatus,
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
 };
@@ -260,31 +261,68 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
     egui::SidePanel::right("right_panel").show(ctx, |ui| {
         // =======================================[ STATE CONTROL ]===================================
         ui.label(RichText::new("Control").heading());
+
+        // =======================================[ GENERATION STATUS ]===================================
+        ui.horizontal(|ui| {
+            ui.label("Status:");
+            let is_paused = editor.playback_mode == PlaybackMode::Paused;
+            match &editor.gen.status {
+                GenerationStatus::Initialized => {
+                    ui.label("Initialized");
+                }
+                GenerationStatus::Walking => {
+                    let text = if is_paused { "⏺ Walking (Paused)" } else { "⏺ Walking" };
+                    ui.label(RichText::new(text).color(egui::Color32::YELLOW));
+                }
+                GenerationStatus::PostProcessing => {
+                    let text = if is_paused { "⏺ Post-Processing (Paused)" } else { "⏺ Post-Processing" };
+                    ui.label(RichText::new(text).color(egui::Color32::YELLOW));
+                }
+                GenerationStatus::Success => {
+                    let text = if is_paused { "⏺ Success (Paused)" } else { "⏺ Success" };
+                    ui.label(RichText::new(text).color(egui::Color32::GREEN));
+                }
+                GenerationStatus::Failed(msg) => {
+                    let text = if is_paused { "⏺ Failed (Paused)" } else { "⏺ Failed" };
+                    ui.label(RichText::new(text).color(egui::Color32::RED))
+                        .on_hover_text(msg);
+                }
+            }
+        });
+
         ui.horizontal(|ui| {
             // instant+auto generate will result in setup state before any new frame is
             // rendered. therefore, disable these elements so user doesnt expect them to
             // work.
             let enable_playback_control = !editor.instant || !editor.auto_generate;
             ui.add_enabled_ui(enable_playback_control, |ui| {
-                if editor.is_setup() {
+                if editor.gen.status == GenerationStatus::Initialized {
                     if ui.button("start").clicked() {
-                        editor.set_playing();
+                        editor.initialize_generator();
+                        editor.playback_mode = PlaybackMode::Playing;
                     }
-                } else if editor.is_paused() {
+                } else if editor.playback_mode == PlaybackMode::Paused {
                     if ui.button("resume").clicked() {
-                        editor.set_playing();
+                        if editor.gen.status == GenerationStatus::Initialized {
+                            editor.initialize_generator();
+                        }
+                        editor.playback_mode = PlaybackMode::Playing;
                     }
                 } else if ui.button("pause").clicked() {
-                    editor.set_stopped();
+                    editor.playback_mode = PlaybackMode::Paused;
                 }
 
                 if ui.button("single step").clicked() {
-                    editor.set_single_step();
+                    if editor.gen.status == GenerationStatus::Initialized {
+                        editor.initialize_generator();
+                    }
+                    editor.playback_mode = PlaybackMode::SingleStep;
                 }
             });
 
-            if !editor.is_setup() && ui.button("setup").clicked() {
-                editor.set_setup();
+            if editor.gen.status != GenerationStatus::Initialized && ui.button("reset").clicked() {
+                editor.initialize_generator();
+                editor.playback_mode = PlaybackMode::Paused;
             }
         });
 
@@ -301,7 +339,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         });
 
         // =======================================[ SEED CONTROL ]===================================
-        if editor.is_setup() {
+        if editor.gen.status == GenerationStatus::Initialized {
             ui.separator();
 
             ui.vertical(|ui| {
@@ -480,7 +518,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                             true,
                         );
 
-                        ui.add_enabled_ui(editor.is_setup(), |ui| {
+                        ui.add_enabled_ui(editor.gen.status == GenerationStatus::Initialized, |ui| {
                             random_dist_cfg_edit(
                                 ui,
                                 &mut editor.gen_config.inner_size_probs,
@@ -634,7 +672,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                         );
                     });
 
-                ui.add_enabled_ui(editor.is_setup(), |ui| {
+                ui.add_enabled_ui(editor.gen.status == GenerationStatus::Initialized, |ui| {
                     random_dist_cfg_edit(
                         ui,
                         &mut editor.gen_config.shift_weights,
@@ -873,7 +911,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     "map height",
                     true,
                 );
-                ui.add_enabled_ui(editor.is_setup(), |ui| {
+                ui.add_enabled_ui(editor.gen.status == GenerationStatus::Initialized, |ui| {
                     vec_edit_widget(
                         ui,
                         &mut editor.map_config.waypoints,

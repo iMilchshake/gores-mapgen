@@ -32,6 +32,15 @@ pub fn print_time(timer: &mut Timer, message: &str, print: bool) {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum GenerationStatus {
+    Initialized,
+    Walking,
+    PostProcessing,
+    Success,
+    Failed(String),
+}
+
 pub struct Generator {
     pub walker: CuteWalker,
     pub map: Map,
@@ -41,6 +50,9 @@ pub struct Generator {
 
     /// remember where generation began, so a start room can be placed in post processing
     spawn: Position,
+
+    /// current status of the generation process
+    pub status: GenerationStatus,
 }
 
 impl Generator {
@@ -84,6 +96,7 @@ impl Generator {
             map,
             rnd,
             spawn,
+            status: GenerationStatus::Initialized,
         };
 
         gen.preprocessing(thm_config).unwrap(); // TODO: move somewhere else + pass
@@ -274,6 +287,11 @@ impl Generator {
         validate: bool,
         debug_layers: &mut Option<DebugLayers>,
     ) -> Result<(), &'static str> {
+        // set status to Walking if this is the first step
+        if self.status == GenerationStatus::Initialized {
+            self.status = GenerationStatus::Walking;
+        }
+
         // check if walker has reached currernt goal position
         if self
             .walker
@@ -298,11 +316,14 @@ impl Generator {
 
             // lock all other waypoints
             if gen_config.waypoint_lock_distance > 0 {
-                self.walker.update_waypoint_locks(
+                if let Err(err) = self.walker.update_waypoint_locks(
                     gen_config.waypoint_lock_distance,
                     &self.map,
                     debug_layers,
-                )?;
+                ) {
+                    self.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
+                    return Err(err);
+                }
             }
         }
 
@@ -312,7 +333,10 @@ impl Generator {
         }
 
         if validate {
-            gen_config.validate()?;
+            if let Err(err) = gen_config.validate() {
+                self.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
+                return Err(err);
+            }
         }
 
         // randomly mutate kernel
@@ -328,8 +352,12 @@ impl Generator {
         }
 
         // perform one step
-        self.walker
-            .probabilistic_step(&mut self.map, gen_config, &mut self.rnd, debug_layers)?;
+        if let Err(err) = self.walker
+            .probabilistic_step(&mut self.map, gen_config, &mut self.rnd, debug_layers)
+        {
+            self.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
+            return Err(err);
+        }
 
         Ok(())
     }
@@ -381,9 +409,14 @@ impl Generator {
         debug_layers: &mut Option<DebugLayers>,
         verbose: bool,
     ) -> Result<(), &'static str> {
-        let mut timer = Timer::start();
+        // set status to PostProcessing
+        self.status = GenerationStatus::PostProcessing;
 
-        self.generate_spawn(thm_config);
+        // wrap all post-processing logic to catch errors
+        let result = (|| -> Result<(), &'static str> {
+            let mut timer = Timer::start();
+
+            self.generate_spawn(thm_config);
         print_time(&mut timer, "place start room", verbose);
 
         if gen_config.min_freeze_size > 0 {
@@ -513,9 +546,22 @@ impl Generator {
                 grid[floor_pos.pos.as_index()] = true;
             }
         }
-        print_time(&mut timer, "set debug layers", verbose);
+            print_time(&mut timer, "set debug layers", verbose);
 
-        Ok(())
+            Ok(())
+        })();
+
+        // handle result and update status
+        match result {
+            Ok(_) => {
+                self.status = GenerationStatus::Success;
+                Ok(())
+            }
+            Err(err) => {
+                self.status = GenerationStatus::Failed(format!("Post-processing failed: {}", err));
+                Err(err)
+            }
+        }
     }
 
     /// Perform preprocessing steps that are intended for map export, this call can be skipped
