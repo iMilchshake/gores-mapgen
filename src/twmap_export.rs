@@ -1,4 +1,4 @@
-use crate::map::{BlockTypeTW, Map};
+use crate::map::Map;
 use crate::position::Position;
 use clap::crate_version;
 use ndarray::Array2;
@@ -87,59 +87,7 @@ impl TwExport {
         automapper_config.clone()
     }
 
-    pub fn process_tile_layer(
-        tw_map: &mut TwMap,
-        map: &Map,
-        layer_index: usize,
-        layer_name: &str,
-        layer_type: &BlockTypeTW,
-    ) {
-        let tile_group = tw_map.groups.get_mut(3).unwrap();
-        assert_eq!(tile_group.name, "FG_Tiles");
-        if let Some(Layer::Tiles(layer)) = tile_group.layers.get_mut(layer_index) {
-            assert_eq!(layer.name, layer_name);
-
-            let image_name = tw_map.images[layer.image.unwrap() as usize].name();
-            let automapper_config = TwExport::get_automapper_config(image_name.clone(), layer);
-
-            let tiles = layer.tiles_mut().unwrap_mut();
-            *tiles = Array2::<Tile>::default((map.height, map.width));
-
-            for ((x, y), block_type) in map.grid.indexed_iter() {
-                let block_type = block_type.to_tw_block_type();
-                let mut set_block: bool = *layer_type == block_type;
-
-                // custom rule for freeze
-                if layer_type == &BlockTypeTW::Freeze && block_type == BlockTypeTW::Hookable {
-                    let shifts = &[(-1, 0), (0, -1), (1, 0), (0, 1)];
-                    for shift in shifts {
-                        let neighbor_type = Position::new(x, y)
-                            .shifted_by(shift.0, shift.1)
-                            .ok()
-                            .and_then(|pos| map.grid.get(pos.as_index()));
-
-                        if neighbor_type.is_some_and(|t| t.is_freeze()) {
-                            set_block = true;
-                            break;
-                        }
-                    }
-                }
-
-                if set_block {
-                    tiles[[y, x]] = Tile::new(1, TileFlags::empty())
-                }
-            }
-
-            automapper_config.run(3777777777, tiles) // thanks Tater for the epic **random** seed
-        } else {
-            panic!(
-                "coulnt get layer at index {:} ({:})",
-                layer_index, layer_name
-            );
-        };
-    }
-
-    pub fn process_tile_layer_new<F, T>(
+    pub fn process_tile_layer<F, T>(
         tw_map: &mut TwMap,
         group: (usize, &str),
         layer: (usize, &str),
@@ -201,7 +149,7 @@ impl TwExport {
         tw_map.info.credits = "https://github.com/iMilchshake/gores-mapgen".to_string();
 
         if let Some(ref noise_background) = map.noise_background {
-            TwExport::process_tile_layer_new(
+            TwExport::process_tile_layer(
                 &mut tw_map,
                 (1, "BG_Tiles"),
                 (0, "Background"),
@@ -210,9 +158,37 @@ impl TwExport {
                 true,
             );
         }
-        // TODO: replace with new
-        TwExport::process_tile_layer(&mut tw_map, map, 0, "Freeze", &BlockTypeTW::Freeze);
-        TwExport::process_tile_layer_new(
+        TwExport::process_tile_layer(
+            &mut tw_map,
+            (3, "FG_Tiles"),
+            (0, "Freeze"),
+            &map.grid,
+            |x, y, block_type| {
+                // Set tile for freeze blocks
+                if block_type.is_freeze() {
+                    return 1;
+                }
+
+                // Special rule: also set tile for hookables adjacent to freeze
+                if block_type.is_solid() {
+                    let shifts = &[(-1, 0), (0, -1), (1, 0), (0, 1)];
+                    for shift in shifts {
+                        let neighbor_type = Position::new(x, y)
+                            .shifted_by(shift.0, shift.1)
+                            .ok()
+                            .and_then(|pos| map.grid.get(pos.as_index()));
+
+                        if neighbor_type.is_some_and(|t| t.is_freeze()) {
+                            return 1;
+                        }
+                    }
+                }
+
+                0
+            },
+            true,
+        );
+        TwExport::process_tile_layer(
             &mut tw_map,
             (3, "FG_Tiles"),
             (1, "Hookable"),
@@ -220,7 +196,7 @@ impl TwExport {
             |_, _, block_type| block_type.is_solid() as u8,
             true,
         );
-        TwExport::process_tile_layer_new(
+        TwExport::process_tile_layer(
             &mut tw_map,
             (3, "FG_Tiles"),
             (2, "Font"),
@@ -229,7 +205,7 @@ impl TwExport {
             false,
         );
         if let Some(ref noise_overlay) = map.noise_overlay {
-            TwExport::process_tile_layer_new(
+            TwExport::process_tile_layer(
                 &mut tw_map,
                 (3, "FG_Tiles"),
                 (3, "Overlay"),
