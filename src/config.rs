@@ -62,7 +62,8 @@ impl MapConfig {
             let file = MapConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
             match serde_json::from_str::<MapConfig>(data) {
-                Ok(config) => {
+                Ok(mut config) => {
+                    config.name = file_name.split_once(".").unwrap().0.to_string(); // supplement config name from file name
                     configs.push(config);
                 }
                 Err(e) => {
@@ -83,14 +84,6 @@ impl MapConfig {
             .expect("failed to write to config file");
     }
 
-    /// This function defines the initial default config for actual map generator
-    pub fn get_initial_config() -> MapConfig {
-        let file = MapConfigStorage::get("small_s_tight.json").unwrap();
-        let data = std::str::from_utf8(&file.data).unwrap();
-        let config: MapConfig = serde_json::from_str(data).unwrap();
-        config
-    }
-
     /// calculates approximative map length based on waypoints
     pub fn get_map_length(&self) -> f32 {
         self.waypoints
@@ -104,6 +97,7 @@ impl MapConfig {
 #[serde(default)]
 pub struct GenerationConfig {
     /// name of the preset
+    #[serde(skip)]
     pub name: String,
 
     /// this can contain any description of the generation preset
@@ -412,7 +406,8 @@ impl GenerationConfig {
             let file = GenerationConfigStorage::get(&file_name).unwrap();
             let data = std::str::from_utf8(&file.data).unwrap();
             match serde_json::from_str::<GenerationConfig>(data) {
-                Ok(config) => {
+                Ok(mut config) => {
+                    config.name = file_name.split_once(".").unwrap().0.to_string(); // supplement config name from file name
                     configs.push(config);
                 }
                 Err(e) => {
@@ -425,27 +420,14 @@ impl GenerationConfig {
 
         configs
     }
-
-    /// This function defines the initial default config for actual map generator
-    pub fn get_initial_config() -> GenerationConfig {
-        if let Some(file) = GenerationConfigStorage::get("hard.json") {
-            if let Ok(data) = std::str::from_utf8(&file.data) {
-                if let Ok(config) = serde_json::from_str(data) {
-                    return config;
-                }
-            }
-        }
-
-        GenerationConfig::default()
-    }
 }
 
 impl Default for GenerationConfig {
     /// Default trait should mainly be used to get default values for individual arguments
-    /// instead of being used as an actual generation config. (use get_initial_config())
+    /// instead of being used as an actual generation config use a provided one.
     fn default() -> GenerationConfig {
         GenerationConfig {
-            name: "default".to_string(),
+            name: "name".to_string(),
             description: None,
             difficulty: 1.0,
             version: "1.0".to_string(),

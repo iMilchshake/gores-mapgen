@@ -6,7 +6,7 @@ use crate::{
     args::EditorArgs,
     config::{GenerationConfig, MapConfig, ThemeConfig},
     debug::DebugLayers,
-    generator::{GenerationStatus, Generator},
+    generator::Generator,
     gui,
     map_camera::MapCamera,
     random::Seed,
@@ -60,8 +60,8 @@ pub struct Editor {
     pub map_config: MapConfig,
     pub thm_config: ThemeConfig,
 
-    pub init_gen_configs: Vec<GenerationConfig>,
-    pub init_map_configs: Vec<MapConfig>,
+    pub gen_configs: Vec<GenerationConfig>,
+    pub map_configs: Vec<MapConfig>,
     pub debug_layers: Option<DebugLayers>,
     pub average_fps: f32,
     pub gen: Generator,
@@ -125,16 +125,26 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(
-        gen_config: GenerationConfig,
-        map_config: MapConfig,
+        init_gen_config_name: &str,
+        init_map_config_name: &str,
         thm_config: ThemeConfig,
         args: &EditorArgs,
     ) -> Editor {
-        let init_gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
-        let init_map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
+        let gen_configs: Vec<GenerationConfig> = GenerationConfig::get_all_configs();
+        let map_configs: Vec<MapConfig> = MapConfig::get_all_configs();
+
+        let init_gen_config = gen_configs
+            .iter()
+            .find(|c| c.name == init_gen_config_name)
+            .unwrap();
+        let init_map_config = map_configs
+            .iter()
+            .find(|c| c.name == init_map_config_name)
+            .unwrap();
+
         let gen = Generator::new(
-            &gen_config,
-            &map_config,
+            init_gen_config,
+            init_map_config,
             &thm_config,
             Seed::from_u64(0),
             true,
@@ -150,14 +160,14 @@ impl Editor {
             playback_mode: PlaybackMode::Paused,
             debug_layers: None,
             disable_debug_layers: args.disable_debug,
-            init_gen_configs,
-            init_map_configs,
+            gen_config: init_gen_config.clone(),
+            map_config: init_map_config.clone(),
+            gen_configs,
+            map_configs,
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
             map_cam: MapCamera::default(),
-            gen_config,
-            map_config,
             thm_config: ThemeConfig::default(),
             steps_per_frame: STEPS_PER_FRAME,
             gen,
@@ -353,11 +363,7 @@ impl Editor {
     }
 
     pub fn load_gen_config(&mut self, config_name: &str) -> Result<(), &'static str> {
-        if let Some(config) = self
-            .init_gen_configs
-            .iter()
-            .find(|&c| c.name == config_name)
-        {
+        if let Some(config) = self.gen_configs.iter().find(|&c| c.name == config_name) {
             self.gen_config = config.clone();
             Ok(())
         } else {
@@ -366,11 +372,7 @@ impl Editor {
     }
 
     pub fn load_map_config(&mut self, config_name: &str) -> Result<(), &'static str> {
-        if let Some(config) = self
-            .init_map_configs
-            .iter()
-            .find(|&c| c.name == config_name)
-        {
+        if let Some(config) = self.map_configs.iter().find(|&c| c.name == config_name) {
             self.map_config = config.clone();
             Ok(())
         } else {

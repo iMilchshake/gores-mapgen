@@ -462,7 +462,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         egui::ComboBox::from_label("")
             .selected_text(editor.gen_config.name.to_string())
             .show_ui(ui, |ui| {
-                for cfg in editor.init_gen_configs.iter() {
+                for cfg in editor.gen_configs.iter() {
                     ui.selectable_value(&mut editor.gen_config, cfg.clone(), &cfg.name);
                 }
             });
@@ -470,7 +470,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         egui::ComboBox::from_label(" ")
             .selected_text(editor.map_config.name.to_string())
             .show_ui(ui, |ui| {
-                for cfg in editor.init_map_configs.iter() {
+                for cfg in editor.map_configs.iter() {
                     // TODO: reinitialize generator with new mapconfig! careful with overriding gen config!
                     ui.selectable_value(&mut editor.map_config, cfg.clone(), &cfg.name);
                 }
@@ -486,7 +486,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             if editor.edit_gen_config {
                 ui.separator();
 
-                field_edit_widget(ui, &mut editor.gen_config.name, edit_string, "name", false);
+                ui.add(Label::new(format!("name: {:}", editor.gen_config.name)));
 
                 field_edit_widget(
                     ui,
@@ -910,7 +910,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
 
             // =======================================[ MAP CONFIG EDIT ]===================================
             if editor.edit_map_config {
-                field_edit_widget(ui, &mut editor.map_config.name, edit_string, "name", false);
+                ui.add(Label::new(format!("name: {:}", editor.map_config.name)));
                 field_edit_widget(
                     ui,
                     &mut editor.map_config.width,
