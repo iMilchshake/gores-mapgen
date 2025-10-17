@@ -1,0 +1,68 @@
+on:
+  pull_request:
+  workflow_dispatch:
+
+name: Clippy check
+
+# Make sure CI fails on all warnings, including Clippy lints
+env:
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+  fmt_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check if code is formatted properly
+        run: cargo fmt --check --all
+
+  clippy_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Cargo Registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features
+
+  udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache Cargo Binaries
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-bin
+          restore-keys: |
+            ${{ runner.os }}-cargo-bin
+
+      - name: Cache Rust Toolchain
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: ${{ runner.os }}-rust-toolchain-${{ hashFiles('rust-toolchain') }}
+          restore-keys: |
+            ${{ runner.os }}-rust-toolchain-${{ hashFiles('rust-toolchain') }}
+
+      - name: Cache Cargo Registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+
+      - uses: actions/checkout@v4
+      - name: Install nightly
+        run: rustup toolchain install nightly
+      - name: Install udeps
+        run: cargo install cargo-udeps --locked
+      - name: Run udeps
+        run: cargo +nightly udeps
