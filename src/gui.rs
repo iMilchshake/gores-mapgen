@@ -332,7 +332,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 }
             });
 
-            if editor.gen.status != GenerationStatus::Initialized && ui.button("reset").clicked() {
+            if ui.button("reset").clicked() {
                 editor.reset_generation(false, true);
             }
         });
@@ -467,14 +467,27 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                 }
             });
         ui.label("load map config:");
-        egui::ComboBox::from_label(" ")
+        let map_config_changed = egui::ComboBox::from_label(" ")
             .selected_text(editor.map_config.name.to_string())
             .show_ui(ui, |ui| {
+                let mut changed = false;
                 for cfg in editor.map_configs.iter() {
-                    // TODO: reinitialize generator with new mapconfig! careful with overriding gen config!
-                    ui.selectable_value(&mut editor.map_config, cfg.clone(), &cfg.name);
+                    if ui
+                        .selectable_value(&mut editor.map_config, cfg.clone(), &cfg.name)
+                        .changed()
+                    {
+                        changed = true;
+                    }
                 }
-            });
+                changed
+            })
+            .inner
+            .unwrap_or(false);
+
+        // automatically reset generator so change to its map config is immediately visualized
+        if map_config_changed {
+            editor.reset_generation(false, true);
+        }
 
         ui.horizontal(|ui| {
             ui.checkbox(&mut editor.edit_gen_config, "edit gen");
