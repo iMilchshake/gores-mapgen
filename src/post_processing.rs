@@ -1779,50 +1779,65 @@ fn validate_pillar_path(
         Err(_) => return None, // can't even shift once from corner
     };
 
-    let mut length: usize = 0;
+    let mut valid_length: usize = 0; // length where both center and sides are valid
+    let mut center_only_length: usize = 0; // additional length where only center is valid
+    let mut sides_failed = false; // once sides fail, stop checking them
 
     loop {
         // Check center is Empty
-        if map.grid[cur.as_index()] != BlockType::Empty {
+        let center_valid = map.grid[cur.as_index()] == BlockType::Empty;
+
+        // if center is invalid, stop completely
+        if !center_valid {
             break;
         }
 
-        // Check perpendicular side margins are Empty
-        for ortho_dir in &ortho_dirs {
-            // Check all blocks up to side_margin distance
-            for margin_dist in 1..=side_margin {
+        let total_length = valid_length + center_only_length;
+
+        // Check perpendicular side margins (skip if already failed or past max_length)
+        let mut side_margin_valid = true;
+        if !sides_failed && total_length < max_length {
+            'ortho: for ortho_dir in &ortho_dirs {
+                // Check all blocks up to side_margin distance
                 let mut check_pos = cur.clone();
-                for _ in 0..margin_dist {
-                    match check_pos.shifted(ortho_dir, map) {
-                        Ok(pos) => check_pos = pos,
-                        Err(_) => return None, // out of bounds
+                for _ in 0..side_margin {
+                    check_pos = check_pos.shifted(ortho_dir, map).ok()?;
+                    if map.grid[check_pos.as_index()] != BlockType::Empty {
+                        side_margin_valid = false;
+                        sides_failed = true; // once failed, stay failed
+                        break 'ortho;
                     }
                 }
-                if map.grid[check_pos.as_index()] != BlockType::Empty {
-                    return None;
-                }
             }
+        } else {
+            side_margin_valid = false;
         }
 
-        length += 1;
-
-        // Stop if we've reached max length
-        if length >= max_length {
-            break;
+        if side_margin_valid {
+            valid_length += 1;
+        } else {
+            center_only_length += 1;
         }
 
-        // Try to shift to next position
         if cur.shift_inplace(dir, map).is_err() {
             break;
         }
     }
 
-    let usable_length = length.saturating_sub(tip_margin);
-    if usable_length >= min_length {
-        Some(usable_length)
-    } else {
-        None
+    if valid_length < min_length {
+        return None;
     }
+
+    // Calculate usable length, considering side margin, tip margin and max length
+    Some(
+        if center_only_length >= tip_margin {
+            valid_length
+        } else {
+            valid_length.saturating_sub(tip_margin - center_only_length)
+        }
+        .min(max_length)
+        .max(min_length), // ensure we still meet min_length after adjustments
+    )
 }
 
 /// Generates freeze pillars extending from corners
