@@ -12,7 +12,6 @@
 
 use clap::crate_version;
 use std::panic::{self, AssertUnwindSafe};
-use timing::Timer;
 
 use crate::{
     config::{GenerationConfig, MapConfig, ThemeConfig},
@@ -26,10 +25,31 @@ use crate::{
     walker::CuteWalker,
 };
 
+pub struct Timer {
+    start: f64,
+}
+
+impl Timer {
+    pub fn start() -> Self {
+        Self {
+            start: macroquad::time::get_time(),
+        }
+    }
+
+    pub fn elapsed(&self) -> std::time::Duration {
+        let now = macroquad::time::get_time();
+        std::time::Duration::from_secs_f64(now - self.start)
+    }
+
+    pub fn restart(&mut self) {
+        self.start = macroquad::time::get_time();
+    }
+}
+
 pub fn print_time(timer: &mut Timer, message: &str, print: bool) {
     if print {
         println!("{}: {:?}", message, timer.elapsed());
-        *timer = Timer::start() // start new timer
+        timer.restart()
     }
 }
 
