@@ -26,8 +26,19 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    // #[cfg(target_arch = "wasm32")]
+
+    std::panic::set_hook(Box::new(|info| {
+        if let Some(loc) = info.location() {
+            macroquad::prelude::error!("PANIC at {}:{}: {}", loc.file(), loc.line(), info);
+        } else {
+            macroquad::prelude::error!("PANIC: {}", info);
+        }
+    }));
+
     // initialization
     let args = EditorArgs::parse();
+
     // simple_logger::SimpleLogger::new().init().unwrap();
     let mut editor = Editor::new("hard", "small_s_tight", ThemeConfig::default(), &args);
 
