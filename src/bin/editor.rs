@@ -2,17 +2,11 @@
 
 use clap::Parser;
 use gores_mapgen::{
-    args::EditorArgs,
-    config::ThemeConfig,
-    editor::*,
-    fps_control::*,
-    generator::GenerationStatus,
-    map::*,
+    args::EditorArgs, config::ThemeConfig, editor::*, generator::GenerationStatus, map::*,
     rendering::*,
 };
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
-use simple_logger::SimpleLogger;
 
 const DISABLE_VSYNC: bool = true;
 
@@ -34,13 +28,11 @@ fn window_conf() -> Conf {
 async fn main() {
     // initialization
     let args = EditorArgs::parse();
-    SimpleLogger::new().init().unwrap();
+    // simple_logger::SimpleLogger::new().init().unwrap();
     let mut editor = Editor::new("hard", "small_s_tight", ThemeConfig::default(), &args);
-    let mut fps_ctrl = FPSControl::new().with_max_fps(60);
 
     // main loop for gui (and step-wise map generation)
     loop {
-        fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
         // "auto generate": start generating next map right away
@@ -180,6 +172,6 @@ async fn main() {
         // editor.map_cam.draw_cam_debug();
 
         egui_macroquad::draw();
-        fps_ctrl.wait_for_next_frame().await;
+        next_frame().await; // submit our render calls to our screen
     }
 }
