@@ -20,11 +20,11 @@ indicatif = { version = "0.17.8", optional = true }
 # rand = { version = "0.8.5", default-features = false }
 
 [dependencies]
-getrandom = { version = "=0.2.16", default-features = false }
-egui-macroquad = "0.15.0"
-egui = "0.21.0"
-egui-miniquad = "0.14.0"
-macroquad = "0.3.25"
+#getrandom = { version = "=0.2.16", default-features = false }
+egui-macroquad = "0.17.3"
+egui = "0.31.1"
+egui-miniquad = "0.16.0"
+macroquad = "0.4.14"
 # ndarray = "0.15.6"
 ndarray = "0.16.1"
 rand = {version="0.8.5", features=['small_rng'], default-features = false}
