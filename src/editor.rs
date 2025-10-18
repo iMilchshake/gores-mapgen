@@ -319,14 +319,14 @@ impl Editor {
     pub fn save_map_dialog(&mut self) {
         let cwd = env::current_dir().unwrap();
         let initial_path = cwd.join("name.map").to_string_lossy().to_string();
-        if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
-            // perform export preparation, if not enabled in editor
-            if !self.prepare_export {
-                self.gen
-                    .prepare_export(&self.thm_config, &mut self.debug_layers, false);
-            }
-            self.gen.map.export(&PathBuf::from_str(&path_out).unwrap());
-        }
+        // if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
+        //     // perform export preparation, if not enabled in editor
+        //     if !self.prepare_export {
+        //         self.gen
+        //             .prepare_export(&self.thm_config, &mut self.debug_layers, false);
+        //     }
+        //     self.gen.map.export(&PathBuf::from_str(&path_out).unwrap());
+        // }
     }
 
     pub fn handle_user_inputs(&mut self) {

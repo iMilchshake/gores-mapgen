@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, env, process::exit};
 
 use egui::{Align2, RichText};
-use tinyfiledialogs;
+// use tinyfiledialogs;
 
 use crate::{
     editor::{window_frame, Editor, PlaybackMode, SeedType},
@@ -435,11 +435,11 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     .to_string_lossy()
                     .to_string();
 
-                if let Some(path_out) =
-                    tinyfiledialogs::save_file_dialog("save gen config", &initial_path)
-                {
-                    editor.gen_config.save(&path_out);
-                }
+                // if let Some(path_out) =
+                //     tinyfiledialogs::save_file_dialog("save gen config", &initial_path)
+                // {
+                //     editor.gen_config.save(&path_out);
+                // }
             };
 
             if ui.button("map config").clicked() {
@@ -450,11 +450,11 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     .to_string_lossy()
                     .to_string();
 
-                if let Some(path_out) =
-                    tinyfiledialogs::save_file_dialog("save map config", &initial_path)
-                {
-                    editor.map_config.save(&path_out);
-                }
+                // if let Some(path_out) =
+                //     tinyfiledialogs::save_file_dialog("save map config", &initial_path)
+                // {
+                //     editor.map_config.save(&path_out);
+                // }
             };
         });
 

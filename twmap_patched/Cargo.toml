@@ -1,0 +1,33 @@
+[package]
+name = "twmap"
+version = "0.13.3"
+edition = "2018"
+resolver = "2"
+authors = ["Patiga <dev@patiga.eu>"]
+license = "AGPL-3.0-only"
+description = "Parse, edit and save Teeworlds and DDNet maps"
+repository = "https://gitlab.com/Patiga/twmap"
+keywords = ["teeworlds", "ddnet"]
+
+[dependencies]
+az = "1.2.1"
+bitflags = "2.4.1"
+bytemuck = { version = "1.14.0", features = ["derive"] }
+fixed = { version = "1.24.0", features = ["num-traits", "serde-str"] }
+flate2 = { version = "1.1.1", features = ["zlib-rs"] }
+# getrandom = { version = "0.2.10", features = ["js"] }
+getrandom = { version = "0.2.10"}
+image = { version = "0.25.6", default-features = false, features = ["png"] }
+log = "0.4.20"
+ndarray = "0.16.1"
+opus_headers = "0.1.2"
+sanitize-filename = "0.6.0"
+serde = { version = "1.0.190", features = ["derive"] }
+serde_json = "1.0.108"
+structview = "1.1.0"
+thiserror = "1.0.50"
+twstorage = "0.1.1"
+vek = { version = "0.17.1", default-features = false, features = ["az", "rgb", "rgba", "std", "uv"] }
+
+[dev-dependencies]
+tempfile = "3.8.1"
