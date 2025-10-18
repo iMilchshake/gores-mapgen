@@ -58,8 +58,9 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
-opt-level = 3
+# opt-level = 3
 # panic = "abort"                    # abort on panic!()
-lto = true                      # enable link time optimization
-strip = true                    # strip debug symbols
-codegen-units = 1               # use a single codegen-unit for better optimizations
+# lto = true                      # enable link time optimization
+# strip = true                    # strip debug symbols
+# codegen-units = 1               # use a single codegen-unit for better optimizations
+debug = true
