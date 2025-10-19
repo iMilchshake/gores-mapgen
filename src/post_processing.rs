@@ -795,7 +795,7 @@ pub fn flood_fill(
     // get fastest path from start to finish
     let path = if let Some(end_pos) = end_pos {
         let mut pos = end_pos.clone();
-        let num_steps = distance[pos.as_index()].unwrap();
+        let num_steps = distance[pos.as_index()].ok_or("no valid path to end position found")?;
         let from = come_from.as_ref().unwrap();
         let mut path_grid: Array2<bool> = Array2::from_elem((gen.map.width, gen.map.height), false);
         let mut path: Vec<Position> = vec![end_pos.clone()];
