@@ -516,10 +516,15 @@ pub fn generate_all_skips(
         let skip = &skips[skip_index];
 
         // check if too much of the level would be skipped
-        let level_distance_start = flood_fill[skip.start_pos.as_index()].unwrap();
-        let level_distance_end = flood_fill[skip.end_pos.as_index()].unwrap();
-        let level_skip_distance = usize::abs_diff(level_distance_start, level_distance_end);
-        if level_skip_distance > max_level_skip {
+        let Some(level_distance_start) = flood_fill[skip.start_pos.as_index()] else {
+            skip_status[skip_index] = SkipStatus::Invalid;
+            continue;
+        };
+        let Some(level_distance_end) = flood_fill[skip.end_pos.as_index()] else {
+            skip_status[skip_index] = SkipStatus::Invalid;
+            continue;
+        };
+        if usize::abs_diff(level_distance_start, level_distance_end) > max_level_skip {
             skip_status[skip_index] = SkipStatus::Invalid;
             continue;
         }
