@@ -350,58 +350,47 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         });
 
         // =======================================[ SEED CONTROL ]===================================
-        if editor.gen.status == GenerationStatus::Initialized {
-            ui.separator();
+        // if editor.gen.status == GenerationStatus::Initialized {
+        ui.separator();
 
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(format!("seed: {}", editor.user_seed.to_base64()))
-                            .monospace(),
-                    );
-                    if ui.button("📋").clicked() {
-                        ui.output_mut(|o| o.copied_text = editor.user_seed.to_base64());
-                    }
-                });
-                egui::ComboBox::from_label("seed type")
-                    .selected_text(format!("{:?}", editor.seed_input_type))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut editor.seed_input_type, SeedType::U64, "U64");
-                        ui.selectable_value(
-                            &mut editor.seed_input_type,
-                            SeedType::BASE64,
-                            "BASE64",
-                        );
-                        ui.selectable_value(
-                            &mut editor.seed_input_type,
-                            SeedType::STRING,
-                            "STRING",
-                        );
-                    });
-            });
-
+        ui.vertical(|ui| {
             ui.horizontal(|ui| {
-                let text_edit = egui::TextEdit::singleline(&mut editor.user_seed_str);
-
-                if ui.add(text_edit).changed() {}
-            });
-
-            ui.horizontal(|ui| {
-                ui.checkbox(&mut editor.fixed_seed, "fixed seed");
-                if ui.button("set seed").clicked() {
-                    if let Some(new_seed) =
-                        Seed::from_string(&editor.user_seed_str, &editor.seed_input_type)
-                    {
-                        editor.user_seed = new_seed;
-                    } else {
-                        println!(
-                            "invalid seed='{}', type={:?}",
-                            &editor.user_seed_str, &editor.seed_input_type
-                        );
-                    }
+                ui.label(
+                    RichText::new(format!("seed: {}", editor.user_seed.to_base64())).monospace(),
+                );
+                if ui.button("📋").clicked() {
+                    ui.output_mut(|o| o.copied_text = editor.user_seed.to_base64());
                 }
             });
-        }
+
+            egui::ComboBox::from_label("seed type")
+                .selected_text(format!("{:?}", editor.seed_input_type))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut editor.seed_input_type, SeedType::U64, "U64");
+                    ui.selectable_value(&mut editor.seed_input_type, SeedType::BASE64, "BASE64");
+                    ui.selectable_value(&mut editor.seed_input_type, SeedType::STRING, "STRING");
+                });
+        });
+
+        ui.add(egui::TextEdit::singleline(&mut editor.user_seed_str));
+
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut editor.fixed_seed, "fixed seed");
+
+            if ui.button("set seed").clicked() {
+                if let Some(new_seed) =
+                    Seed::from_string(&editor.user_seed_str, &editor.seed_input_type)
+                {
+                    editor.user_seed = new_seed;
+                } else {
+                    println!(
+                        "invalid seed='{}', type={:?}",
+                        &editor.user_seed_str, &editor.seed_input_type
+                    );
+                }
+            }
+        });
+
         ui.separator();
         // =======================================[ DEBUG LAYERS ]===================================
 
