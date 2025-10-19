@@ -26,8 +26,6 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // #[cfg(target_arch = "wasm32")]
-
     std::panic::set_hook(Box::new(|info| {
         if let Some(loc) = info.location() {
             macroquad::prelude::error!("PANIC at {}:{}: {}", loc.file(), loc.line(), info);

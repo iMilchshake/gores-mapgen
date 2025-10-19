@@ -2,8 +2,9 @@ use crate::position::ShiftDirection;
 use crate::{config::GenerationConfig, editor::SeedType};
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use rand::prelude::*;
-use rand::rngs::SmallRng;
+use rand::SeedableRng;
 use rand_distr::WeightedAliasIndex;
+use rand_xoshiro::Xoshiro256PlusPlus;
 use seahash::hash;
 use serde::{Deserialize, Serialize};
 
@@ -70,7 +71,7 @@ impl<T: Clone> RandomDist<T> {
 
 pub struct Random {
     pub seed: Seed,
-    gen: SmallRng,
+    gen: Xoshiro256PlusPlus,
     shift_dist: RandomDist<ShiftDirection>,
     inner_kernel_size_dist: RandomDist<usize>,
     outer_kernel_margin_dist: RandomDist<usize>,
@@ -106,10 +107,6 @@ impl Seed {
         URL_SAFE.encode(self.seed_u64.to_be_bytes())
     }
 
-    pub fn random() -> Seed {
-        Seed::from_u64(Random::get_u64_from_entropy())
-    }
-
     pub fn from_string(seed_str: &String, seed_type: &SeedType) -> Option<Seed> {
         match seed_type {
             // hash string to u64
@@ -126,7 +123,7 @@ impl Seed {
 impl Random {
     pub fn new(seed: Seed, config: &GenerationConfig) -> Random {
         Random {
-            gen: SmallRng::seed_from_u64(seed.seed_u64),
+            gen: Xoshiro256PlusPlus::seed_from_u64(seed.seed_u64),
             seed,
             shift_dist: RandomDist::new(config.shift_weights.clone()),
             outer_kernel_margin_dist: RandomDist::new(config.outer_margin_probs.clone()),
@@ -158,12 +155,6 @@ impl Random {
         let dist = &self.shift_dist;
         let index = dist.rnd_dist.sample(&mut self.gen);
         *ordered_shifts.get(index).unwrap()
-    }
-
-    /// derive a u64 seed from entropy
-    pub fn get_u64_from_entropy() -> u64 {
-        let mut tmp_rng = SmallRng::from_entropy();
-        tmp_rng.next_u64()
     }
 
     pub fn get_usize_in_range(&mut self, low: usize, high: usize) -> usize {
