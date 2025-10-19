@@ -2,13 +2,8 @@
 
 use clap::Parser;
 use gores_mapgen::{
-    args::EditorArgs,
-    config::ThemeConfig,
-    editor::*,
-    fps_control::*,
-    generator::GenerationStatus,
-    map::*,
-    rendering::*,
+    args::EditorArgs, config::ThemeConfig, editor::*, fps_control::*, generator::GenerationStatus,
+    map::*, rendering::*,
 };
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
@@ -88,6 +83,10 @@ async fn main() {
                     editor.prepare_export,
                 )
                 .unwrap_or_else(|err| {
+                    if err == "Post-processing panicked" {
+                        editor.playback_mode = PlaybackMode::Paused;
+                        editor.auto_generate = false;
+                    }
                     log::error!("Post Processing Failed: {:}", err);
                 });
 
