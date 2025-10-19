@@ -571,6 +571,8 @@ impl Generator {
                         path_grid[pos.as_index()] = true;
                     }
                 }
+                debug_layers.float_layers.get_mut("ff_final").unwrap().grid =
+                    ff_final.distance.map(|v| v.map(|v| v as f32));
 
                 let grid = &mut debug_layers.bool_layers.get_mut("floor").unwrap().grid;
 

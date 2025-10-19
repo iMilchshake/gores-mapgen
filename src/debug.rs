@@ -184,6 +184,14 @@ impl DebugLayers {
                     Color::new(0.0, 0.0, 1.0, default_alpha),
                 ),
             ),
+            (
+                "ff_final",
+                FloatLayer::new(
+                    shape,
+                    Color::new(0.0, 1.0, 0.0, default_alpha),
+                    Color::new(0.0, 0.0, 1.0, default_alpha),
+                ),
+            ),
         ]);
 
         // initialize using keys from all debug layers, or re-use if possible

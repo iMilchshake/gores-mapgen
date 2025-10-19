@@ -91,6 +91,10 @@ async fn main() {
                     editor.prepare_export,
                 )
                 .unwrap_or_else(|err| {
+                    if err == "Post-processing panicked" {
+                        editor.playback_mode = PlaybackMode::Paused;
+                        editor.auto_generate = false;
+                    }
                     log::error!("Post Processing Failed: {:}", err);
                 });
 
