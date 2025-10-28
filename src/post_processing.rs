@@ -1833,16 +1833,16 @@ fn validate_pillar_path(
         return None;
     }
 
-    // Calculate usable length, considering side margin, tip margin and max length
-    Some(
-        if center_only_length >= tip_margin {
-            valid_length
-        } else {
-            valid_length.saturating_sub(tip_margin - center_only_length)
-        }
-        .min(max_length)
-        .max(min_length), // ensure we still meet min_length after adjustments
-    )
+    // Calculate usable length: tip margin area must ALSO have clear side margins
+    // So we need valid_length to cover both pillar length AND tip margin
+    let usable_length = valid_length.saturating_sub(tip_margin).min(max_length);
+
+    // Only return the pillar if it still meets min_length after tip margin adjustment
+    if usable_length >= min_length {
+        Some(usable_length)
+    } else {
+        None
+    }
 }
 
 /// Generates freeze pillars extending from corners
