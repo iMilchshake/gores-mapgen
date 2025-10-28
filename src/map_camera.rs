@@ -93,6 +93,7 @@ impl MapCamera {
             (-self.offset.y / cam.zoom.y) + (cam_height / 2.),
         );
         cam.zoom *= self.zoom;
+        cam.zoom.y *= -1.0; // Flip Y axis for macroquad 0.4 camera consistency
         cam.viewport = Some((0, 0, viewport.x as i32, viewport.y as i32));
 
         macroquad::camera::set_camera(&cam);
