@@ -1,5 +1,3 @@
-use std::{path::PathBuf, str::FromStr};
-
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
@@ -11,9 +9,12 @@ use crate::{
     map_camera::MapCamera,
     random::Seed,
 };
+
+#[cfg(target_arch = "wasm32")]
+use crate::file_io;
 use egui::{epaint::Shadow, Color32, Frame, Margin};
+use egui_file_dialog::FileDialog;
 use log::warn;
-use std::env;
 
 use macroquad::time::get_fps;
 use macroquad::{camera::Camera2D, input::is_mouse_button_pressed};
@@ -26,6 +27,14 @@ use macroquad::{
 };
 
 const AVG_FPS_FACTOR: f32 = 0.025; // how much current fps is weighted into the rolling average
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, PartialEq, Clone)]
+pub enum PendingFileLoad {
+    None,
+    GenerationConfig,
+    MapConfig,
+}
 
 pub fn window_frame() -> Frame {
     Frame {
@@ -121,6 +130,16 @@ pub struct Editor {
 
     /// Whether to flip maps after generation
     pub use_map_flip: bool,
+
+    /// File dialogs
+    pub save_map_dialog: FileDialog,
+    pub load_config_dialog: FileDialog,
+    pub save_gen_config_dialog: FileDialog,
+    pub save_map_config_dialog: FileDialog,
+
+    /// Track what kind of file we're waiting to load (WASM only)
+    #[cfg(target_arch = "wasm32")]
+    pub pending_file_load: PendingFileLoad,
 }
 
 impl Editor {
@@ -189,6 +208,12 @@ impl Editor {
             verbose_post_process: false,
             use_chunked_rendering: true,
             use_map_flip: false,
+            save_map_dialog: FileDialog::new(),
+            load_config_dialog: FileDialog::new(),
+            save_gen_config_dialog: FileDialog::new(),
+            save_map_config_dialog: FileDialog::new(),
+            #[cfg(target_arch = "wasm32")]
+            pending_file_load: PendingFileLoad::None,
         };
 
         // initialize debug layers
@@ -251,6 +276,62 @@ impl Editor {
 
         // this value is only valid for each frame after calling define_egui()
         self.canvas = None;
+
+        // Check for loaded files (WASM only)
+        #[cfg(target_arch = "wasm32")]
+        self.process_loaded_file();
+    }
+
+    /// Process any file that has been loaded via the file picker (WASM only)
+    #[cfg(target_arch = "wasm32")]
+    fn process_loaded_file(&mut self) {
+        if let Some(loaded_file) = file_io::take_loaded_file() {
+            match self.pending_file_load {
+                PendingFileLoad::GenerationConfig => {
+                    match String::from_utf8(loaded_file.data) {
+                        Ok(json_str) => {
+                            match serde_json::from_str::<GenerationConfig>(&json_str) {
+                                Ok(config) => {
+                                    self.gen_config = config;
+                                    log::info!("Loaded generation config: {}", loaded_file.filename);
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to parse generation config: {}", e);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Failed to decode file as UTF-8: {}", e);
+                        }
+                    }
+                }
+                PendingFileLoad::MapConfig => {
+                    match String::from_utf8(loaded_file.data) {
+                        Ok(json_str) => {
+                            match serde_json::from_str::<MapConfig>(&json_str) {
+                                Ok(config) => {
+                                    self.map_config = config;
+                                    self.reset_generation(false, true);
+                                    log::info!("Loaded map config: {}", loaded_file.filename);
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to parse map config: {}", e);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Failed to decode file as UTF-8: {}", e);
+                        }
+                    }
+                }
+                PendingFileLoad::None => {
+                    log::warn!("File loaded but no operation was pending");
+                }
+            }
+
+            // Reset pending operation
+            self.pending_file_load = PendingFileLoad::None;
+        }
     }
 
     pub fn define_egui(&mut self) {
@@ -269,6 +350,25 @@ impl Editor {
 
             if self.show_theme_widget {
                 gui::theme_widget(egui_ctx, self);
+            }
+
+            // Update file dialogs (native only)
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                self.save_map_dialog.update(egui_ctx);
+                self.load_config_dialog.update(egui_ctx);
+                self.save_gen_config_dialog.update(egui_ctx);
+                self.save_map_config_dialog.update(egui_ctx);
+
+                // Handle file dialog results
+                self.handle_save_map();
+                gui::handle_config_dialogs(self);
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                // On WASM, we handle file operations directly via buttons
+                gui::handle_config_dialogs(self);
             }
 
             // store remaining space for macroquad drawing
@@ -316,17 +416,16 @@ impl Editor {
         self.map_cam.update_macroquad_cam();
     }
 
-    pub fn save_map_dialog(&mut self) {
-        let cwd = env::current_dir().unwrap();
-        let initial_path = cwd.join("name.map").to_string_lossy().to_string();
-        // if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
-        //     // perform export preparation, if not enabled in editor
-        //     if !self.prepare_export {
-        //         self.gen
-        //             .prepare_export(&self.thm_config, &mut self.debug_layers, false);
-        //     }
-        //     self.gen.map.export(&PathBuf::from_str(&path_out).unwrap());
-        // }
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn handle_save_map(&mut self) {
+        if let Some(path) = self.save_map_dialog.take_picked() {
+            // perform export preparation, if not enabled in editor
+            if !self.prepare_export {
+                self.gen
+                    .prepare_export(&self.thm_config, &mut self.debug_layers, false);
+            }
+            self.gen.map.export(&path);
+        }
     }
 
     pub fn handle_user_inputs(&mut self) {

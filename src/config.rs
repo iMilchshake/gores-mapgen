@@ -22,8 +22,14 @@ use log::warn;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::fs;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs::File;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::Write;
+
+#[cfg(target_arch = "wasm32")]
+use crate::file_io;
 
 pub const MAP_LENGTH_BASELINE: f32 = 650.0;
 
@@ -78,10 +84,25 @@ impl MapConfig {
     }
 
     pub fn save(&self, path: &str) {
-        let mut file = File::create(path).expect("failed to create config file");
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
-        file.write_all(serialized.as_bytes())
-            .expect("failed to write to config file");
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Extract filename from path for WASM download
+            let filename = std::path::Path::new(path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("map_config.json");
+            file_io::save_file_string(filename, &serialized)
+                .expect("failed to save config file");
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut file = File::create(path).expect("failed to create config file");
+            file.write_all(serialized.as_bytes())
+                .expect("failed to write to config file");
+        }
     }
 
     /// calculates approximative map length based on waypoints
@@ -385,10 +406,25 @@ impl GenerationConfig {
     }
 
     pub fn save(&self, path: &str) {
-        let mut file = File::create(path).expect("failed to create config file");
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
-        file.write_all(serialized.as_bytes())
-            .expect("failed to write to config file");
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Extract filename from path for WASM download
+            let filename = std::path::Path::new(path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("gen_config.json");
+            file_io::save_file_string(filename, &serialized)
+                .expect("failed to save config file");
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut file = File::create(path).expect("failed to create config file");
+            file.write_all(serialized.as_bytes())
+                .expect("failed to write to config file");
+        }
     }
 
     pub fn load(path: &str) -> GenerationConfig {

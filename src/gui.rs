@@ -1,14 +1,18 @@
 use crate::{
+    config::GenerationConfig,
     editor::{window_frame, Editor, PlaybackMode, SeedType},
     generator::GenerationStatus,
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
 };
+
+#[cfg(target_arch = "wasm32")]
+use crate::file_io;
 use egui::Context;
 use egui::{Align2, RichText};
 use egui::{CollapsingHeader, Label, Ui};
 use macroquad::time::get_fps;
-use std::{collections::BTreeMap, env, process::exit};
+use std::{collections::BTreeMap, process::exit};
 
 pub fn vec_edit_widget<T, F>(
     ui: &mut Ui,
@@ -226,7 +230,27 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("Save Map").clicked() {
-                    editor.save_map_dialog();
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        editor.save_map_dialog.save_file();
+                    }
+
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        // On WASM, directly export the map with a default filename
+                        use std::path::PathBuf;
+
+                        // Prepare export if not already done
+                        if !editor.prepare_export {
+                            editor.gen.prepare_export(&editor.thm_config, &mut editor.debug_layers, false);
+                        }
+
+                        // Use a default filename based on the seed
+                        let filename = format!("map_{}.map", editor.user_seed.to_base64().chars().take(8).collect::<String>());
+                        editor.gen.map.export(&PathBuf::from(filename));
+                    }
+
+                    ui.close_menu();
                 }
                 if ui.button("Exit").clicked() {
                     exit(0)
@@ -402,45 +426,50 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             ui.separator();
         }
         // =======================================[ CONFIG STORAGE ]===================================
+        ui.label("load config file:");
+        if ui.button("load config").clicked() {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                editor.load_config_dialog.pick_file();
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                // On WASM, open file picker and set pending operation
+                editor.pending_file_load = crate::editor::PendingFileLoad::GenerationConfig;
+                file_io::load_file_string();
+            }
+        }
+
         ui.label("save config files:");
         ui.horizontal(|ui| {
-            // if ui.button("load file").clicked() {
-            //     let cwd = env::current_dir().unwrap();
-            //     if let Some(path_in) =
-            //         tinyfiledialogs::open_file_dialog("load config", &cwd.to_string_lossy(), None)
-            //     {
-            //         editor.gen_config = GenerationConfig::load(&path_in);
-            //     }
-            // }
             if ui.button("gen config").clicked() {
-                let cwd = env::current_dir().unwrap();
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    editor.save_gen_config_dialog.save_file();
+                }
 
-                let initial_path = cwd
-                    .join(editor.gen_config.name.clone() + ".json")
-                    .to_string_lossy()
-                    .to_string();
-
-                // if let Some(path_out) =
-                //     tinyfiledialogs::save_file_dialog("save gen config", &initial_path)
-                // {
-                //     editor.gen_config.save(&path_out);
-                // }
-            };
+                #[cfg(target_arch = "wasm32")]
+                {
+                    // On WASM, directly save with default filename
+                    let filename = format!("{}.json", editor.gen_config.name);
+                    editor.gen_config.save(&filename);
+                }
+            }
 
             if ui.button("map config").clicked() {
-                let cwd = env::current_dir().unwrap();
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    editor.save_map_config_dialog.save_file();
+                }
 
-                let initial_path = cwd
-                    .join(editor.gen_config.name.clone() + ".json")
-                    .to_string_lossy()
-                    .to_string();
-
-                // if let Some(path_out) =
-                //     tinyfiledialogs::save_file_dialog("save map config", &initial_path)
-                // {
-                //     editor.map_config.save(&path_out);
-                // }
-            };
+                #[cfg(target_arch = "wasm32")]
+                {
+                    // On WASM, directly save with default filename
+                    let filename = format!("{}.json", editor.map_config.name);
+                    editor.map_config.save(&filename);
+                }
+            }
         });
 
         ui.label("load generation config:");
@@ -1043,4 +1072,27 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
                 map_mouse_pos_cell.0, map_mouse_pos_cell.1, block_type
             ));
         });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn handle_config_dialogs(editor: &mut Editor) {
+    // Handle load config dialog
+    if let Some(path) = editor.load_config_dialog.take_picked() {
+        editor.gen_config = GenerationConfig::load(&path.to_string_lossy());
+    }
+
+    // Handle save gen config dialog
+    if let Some(path) = editor.save_gen_config_dialog.take_picked() {
+        editor.gen_config.save(&path.to_string_lossy());
+    }
+
+    // Handle save map config dialog
+    if let Some(path) = editor.save_map_config_dialog.take_picked() {
+        editor.map_config.save(&path.to_string_lossy());
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn handle_config_dialogs(_editor: &mut Editor) {
+    // No-op on WASM - file operations are handled directly via buttons
 }

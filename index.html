@@ -24,6 +24,95 @@
     <!-- Minified and statically hosted version of https://github.com/not-fl3/macroquad/blob/master/js/mq_js_bundle.js -->
     <!-- <script src="./mq_js_bundle.js"></script> -->
     <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
+
+    <!-- File operation helpers for WASM -->
+    <script>
+        // Download a file to the user's browser
+        function wasm_download_file(filename_ptr, filename_len, data_ptr, data_len) {
+            // Read filename from WASM memory
+            const filename_bytes = new Uint8Array(wasm_memory.buffer, filename_ptr, filename_len);
+            const filename = new TextDecoder().decode(filename_bytes);
+
+            // Read data from WASM memory
+            const data = new Uint8Array(wasm_memory.buffer, data_ptr, data_len);
+
+            // Create blob and download
+            const blob = new Blob([data], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Global file input element for file picking
+        let fileInput = null;
+
+        // Open file picker and load file contents
+        function wasm_open_file_picker() {
+            // Create file input if it doesn't exist
+            if (!fileInput) {
+                fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.style.display = 'none';
+                document.body.appendChild(fileInput);
+            }
+
+            // Set up file selection handler
+            fileInput.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) {
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const arrayBuffer = event.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+
+                    // Allocate memory in WASM for filename
+                    const filename = file.name;
+                    const filenameBytes = new TextEncoder().encode(filename);
+                    const filenameLen = filenameBytes.length;
+                    const filenamePtr = wasm_exports.wasm_alloc_buffer(filenameLen);
+                    const filenameView = new Uint8Array(wasm_memory.buffer, filenamePtr, filenameLen);
+                    filenameView.set(filenameBytes);
+
+                    // Allocate memory in WASM for file data
+                    const dataLen = uint8Array.length;
+                    const dataPtr = wasm_exports.wasm_alloc_buffer(dataLen);
+                    const dataView = new Uint8Array(wasm_memory.buffer, dataPtr, dataLen);
+                    dataView.set(uint8Array);
+
+                    // Call Rust callback with the file data
+                    wasm_exports.wasm_file_loaded_callback(filenamePtr, filenameLen, dataPtr, dataLen);
+
+                    // Free the allocated memory
+                    wasm_exports.wasm_free_buffer(filenamePtr, filenameLen);
+                    wasm_exports.wasm_free_buffer(dataPtr, dataLen);
+                };
+
+                reader.readAsArrayBuffer(file);
+                // Reset input so the same file can be selected again
+                fileInput.value = '';
+            };
+
+            // Trigger file picker
+            fileInput.click();
+        }
+
+        // Register plugin with miniquad
+        register_plugin = function (importObject) {
+            importObject.env.wasm_download_file = wasm_download_file;
+            importObject.env.wasm_open_file_picker = wasm_open_file_picker;
+        }
+
+        miniquad_add_plugin({ register_plugin });
+    </script>
+
     <script>load("./target/wasm32-unknown-unknown/release/editor.wasm");</script> <!-- Your compiled wasm file -->
 
 </body>
