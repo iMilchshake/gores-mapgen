@@ -15,6 +15,7 @@
 //! Configurations are stored as JSON files. Configs in the `data/` folder are embedded
 //! into binaries at compile time using `rust-embed`.
 
+use crate::file_io::{self, LoadedFile};
 use crate::noise::Noise;
 use crate::position::{Position, ShiftDirection};
 use crate::random::{Random, RandomDistConfig};
@@ -22,14 +23,6 @@ use log::warn;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::fs;
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::fs::File;
-#[cfg(not(target_arch = "wasm32"))]
-use std::io::Write;
-
-#[cfg(target_arch = "wasm32")]
-use crate::file_io;
 
 pub const MAP_LENGTH_BASELINE: f32 = 650.0;
 
@@ -83,26 +76,30 @@ impl MapConfig {
         configs
     }
 
+    /// Save the config to a file (platform-agnostic)
     pub fn save(&self, path: &str) {
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
+        let filename = file_io::extract_filename_or_default(path, "map_config.json");
+        file_io::save_file_string(filename, &serialized)
+            .expect("failed to save config file");
+    }
 
-        #[cfg(target_arch = "wasm32")]
-        {
-            // Extract filename from path for WASM download
-            let filename = std::path::Path::new(path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("map_config.json");
-            file_io::save_file_string(filename, &serialized)
-                .expect("failed to save config file");
-        }
+    /// Load a config from a LoadedFile (handles both native and WASM)
+    pub fn from_loaded_file(loaded: &LoadedFile) -> Result<Self, String> {
+        let json_str = String::from_utf8(loaded.data.clone())
+            .map_err(|e| format!("Failed to decode map config as UTF-8: {}", e))?;
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mut file = File::create(path).expect("failed to create config file");
-            file.write_all(serialized.as_bytes())
-                .expect("failed to write to config file");
-        }
+        let mut config: MapConfig = serde_json::from_str(&json_str)
+            .map_err(|e| format!("Failed to parse map config: {}", e))?;
+
+        // Use the config name from the filename
+        config.name = loaded.config_name.clone();
+        Ok(config)
+    }
+
+    /// Get the default filename for this config
+    pub fn default_filename(&self) -> String {
+        format!("{}.json", self.name)
     }
 
     /// calculates approximative map length based on waypoints
@@ -405,28 +402,33 @@ impl GenerationConfig {
         }
     }
 
+    /// Save the config to a file (platform-agnostic)
     pub fn save(&self, path: &str) {
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            // Extract filename from path for WASM download
-            let filename = std::path::Path::new(path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("gen_config.json");
-            file_io::save_file_string(filename, &serialized)
-                .expect("failed to save config file");
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mut file = File::create(path).expect("failed to create config file");
-            file.write_all(serialized.as_bytes())
-                .expect("failed to write to config file");
-        }
+        let filename = file_io::extract_filename_or_default(path, "gen_config.json");
+        file_io::save_file_string(filename, &serialized)
+            .expect("failed to save config file");
     }
 
+    /// Get the default filename for this config
+    pub fn default_filename(&self) -> String {
+        format!("{}.json", self.name)
+    }
+
+    /// Load a config from a LoadedFile (handles both native and WASM)
+    pub fn from_loaded_file(loaded: &LoadedFile) -> Result<Self, String> {
+        let json_str = String::from_utf8(loaded.data.clone())
+            .map_err(|e| format!("Failed to decode generation config as UTF-8: {}", e))?;
+
+        let mut config: GenerationConfig = serde_json::from_str(&json_str)
+            .map_err(|e| format!("Failed to parse generation config: {}", e))?;
+
+        // Use the config name from the filename
+        config.name = loaded.config_name.clone();
+        Ok(config)
+    }
+
+    /// Load config from path (native helper, kept for compatibility)
     pub fn load(path: &str) -> GenerationConfig {
         let serialized_from_file = fs::read_to_string(path).expect("failed to read config file");
         let deserialized: GenerationConfig =

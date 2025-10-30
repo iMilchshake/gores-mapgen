@@ -1,13 +1,10 @@
 use crate::{
-    config::GenerationConfig,
+    config::{GenerationConfig, MapConfig},
     editor::{window_frame, Editor, PlaybackMode, SeedType},
     generator::GenerationStatus,
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
 };
-
-#[cfg(target_arch = "wasm32")]
-use crate::file_io;
 use egui::Context;
 use egui::{Align2, RichText};
 use egui::{CollapsingHeader, Label, Ui};
@@ -230,26 +227,7 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("Save Map").clicked() {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        editor.save_map_dialog.save_file();
-                    }
-
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        // On WASM, directly export the map with a default filename
-                        use std::path::PathBuf;
-
-                        // Prepare export if not already done
-                        if !editor.prepare_export {
-                            editor.gen.prepare_export(&editor.thm_config, &mut editor.debug_layers, false);
-                        }
-
-                        // Use a default filename based on the seed
-                        let filename = format!("map_{}.map", editor.user_seed.to_base64().chars().take(8).collect::<String>());
-                        editor.gen.map.export(&PathBuf::from(filename));
-                    }
-
+                    editor.save_map_dialog.save_file();
                     ui.close_menu();
                 }
                 if ui.button("Exit").clicked() {
@@ -428,47 +406,17 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         // =======================================[ CONFIG STORAGE ]===================================
         ui.label("load config file:");
         if ui.button("load config").clicked() {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                editor.load_config_dialog.pick_file();
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            {
-                // On WASM, open file picker and set pending operation
-                editor.pending_file_load = crate::editor::PendingFileLoad::GenerationConfig;
-                file_io::load_file_string();
-            }
+            editor.load_config_dialog.pick_file();
         }
 
         ui.label("save config files:");
         ui.horizontal(|ui| {
             if ui.button("gen config").clicked() {
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    editor.save_gen_config_dialog.save_file();
-                }
-
-                #[cfg(target_arch = "wasm32")]
-                {
-                    // On WASM, directly save with default filename
-                    let filename = format!("{}.json", editor.gen_config.name);
-                    editor.gen_config.save(&filename);
-                }
+                editor.save_gen_config_dialog.save_file();
             }
 
             if ui.button("map config").clicked() {
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    editor.save_map_config_dialog.save_file();
-                }
-
-                #[cfg(target_arch = "wasm32")]
-                {
-                    // On WASM, directly save with default filename
-                    let filename = format!("{}.json", editor.map_config.name);
-                    editor.map_config.save(&filename);
-                }
+                editor.save_map_config_dialog.save_file();
             }
         });
 
@@ -1074,25 +1022,30 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
         });
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 pub fn handle_config_dialogs(editor: &mut Editor) {
-    // Handle load config dialog
-    if let Some(path) = editor.load_config_dialog.take_picked() {
-        editor.gen_config = GenerationConfig::load(&path.to_string_lossy());
+    // Handle load config dialog (works on both native and WASM)
+    if let Some(loaded_file) = editor.load_config_dialog.take_picked() {
+        // Try to determine config type from content (both configs are JSON)
+        // Try loading as GenerationConfig first, then MapConfig
+        if let Ok(gen_config) = GenerationConfig::from_loaded_file(&loaded_file) {
+            editor.gen_config = gen_config;
+            log::info!("Loaded generation config: {}", loaded_file.filename);
+        } else if let Ok(map_config) = MapConfig::from_loaded_file(&loaded_file) {
+            editor.map_config = map_config;
+            editor.reset_generation(false, true);
+            log::info!("Loaded map config: {}", loaded_file.filename);
+        } else {
+            log::error!("Failed to load config file - not a valid GenerationConfig or MapConfig");
+        }
     }
 
     // Handle save gen config dialog
     if let Some(path) = editor.save_gen_config_dialog.take_picked() {
-        editor.gen_config.save(&path.to_string_lossy());
+        editor.gen_config.save(&path.filename);
     }
 
     // Handle save map config dialog
     if let Some(path) = editor.save_map_config_dialog.take_picked() {
-        editor.map_config.save(&path.to_string_lossy());
+        editor.map_config.save(&path.filename);
     }
-}
-
-#[cfg(target_arch = "wasm32")]
-pub fn handle_config_dialogs(_editor: &mut Editor) {
-    // No-op on WASM - file operations are handled directly via buttons
 }

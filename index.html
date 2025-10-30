@@ -96,7 +96,8 @@
                 };
 
                 reader.readAsArrayBuffer(file);
-                // Reset input so the same file can be selected again
+                // Reset input value to allow selecting the same file again
+                // (browsers don't trigger onchange if the same file is selected twice)
                 fileInput.value = '';
             };
 

@@ -219,28 +219,16 @@ impl TwExport {
 
         println!("exporting map to {:?}", &path);
 
-        #[cfg(target_arch = "wasm32")]
-        {
-            use crate::file_io;
+        // Serialize to buffer
+        let mut buffer = Vec::new();
+        tw_map.save(&mut buffer).expect("failed to write map file");
 
-            // On WASM, serialize to memory then download
-            let mut buffer = Vec::new();
-            tw_map.save(&mut buffer).expect("failed to write map file");
-
-            let filename = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("map.map");
-
-            file_io::save_file_bytes(filename, &buffer)
-                .expect("failed to save map file");
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // On native, write directly to file
-            let mut file = std::fs::File::create(path).unwrap();
-            tw_map.save(&mut file).expect("failed to write map file");
-        }
+        // Save using platform-agnostic file_io
+        let filename = crate::file_io::extract_filename_or_default(
+            path.to_str().unwrap_or("map.map"),
+            "map.map"
+        );
+        crate::file_io::save_file_bytes(filename, &buffer)
+            .expect("failed to save map file");
     }
 }
