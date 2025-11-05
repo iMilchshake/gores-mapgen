@@ -8,8 +8,75 @@
 //!
 //! This module is the ONLY place that should contain `#[cfg(target_arch = "wasm32")]` checks.
 //! All other modules should use the platform-agnostic API provided here.
+//!
+//! ## File Dialog Flow
+//!
+//! ### Loading a file:
+//! ```text
+//! User Code         FileDialog         JavaScript         Browser
+//!    |                  |                  |                 |
+//!    |-- pick_file() -->|                  |                 |
+//!    |                  |-- JS call ------>|                 |
+//!    |                  |                  |-- open picker ->|
+//!    |                  |                  |                 |
+//!    |                  |                  |<-- file data ---|
+//!    |                  |<-- callback -----|                 |
+//!    |                  | (store in state) |                 |
+//!    |                  |                  |                 |
+//!    |-- take_result()--|                  |                 |
+//!    |<-- Loaded(file) -|                  |                 |
+//! ```
+//!
+//! ### Saving a file (WASM):
+//! ```text
+//! User Code         FileDialog         JavaScript         Browser
+//!    |                  |                  |                 |
+//!    |-- save_file() -->|                  |                 |
+//!    |                  | (return path)    |                 |
+//!    |                  |                  |                 |
+//!    |-- take_result()--|                  |                 |
+//!    |<-- SavePath(...)-|                  |                 |
+//!    |                  |                  |                 |
+//!    |- save_file_bytes(...) ------------->|                 |
+//!    |                  |                  |-- download ---->|
+//! ```
+//!
+//! ## Example Usage
+//!
+//! ```rust
+//! use file_io::{FileDialog, FileOperationType, FileFilter, FileDialogResult};
+//!
+//! // Create dialog with file filtering
+//! let mut dialog = FileDialog::new(FileOperationType::LoadConfig)
+//!     .with_filter(FileFilter::json());
+//!
+//! // In button handler:
+//! if button_clicked {
+//!     dialog.pick_file();
+//! }
+//!
+//! // In update loop:
+//! if let Some(result) = dialog.take_result() {
+//!     match result {
+//!         FileDialogResult::Loaded(file) => {
+//!             println!("Loaded: {}", file.filename);
+//!             // Use file.data
+//!         }
+//!         FileDialogResult::Cancelled => {
+//!             println!("User cancelled");
+//!         }
+//!         FileDialogResult::Error(err) => {
+//!             eprintln!("Error: {}", err);
+//!         }
+//!         _ => {}
+//!     }
+//! }
+//! ```
 
 use std::path::Path;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Arc;
 
 // ============================================================================
 // Shared types and utilities
@@ -33,6 +100,57 @@ pub enum FileOperationType {
     SaveGenerationConfig,
     SaveMapConfig,
     SaveMap,
+}
+
+/// Result from a file dialog operation
+#[derive(Debug, Clone)]
+pub enum FileDialogResult {
+    /// File was successfully loaded (from pick_file())
+    Loaded(LoadedFile),
+    /// User selected save location (from save_file())
+    SavePath(String),
+    /// User cancelled the operation
+    Cancelled,
+    /// An error occurred
+    Error(String),
+}
+
+/// File type filter for file picker dialogs
+#[derive(Debug, Clone)]
+pub struct FileFilter {
+    /// Human-readable description (e.g., "JSON files")
+    pub description: String,
+    /// File extensions without dots (e.g., ["json", "txt"])
+    pub extensions: Vec<String>,
+}
+
+impl FileFilter {
+    /// Create a new file filter
+    pub fn new(description: impl Into<String>, extensions: Vec<String>) -> Self {
+        Self {
+            description: description.into(),
+            extensions,
+        }
+    }
+
+    /// Commonly used filter for JSON files
+    pub fn json() -> Self {
+        Self::new("JSON files", vec!["json".to_string()])
+    }
+
+    /// Commonly used filter for map files
+    pub fn map() -> Self {
+        Self::new("Map files", vec!["map".to_string()])
+    }
+
+    /// Get accept string for HTML file input (e.g., ".json,.txt")
+    pub fn to_accept_string(&self) -> String {
+        self.extensions
+            .iter()
+            .map(|ext| format!(".{}", ext))
+            .collect::<Vec<_>>()
+            .join(",")
+    }
 }
 
 /// Extract config name from a file path or filename.
@@ -65,12 +183,11 @@ pub fn extract_filename_or_default<'a>(path: &'a str, default: &'a str) -> &'a s
 /// Platform-agnostic file dialog that works identically on native and WASM
 pub struct FileDialog {
     operation_type: FileOperationType,
+    file_filter: Option<FileFilter>,
+    default_name: Option<String>,
 
     #[cfg(not(target_arch = "wasm32"))]
     native_dialog: egui_file_dialog::FileDialog,
-
-    #[cfg(target_arch = "wasm32")]
-    waiting_for_file: bool,
 }
 
 impl FileDialog {
@@ -78,25 +195,49 @@ impl FileDialog {
     pub fn new(operation_type: FileOperationType) -> Self {
         Self {
             operation_type,
+            file_filter: None,
+            default_name: None,
             #[cfg(not(target_arch = "wasm32"))]
             native_dialog: egui_file_dialog::FileDialog::new(),
-            #[cfg(target_arch = "wasm32")]
-            waiting_for_file: false,
         }
+    }
+
+    /// Set file type filter (builder pattern)
+    pub fn with_filter(mut self, filter: FileFilter) -> Self {
+        self.file_filter = Some(filter);
+        self
+    }
+
+    /// Set default filename for save dialogs (builder pattern)
+    pub fn with_default_name(mut self, name: impl Into<String>) -> Self {
+        self.default_name = Some(name.into());
+        self
+    }
+
+    /// Set default filename for save dialogs (mutating method)
+    pub fn set_default_name(&mut self, name: impl Into<String>) {
+        self.default_name = Some(name.into());
     }
 
     /// Open a save file dialog
     pub fn save_file(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            self.native_dialog.save_file();
+            // Reconstruct dialog with configuration
+            let mut dialog = egui_file_dialog::FileDialog::new();
+
+            if let Some(name) = &self.default_name {
+                dialog = dialog.default_file_name(name);
+            }
+
+            dialog.save_file();
+            self.native_dialog = dialog;
         }
 
         #[cfg(target_arch = "wasm32")]
         {
-            // On WASM, save operations return immediately with a default filename
-            self.waiting_for_file = true;
-            wasm_impl::queue_save_operation(self.operation_type);
+            let default_name = self.default_name.as_deref().unwrap_or("file");
+            wasm_impl::start_save(self.operation_type, default_name);
         }
     }
 
@@ -104,14 +245,31 @@ impl FileDialog {
     pub fn pick_file(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            self.native_dialog.pick_file();
+            // Reconstruct dialog with configuration
+            let mut dialog = egui_file_dialog::FileDialog::new();
+
+            if let Some(filter) = &self.file_filter {
+                // Create closure that checks if path matches any of the extensions
+                let extensions = filter.extensions.clone();
+                dialog = dialog.add_file_filter(
+                    &filter.description,
+                    Arc::new(move |path: &Path| {
+                        path.extension()
+                            .and_then(|ext| ext.to_str())
+                            .map(|ext| extensions.iter().any(|e| e == ext))
+                            .unwrap_or(false)
+                    })
+                );
+            }
+
+            dialog.pick_file();
+            self.native_dialog = dialog;
         }
 
         #[cfg(target_arch = "wasm32")]
         {
-            self.waiting_for_file = true;
-            wasm_impl::set_pending_operation(self.operation_type);
-            wasm_impl::open_file_picker_impl();
+            let accept = self.file_filter.as_ref().map(|f| f.to_accept_string());
+            wasm_impl::start_load(self.operation_type, accept.as_deref());
         }
     }
 
@@ -128,45 +286,54 @@ impl FileDialog {
         }
     }
 
-    /// Take the picked file path/data if available
-    pub fn take_picked(&mut self) -> Option<LoadedFile> {
+    /// Check if the dialog is currently busy (waiting for user input)
+    ///
+    /// Note: On native platforms, this always returns false as the dialog
+    /// manages its own state internally.
+    pub fn is_busy(&self) -> bool {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let Some(path) = self.native_dialog.take_picked() {
-                let path_str = path.to_string_lossy();
-                if let Ok(data) = std::fs::read(&*path) {
-                    return Some(native_impl::create_loaded_file_from_path(&path_str, data));
-                }
-            }
-            None
+            // Native dialog manages its own state, we can't easily query it
+            false
         }
 
         #[cfg(target_arch = "wasm32")]
         {
-            // Check if this is a queued save operation
-            if self.waiting_for_file {
-                if let Some(queued) = wasm_impl::take_queued_save() {
-                    if queued == self.operation_type {
-                        self.waiting_for_file = false;
-                        // Return a synthetic LoadedFile with default filename
-                        return Some(LoadedFile {
-                            filename: "save".to_string(), // Will be replaced by caller
-                            config_name: "default".to_string(),
-                            data: Vec::new(), // Not used for saves
-                        });
-                    }
-                }
+            wasm_impl::is_dialog_busy()
+        }
+    }
 
-                // Check if this dialog opened a file picker and file is ready
-                if wasm_impl::is_pending_operation(self.operation_type) {
-                    if let Some(loaded) = wasm_impl::take_loaded_file() {
-                        self.waiting_for_file = false;
-                        wasm_impl::clear_pending_operation();
-                        return Some(loaded);
+    /// Take the dialog result if available
+    pub fn take_result(&mut self) -> Option<FileDialogResult> {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(path) = self.native_dialog.take_picked() {
+                let path_str = path.to_string_lossy();
+
+                // Determine if this was a load or save based on operation type
+                match self.operation_type {
+                    FileOperationType::LoadConfig => {
+                        // Load operation - read file
+                        match std::fs::read(&*path) {
+                            Ok(data) => Some(FileDialogResult::Loaded(
+                                native_impl::create_loaded_file_from_path(&path_str, data)
+                            )),
+                            Err(e) => Some(FileDialogResult::Error(format!("Failed to read file: {}", e))),
+                        }
+                    }
+                    _ => {
+                        // Save operation - return path
+                        Some(FileDialogResult::SavePath(path_str.to_string()))
                     }
                 }
+            } else {
+                None
             }
-            None
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            wasm_impl::take_result()
         }
     }
 }
@@ -177,7 +344,7 @@ impl FileDialog {
 
 #[cfg(target_arch = "wasm32")]
 mod wasm_impl {
-    use super::{extract_config_name, FileOperationType, LoadedFile};
+    use super::{extract_config_name, FileDialogResult, FileOperationType, LoadedFile};
     use std::sync::Mutex;
 
     // FFI declarations for JavaScript functions
@@ -189,42 +356,67 @@ mod wasm_impl {
             data_len: usize,
         );
 
-        pub fn wasm_open_file_picker();
+        pub fn wasm_open_file_picker(
+            accept_ptr: *const u8,
+            accept_len: usize,
+        );
     }
 
-    // Global storage for loaded file data
-    static LOADED_FILE: Mutex<Option<LoadedFile>> = Mutex::new(None);
-    static PENDING_OPERATION: Mutex<Option<FileOperationType>> = Mutex::new(None);
-    static QUEUED_SAVE: Mutex<Option<FileOperationType>> = Mutex::new(None);
-
-    pub fn set_pending_operation(op: FileOperationType) {
-        let mut pending = PENDING_OPERATION.lock()
-            .expect("Mutex poisoned - should be impossible in single-threaded WASM");
-        *pending = Some(op);
+    /// State for the current file dialog operation
+    ///
+    /// Note: Only ONE dialog can be active at a time in the browser since
+    /// the file picker is modal. This significantly simplifies state management.
+    #[derive(Debug)]
+    enum DialogState {
+        Idle,
+        WaitingForFileLoad,
+        Ready(FileDialogResult),
     }
 
-    pub fn is_pending_operation(op: FileOperationType) -> bool {
-        let pending = PENDING_OPERATION.lock()
-            .expect("Mutex poisoned - should be impossible in single-threaded WASM");
-        *pending == Some(op)
+    /// Global state - only one dialog can be active at a time in the browser
+    static CURRENT_STATE: Mutex<DialogState> = Mutex::new(DialogState::Idle);
+
+    /// Start a file load operation
+    pub fn start_load(_op: FileOperationType, accept: Option<&str>) {
+        *CURRENT_STATE.lock().unwrap() = DialogState::WaitingForFileLoad;
+
+        // Open file picker
+        unsafe {
+            if let Some(accept_str) = accept {
+                wasm_open_file_picker(accept_str.as_ptr(), accept_str.len());
+            } else {
+                wasm_open_file_picker(std::ptr::null(), 0);
+            }
+        }
     }
 
-    pub fn clear_pending_operation() {
-        let mut pending = PENDING_OPERATION.lock()
-            .expect("Mutex poisoned - should be impossible in single-threaded WASM");
-        *pending = None;
+    /// Start a save operation (returns immediately on WASM)
+    pub fn start_save(_op: FileOperationType, default_name: &str) {
+        // Immediately transition to Ready with the path
+        *CURRENT_STATE.lock().unwrap() = DialogState::Ready(
+            FileDialogResult::SavePath(default_name.to_string())
+        );
     }
 
-    pub fn queue_save_operation(op: FileOperationType) {
-        let mut queued = QUEUED_SAVE.lock()
-            .expect("Mutex poisoned - should be impossible in single-threaded WASM");
-        *queued = Some(op);
+    /// Check if a dialog is busy
+    pub fn is_dialog_busy() -> bool {
+        matches!(
+            *CURRENT_STATE.lock().unwrap(),
+            DialogState::WaitingForFileLoad
+        )
     }
 
-    pub fn take_queued_save() -> Option<FileOperationType> {
-        let mut queued = QUEUED_SAVE.lock()
-            .expect("Mutex poisoned - should be impossible in single-threaded WASM");
-        queued.take()
+    /// Take the result if ready
+    pub fn take_result() -> Option<FileDialogResult> {
+        let mut state = CURRENT_STATE.lock().unwrap();
+
+        if let DialogState::Ready(result) = &*state {
+            let result = result.clone();
+            *state = DialogState::Idle;
+            Some(result)
+        } else {
+            None
+        }
     }
 
     /// Allocate a buffer in WASM memory that JavaScript can write to.
@@ -292,14 +484,43 @@ mod wasm_impl {
 
             log::info!("File loaded: {} ({} bytes) → config: {}", filename, data_len, config_name);
 
-            // Store the loaded file data
-            let mut loaded = LOADED_FILE.lock()
-                .expect("Mutex poisoned - should be impossible in single-threaded WASM");
-            *loaded = Some(LoadedFile {
-                filename: filename.to_string(),
-                config_name,
-                data,
-            });
+            // Store the result
+            *CURRENT_STATE.lock().unwrap() = DialogState::Ready(
+                FileDialogResult::Loaded(LoadedFile {
+                    filename: filename.to_string(),
+                    config_name,
+                    data,
+                })
+            );
+        }
+    }
+
+    /// Callback function called by JavaScript when file picker is cancelled.
+    #[no_mangle]
+    pub extern "C" fn wasm_file_picker_cancelled() {
+        log::info!("File picker cancelled");
+
+        *CURRENT_STATE.lock().unwrap() = DialogState::Ready(FileDialogResult::Cancelled);
+    }
+
+    /// Callback function called by JavaScript when an error occurs.
+    ///
+    /// # Safety
+    ///
+    /// - `error_ptr` must point to valid UTF-8 bytes of length `error_len`
+    /// - Pointer must remain valid for the duration of this function call
+    #[no_mangle]
+    pub extern "C" fn wasm_file_error_callback(
+        error_ptr: *const u8,
+        error_len: usize,
+    ) {
+        unsafe {
+            let error_bytes = std::slice::from_raw_parts(error_ptr, error_len);
+            let error = String::from_utf8_lossy(error_bytes).to_string();
+
+            log::error!("File operation error: {}", error);
+
+            *CURRENT_STATE.lock().unwrap() = DialogState::Ready(FileDialogResult::Error(error));
         }
     }
 
@@ -314,20 +535,6 @@ mod wasm_impl {
             );
         }
         Ok(())
-    }
-
-    /// Open file picker dialog (asynchronous operation)
-    pub fn open_file_picker_impl() {
-        unsafe {
-            wasm_open_file_picker();
-        }
-    }
-
-    /// Check if a file has been loaded and retrieve it (consuming the stored file)
-    pub fn take_loaded_file() -> Option<LoadedFile> {
-        let mut loaded = LOADED_FILE.lock()
-            .expect("Mutex poisoned - should be impossible in single-threaded WASM");
-        loaded.take()
     }
 }
 

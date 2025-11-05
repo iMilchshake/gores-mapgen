@@ -4,7 +4,7 @@ use crate::{
     args::EditorArgs,
     config::{GenerationConfig, MapConfig, ThemeConfig},
     debug::DebugLayers,
-    file_io::{FileDialog, FileOperationType},
+    file_io::{FileDialog, FileDialogResult, FileOperationType},
     generator::Generator,
     gui,
     map_camera::MapCamera,
@@ -335,14 +335,25 @@ impl Editor {
     }
 
     pub fn handle_save_map(&mut self) {
-        if let Some(loaded_file) = self.save_map_dialog.take_picked() {
-            // perform export preparation, if not enabled in editor
-            if !self.prepare_export {
-                self.gen
-                    .prepare_export(&self.thm_config, &mut self.debug_layers, false);
+        if let Some(result) = self.save_map_dialog.take_result() {
+            match result {
+                FileDialogResult::SavePath(path) => {
+                    // perform export preparation, if not enabled in editor
+                    if !self.prepare_export {
+                        self.gen
+                            .prepare_export(&self.thm_config, &mut self.debug_layers, false);
+                    }
+                    let path_buf = std::path::PathBuf::from(&path);
+                    self.gen.map.export(&path_buf);
+                }
+                FileDialogResult::Cancelled => {
+                    log::info!("Map save cancelled");
+                }
+                FileDialogResult::Error(err) => {
+                    log::error!("Failed to save map: {}", err);
+                }
+                _ => {}
             }
-            let path = std::path::PathBuf::from(&loaded_file.filename);
-            self.gen.map.export(&path);
         }
     }
 

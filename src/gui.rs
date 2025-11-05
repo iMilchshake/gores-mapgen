@@ -1,6 +1,7 @@
 use crate::{
     config::{GenerationConfig, MapConfig},
     editor::{window_frame, Editor, PlaybackMode, SeedType},
+    file_io::FileDialogResult,
     generator::GenerationStatus,
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
@@ -227,6 +228,14 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("Save Map").clicked() {
+                    // Generate default filename: <gen_config>-<map_config>-<seed>.map
+                    let filename = format!(
+                        "{}-{}-{}.map",
+                        editor.gen_config.name,
+                        editor.map_config.name,
+                        editor.user_seed.to_base64()
+                    );
+                    editor.save_map_dialog.set_default_name(filename);
                     editor.save_map_dialog.save_file();
                     ui.close_menu();
                 }
@@ -412,10 +421,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         ui.label("save config files:");
         ui.horizontal(|ui| {
             if ui.button("gen config").clicked() {
+                let filename = format!("{}.json", editor.gen_config.name);
+                editor.save_gen_config_dialog.set_default_name(filename);
                 editor.save_gen_config_dialog.save_file();
             }
 
             if ui.button("map config").clicked() {
+                let filename = format!("{}.json", editor.map_config.name);
+                editor.save_map_config_dialog.set_default_name(filename);
                 editor.save_map_config_dialog.save_file();
             }
         });
@@ -1024,28 +1037,61 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
 
 pub fn handle_config_dialogs(editor: &mut Editor) {
     // Handle load config dialog (works on both native and WASM)
-    if let Some(loaded_file) = editor.load_config_dialog.take_picked() {
-        // Try to determine config type from content (both configs are JSON)
-        // Try loading as GenerationConfig first, then MapConfig
-        if let Ok(gen_config) = GenerationConfig::from_loaded_file(&loaded_file) {
-            editor.gen_config = gen_config;
-            log::info!("Loaded generation config: {}", loaded_file.filename);
-        } else if let Ok(map_config) = MapConfig::from_loaded_file(&loaded_file) {
-            editor.map_config = map_config;
-            editor.reset_generation(false, true);
-            log::info!("Loaded map config: {}", loaded_file.filename);
-        } else {
-            log::error!("Failed to load config file - not a valid GenerationConfig or MapConfig");
+    if let Some(result) = editor.load_config_dialog.take_result() {
+        match result {
+            FileDialogResult::Loaded(loaded_file) => {
+                // Try to determine config type from content (both configs are JSON)
+                // Try loading as GenerationConfig first, then MapConfig
+                if let Ok(gen_config) = GenerationConfig::from_loaded_file(&loaded_file) {
+                    editor.gen_config = gen_config;
+                    log::info!("Loaded generation config: {}", loaded_file.filename);
+                } else if let Ok(map_config) = MapConfig::from_loaded_file(&loaded_file) {
+                    editor.map_config = map_config;
+                    editor.reset_generation(false, true);
+                    log::info!("Loaded map config: {}", loaded_file.filename);
+                } else {
+                    log::error!("Failed to load config file - not a valid GenerationConfig or MapConfig");
+                }
+            }
+            FileDialogResult::Cancelled => {
+                log::info!("Config load cancelled");
+            }
+            FileDialogResult::Error(err) => {
+                log::error!("Failed to load config: {}", err);
+            }
+            _ => {}
         }
     }
 
     // Handle save gen config dialog
-    if let Some(path) = editor.save_gen_config_dialog.take_picked() {
-        editor.gen_config.save(&path.filename);
+    if let Some(result) = editor.save_gen_config_dialog.take_result() {
+        match result {
+            FileDialogResult::SavePath(path) => {
+                editor.gen_config.save(&path);
+            }
+            FileDialogResult::Cancelled => {
+                log::info!("Generation config save cancelled");
+            }
+            FileDialogResult::Error(err) => {
+                log::error!("Failed to save generation config: {}", err);
+            }
+            _ => {}
+        }
     }
 
     // Handle save map config dialog
-    if let Some(path) = editor.save_map_config_dialog.take_picked() {
-        editor.map_config.save(&path.filename);
+    if let Some(result) = editor.save_map_config_dialog.take_result() {
+        match result {
+            FileDialogResult::SavePath(path) => {
+                editor.map_config.save(&path);
+            }
+            FileDialogResult::Cancelled => {
+                log::info!("Map config save cancelled");
+            }
+            FileDialogResult::Error(err) => {
+                log::error!("Failed to save map config: {}", err);
+            }
+            _ => {}
+        }
     }
 }
