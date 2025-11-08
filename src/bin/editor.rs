@@ -5,6 +5,7 @@ use gores_mapgen::{
     args::EditorArgs, config::ThemeConfig, editor::*, generator::GenerationStatus, map::*,
     rendering::*,
 };
+use macroquad::prelude::{error, info, warn};
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
 
@@ -28,9 +29,9 @@ fn window_conf() -> Conf {
 async fn main() {
     std::panic::set_hook(Box::new(|info| {
         if let Some(loc) = info.location() {
-            macroquad::prelude::error!("PANIC at {}:{}: {}", loc.file(), loc.line(), info);
+            error!("PANIC at {}:{}: {}", loc.file(), loc.line(), info);
         } else {
-            macroquad::prelude::error!("PANIC: {}", info);
+            error!("PANIC: {}", info);
         }
     }));
 
@@ -66,7 +67,7 @@ async fn main() {
                 .gen
                 .step(&editor.gen_config, true, &mut editor.debug_layers)
                 .unwrap_or_else(|err| {
-                    log::error!("Walker Step Failed: {:}", err);
+                    error!("Walker Step Failed: {:}", err);
                     editor.playback_mode = PlaybackMode::Paused;
                     editor.gen.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
                 });
@@ -93,7 +94,7 @@ async fn main() {
                         editor.playback_mode = PlaybackMode::Paused;
                         editor.auto_generate = false;
                     }
-                    log::error!("Post Processing Failed: {:}", err);
+                    error!("Post Processing Failed: {:}", err);
                 });
 
             // check status to handle success/failure
@@ -109,14 +110,14 @@ async fn main() {
             if let GenerationStatus::Failed(_) = editor.gen.status {
                 if editor.retry_count < editor.max_retries {
                     editor.retry_count += 1;
-                    log::info!(
+                    info!(
                         "Retrying generation ({}/{})",
                         editor.retry_count,
                         editor.max_retries
                     );
                     editor.reset_generation(true, false);
                 } else {
-                    log::warn!(
+                    warn!(
                         "Max retries ({}) reached, stopping automatic retries",
                         editor.max_retries
                     );

@@ -73,6 +73,8 @@
 //! }
 //! ```
 
+#[allow(unused_imports)]
+use macroquad::prelude::{error, info, warn};
 use std::path::Path;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -320,7 +322,7 @@ impl FileDialog {
 
         #[cfg(target_arch = "wasm32")]
         {
-            wasm_impl::take_result()
+            wasm_impl::take_result(self.operation_type)
         }
     }
 }
@@ -332,6 +334,7 @@ impl FileDialog {
 #[cfg(target_arch = "wasm32")]
 mod wasm_impl {
     use super::{extract_config_name, FileDialogResult, FileOperationType, LoadedFile};
+    use super::{error, info, warn};
     use std::sync::Mutex;
 
     // FFI declarations for JavaScript functions
@@ -353,16 +356,16 @@ mod wasm_impl {
     #[derive(Debug)]
     enum DialogState {
         Idle,
-        WaitingForFileLoad,
-        Ready(FileDialogResult),
+        WaitingForFileLoad(FileOperationType),
+        Ready(FileOperationType, FileDialogResult),
     }
 
     /// Global state - only one dialog can be active at a time in the browser
     static CURRENT_STATE: Mutex<DialogState> = Mutex::new(DialogState::Idle);
 
     /// Start a file load operation
-    pub fn start_load(_op: FileOperationType, accept: Option<&str>) {
-        *CURRENT_STATE.lock().unwrap() = DialogState::WaitingForFileLoad;
+    pub fn start_load(op: FileOperationType, accept: Option<&str>) {
+        *CURRENT_STATE.lock().unwrap() = DialogState::WaitingForFileLoad(op);
 
         // Open file picker
         unsafe {
@@ -375,20 +378,27 @@ mod wasm_impl {
     }
 
     /// Start a save operation (returns immediately on WASM)
-    pub fn start_save(_op: FileOperationType, default_name: &str) {
+    pub fn start_save(op: FileOperationType, default_name: &str) {
         // Immediately transition to Ready with the path
-        *CURRENT_STATE.lock().unwrap() =
-            DialogState::Ready(FileDialogResult::SavePath(default_name.to_string()));
+        *CURRENT_STATE.lock().unwrap() = DialogState::Ready(
+            op,
+            FileDialogResult::SavePath(default_name.to_string()),
+        );
     }
 
-    /// Take the result if ready
-    pub fn take_result() -> Option<FileDialogResult> {
+    /// Take the result if ready and matches the operation type
+    pub fn take_result(op: FileOperationType) -> Option<FileDialogResult> {
         let mut state = CURRENT_STATE.lock().unwrap();
 
-        if let DialogState::Ready(result) = &*state {
-            let result = result.clone();
-            *state = DialogState::Idle;
-            Some(result)
+        if let DialogState::Ready(ready_op, result) = &*state {
+            // Only return result if it matches the requesting operation type
+            if *ready_op == op {
+                let result = result.clone();
+                *state = DialogState::Idle;
+                Some(result)
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -447,7 +457,7 @@ mod wasm_impl {
 
             // Warn if filename contains invalid UTF-8
             if filename_bytes != filename.as_bytes() {
-                log::warn!("Filename contains invalid UTF-8, using lossy conversion");
+                warn!("Filename contains invalid UTF-8, using lossy conversion");
             }
 
             // Extract config name from filename
@@ -457,29 +467,37 @@ mod wasm_impl {
             let data_slice = std::slice::from_raw_parts(data_ptr, data_len);
             let data = data_slice.to_vec();
 
-            log::info!(
+            info!(
                 "File loaded: {} ({} bytes) → config: {}",
                 filename,
                 data_len,
                 config_name
             );
 
-            // Store the result
-            *CURRENT_STATE.lock().unwrap() =
-                DialogState::Ready(FileDialogResult::Loaded(LoadedFile {
-                    filename: filename.to_string(),
-                    config_name,
-                    data,
-                }));
+            // Store the result with the operation type from the waiting state
+            let mut state = CURRENT_STATE.lock().unwrap();
+            if let DialogState::WaitingForFileLoad(op) = *state {
+                *state = DialogState::Ready(
+                    op,
+                    FileDialogResult::Loaded(LoadedFile {
+                        filename: filename.to_string(),
+                        config_name,
+                        data,
+                    }),
+                );
+            }
         }
     }
 
     /// Callback function called by JavaScript when file picker is cancelled.
     #[no_mangle]
     pub extern "C" fn wasm_file_picker_cancelled() {
-        log::info!("File picker cancelled");
+        info!("File picker cancelled");
 
-        *CURRENT_STATE.lock().unwrap() = DialogState::Ready(FileDialogResult::Cancelled);
+        let mut state = CURRENT_STATE.lock().unwrap();
+        if let DialogState::WaitingForFileLoad(op) = *state {
+            *state = DialogState::Ready(op, FileDialogResult::Cancelled);
+        }
     }
 
     /// Callback function called by JavaScript when an error occurs.
@@ -494,9 +512,12 @@ mod wasm_impl {
             let error_bytes = std::slice::from_raw_parts(error_ptr, error_len);
             let error = String::from_utf8_lossy(error_bytes).to_string();
 
-            log::error!("File operation error: {}", error);
+            error!("File operation error: {}", error);
 
-            *CURRENT_STATE.lock().unwrap() = DialogState::Ready(FileDialogResult::Error(error));
+            let mut state = CURRENT_STATE.lock().unwrap();
+            if let DialogState::WaitingForFileLoad(op) = *state {
+                *state = DialogState::Ready(op, FileDialogResult::Error(error));
+            }
         }
     }
 

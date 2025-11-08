@@ -11,8 +11,8 @@ use crate::{
     random::Seed,
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
-use log::warn;
 
+use macroquad::prelude::{error, info, warn};
 use macroquad::time::get_fps;
 use macroquad::{camera::Camera2D, input::is_mouse_button_pressed};
 use macroquad::{
@@ -352,10 +352,10 @@ impl Editor {
                     self.gen.map.export(&path_buf);
                 }
                 FileDialogResult::Cancelled => {
-                    log::info!("Map save cancelled");
+                    info!("Map save cancelled");
                 }
                 FileDialogResult::Error(err) => {
-                    log::error!("Failed to save map: {}", err);
+                    error!("Failed to save map: {}", err);
                 }
                 _ => {}
             }

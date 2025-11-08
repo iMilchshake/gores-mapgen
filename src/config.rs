@@ -19,7 +19,7 @@ use crate::file_io::{self, LoadedFile};
 use crate::noise::Noise;
 use crate::position::{Position, ShiftDirection};
 use crate::random::{Random, RandomDistConfig};
-use log::warn;
+use macroquad::prelude::warn;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::fs;

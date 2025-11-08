@@ -9,6 +9,7 @@ use crate::{
 use egui::Context;
 use egui::{Align2, RichText};
 use egui::{CollapsingHeader, Label, Ui};
+use macroquad::prelude::{error, info};
 use macroquad::time::get_fps;
 use std::{collections::BTreeMap, process::exit};
 
@@ -366,7 +367,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     RichText::new(format!("seed: {}", editor.user_seed.to_base64())).monospace(),
                 );
                 if ui.button("📋").clicked() {
-                    ui.output_mut(|o| o.copied_text = editor.user_seed.to_base64());
+                    ctx.copy_text(editor.user_seed.to_base64());
                 }
             });
 
@@ -1049,10 +1050,10 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
                 match GenerationConfig::from_loaded_file(&loaded_file) {
                     Ok(gen_config) => {
                         editor.gen_config = gen_config;
-                        log::info!("Loaded generation config: {}", loaded_file.filename);
+                        info!("Loaded generation config: {}", loaded_file.filename);
                     }
                     Err(err) => {
-                        log::error!(
+                        error!(
                             "Failed to load generation config from '{}': {}",
                             loaded_file.filename,
                             err
@@ -1061,10 +1062,10 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
                 }
             }
             FileDialogResult::Cancelled => {
-                log::info!("Generation config load cancelled");
+                info!("Generation config load cancelled");
             }
             FileDialogResult::Error(err) => {
-                log::error!("Failed to load generation config: {}", err);
+                error!("Failed to load generation config: {}", err);
             }
             _ => {}
         }
@@ -1078,10 +1079,10 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
                     Ok(map_config) => {
                         editor.map_config = map_config;
                         editor.reset_generation(false, true);
-                        log::info!("Loaded map config: {}", loaded_file.filename);
+                        info!("Loaded map config: {}", loaded_file.filename);
                     }
                     Err(err) => {
-                        log::error!(
+                        error!(
                             "Failed to load map config from '{}': {}",
                             loaded_file.filename,
                             err
@@ -1090,10 +1091,10 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
                 }
             }
             FileDialogResult::Cancelled => {
-                log::info!("Map config load cancelled");
+                info!("Map config load cancelled");
             }
             FileDialogResult::Error(err) => {
-                log::error!("Failed to load map config: {}", err);
+                error!("Failed to load map config: {}", err);
             }
             _ => {}
         }
@@ -1104,12 +1105,14 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
         match result {
             FileDialogResult::SavePath(path) => {
                 editor.gen_config.save(&path);
+                #[cfg(not(target_arch = "wasm32"))]
+                info!("Saved generation config to: {}", path);
             }
             FileDialogResult::Cancelled => {
-                log::info!("Generation config save cancelled");
+                info!("Generation config save cancelled");
             }
             FileDialogResult::Error(err) => {
-                log::error!("Failed to save generation config: {}", err);
+                error!("Failed to save generation config: {}", err);
             }
             _ => {}
         }
@@ -1120,12 +1123,14 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
         match result {
             FileDialogResult::SavePath(path) => {
                 editor.map_config.save(&path);
+                #[cfg(not(target_arch = "wasm32"))]
+                info!("Saved map config to: {}", path);
             }
             FileDialogResult::Cancelled => {
-                log::info!("Map config save cancelled");
+                info!("Map config save cancelled");
             }
             FileDialogResult::Error(err) => {
-                log::error!("Failed to save map config: {}", err);
+                error!("Failed to save map config: {}", err);
             }
             _ => {}
         }
