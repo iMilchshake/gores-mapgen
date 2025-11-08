@@ -47,7 +47,7 @@
 //! use file_io::{FileDialog, FileOperationType, FileFilter, FileDialogResult};
 //!
 //! // Create dialog with file filtering
-//! let mut dialog = FileDialog::new(FileOperationType::LoadConfig)
+//! let mut dialog = FileDialog::new(FileOperationType::LoadGenerationConfig)
 //!     .with_filter(FileFilter::json());
 //!
 //! // In button handler:
@@ -96,7 +96,8 @@ pub struct LoadedFile {
 /// Type of file operation being performed
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileOperationType {
-    LoadConfig,
+    LoadGenerationConfig,
+    LoadMapConfig,
     SaveGenerationConfig,
     SaveMapConfig,
     SaveMap,
@@ -258,7 +259,7 @@ impl FileDialog {
                             .and_then(|ext| ext.to_str())
                             .map(|ext| extensions.iter().any(|e| e == ext))
                             .unwrap_or(false)
-                    })
+                    }),
                 );
             }
 
@@ -286,23 +287,6 @@ impl FileDialog {
         }
     }
 
-    /// Check if the dialog is currently busy (waiting for user input)
-    ///
-    /// Note: On native platforms, this always returns false as the dialog
-    /// manages its own state internally.
-    pub fn is_busy(&self) -> bool {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // Native dialog manages its own state, we can't easily query it
-            false
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            wasm_impl::is_dialog_busy()
-        }
-    }
-
     /// Take the dialog result if available
     pub fn take_result(&mut self) -> Option<FileDialogResult> {
         #[cfg(not(target_arch = "wasm32"))]
@@ -312,13 +296,16 @@ impl FileDialog {
 
                 // Determine if this was a load or save based on operation type
                 match self.operation_type {
-                    FileOperationType::LoadConfig => {
+                    FileOperationType::LoadGenerationConfig | FileOperationType::LoadMapConfig => {
                         // Load operation - read file
                         match std::fs::read(&*path) {
                             Ok(data) => Some(FileDialogResult::Loaded(
-                                native_impl::create_loaded_file_from_path(&path_str, data)
+                                native_impl::create_loaded_file_from_path(&path_str, data),
                             )),
-                            Err(e) => Some(FileDialogResult::Error(format!("Failed to read file: {}", e))),
+                            Err(e) => Some(FileDialogResult::Error(format!(
+                                "Failed to read file: {}",
+                                e
+                            ))),
                         }
                     }
                     _ => {
@@ -356,10 +343,7 @@ mod wasm_impl {
             data_len: usize,
         );
 
-        pub fn wasm_open_file_picker(
-            accept_ptr: *const u8,
-            accept_len: usize,
-        );
+        pub fn wasm_open_file_picker(accept_ptr: *const u8, accept_len: usize);
     }
 
     /// State for the current file dialog operation
@@ -393,17 +377,8 @@ mod wasm_impl {
     /// Start a save operation (returns immediately on WASM)
     pub fn start_save(_op: FileOperationType, default_name: &str) {
         // Immediately transition to Ready with the path
-        *CURRENT_STATE.lock().unwrap() = DialogState::Ready(
-            FileDialogResult::SavePath(default_name.to_string())
-        );
-    }
-
-    /// Check if a dialog is busy
-    pub fn is_dialog_busy() -> bool {
-        matches!(
-            *CURRENT_STATE.lock().unwrap(),
-            DialogState::WaitingForFileLoad
-        )
+        *CURRENT_STATE.lock().unwrap() =
+            DialogState::Ready(FileDialogResult::SavePath(default_name.to_string()));
     }
 
     /// Take the result if ready
@@ -482,16 +457,20 @@ mod wasm_impl {
             let data_slice = std::slice::from_raw_parts(data_ptr, data_len);
             let data = data_slice.to_vec();
 
-            log::info!("File loaded: {} ({} bytes) → config: {}", filename, data_len, config_name);
+            log::info!(
+                "File loaded: {} ({} bytes) → config: {}",
+                filename,
+                data_len,
+                config_name
+            );
 
             // Store the result
-            *CURRENT_STATE.lock().unwrap() = DialogState::Ready(
-                FileDialogResult::Loaded(LoadedFile {
+            *CURRENT_STATE.lock().unwrap() =
+                DialogState::Ready(FileDialogResult::Loaded(LoadedFile {
                     filename: filename.to_string(),
                     config_name,
                     data,
-                })
-            );
+                }));
         }
     }
 
@@ -510,10 +489,7 @@ mod wasm_impl {
     /// - `error_ptr` must point to valid UTF-8 bytes of length `error_len`
     /// - Pointer must remain valid for the duration of this function call
     #[no_mangle]
-    pub extern "C" fn wasm_file_error_callback(
-        error_ptr: *const u8,
-        error_len: usize,
-    ) {
+    pub extern "C" fn wasm_file_error_callback(error_ptr: *const u8, error_len: usize) {
         unsafe {
             let error_bytes = std::slice::from_raw_parts(error_ptr, error_len);
             let error = String::from_utf8_lossy(error_bytes).to_string();
@@ -527,12 +503,7 @@ mod wasm_impl {
     /// Save a file (downloads it in the browser)
     pub fn save_file_impl(filename: &str, data: &[u8]) -> Result<(), String> {
         unsafe {
-            wasm_download_file(
-                filename.as_ptr(),
-                filename.len(),
-                data.as_ptr(),
-                data.len(),
-            );
+            wasm_download_file(filename.as_ptr(), filename.len(), data.as_ptr(), data.len());
         }
         Ok(())
     }
@@ -552,8 +523,7 @@ mod native_impl {
     /// Save a file using native filesystem
     pub fn save_file_impl(filename: &str, data: &[u8]) -> Result<(), String> {
         let path = PathBuf::from(filename);
-        let mut file = File::create(&path)
-            .map_err(|e| format!("Failed to create file: {}", e))?;
+        let mut file = File::create(&path).map_err(|e| format!("Failed to create file: {}", e))?;
         file.write_all(data)
             .map_err(|e| format!("Failed to write file: {}", e))?;
         Ok(())

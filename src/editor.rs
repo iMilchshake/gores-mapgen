@@ -122,7 +122,8 @@ pub struct Editor {
 
     /// File dialogs (platform-agnostic)
     pub save_map_dialog: FileDialog,
-    pub load_config_dialog: FileDialog,
+    pub load_gen_config_dialog: FileDialog,
+    pub load_map_config_dialog: FileDialog,
     pub save_gen_config_dialog: FileDialog,
     pub save_map_config_dialog: FileDialog,
 }
@@ -194,7 +195,10 @@ impl Editor {
             use_chunked_rendering: true,
             use_map_flip: false,
             save_map_dialog: FileDialog::new(FileOperationType::SaveMap),
-            load_config_dialog: FileDialog::new(FileOperationType::LoadConfig),
+            load_gen_config_dialog: FileDialog::new(FileOperationType::LoadGenerationConfig)
+                .with_filter(crate::file_io::FileFilter::json()),
+            load_map_config_dialog: FileDialog::new(FileOperationType::LoadMapConfig)
+                .with_filter(crate::file_io::FileFilter::json()),
             save_gen_config_dialog: FileDialog::new(FileOperationType::SaveGenerationConfig),
             save_map_config_dialog: FileDialog::new(FileOperationType::SaveMapConfig),
         };
@@ -281,7 +285,8 @@ impl Editor {
 
             // Update file dialogs
             self.save_map_dialog.update(egui_ctx);
-            self.load_config_dialog.update(egui_ctx);
+            self.load_gen_config_dialog.update(egui_ctx);
+            self.load_map_config_dialog.update(egui_ctx);
             self.save_gen_config_dialog.update(egui_ctx);
             self.save_map_config_dialog.update(egui_ctx);
 

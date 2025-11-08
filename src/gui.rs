@@ -413,10 +413,16 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             ui.separator();
         }
         // =======================================[ CONFIG STORAGE ]===================================
-        ui.label("load config file:");
-        if ui.button("load config").clicked() {
-            editor.load_config_dialog.pick_file();
-        }
+        ui.label("load config files:");
+        ui.horizontal(|ui| {
+            if ui.button("gen config").clicked() {
+                editor.load_gen_config_dialog.pick_file();
+            }
+
+            if ui.button("map config").clicked() {
+                editor.load_map_config_dialog.pick_file();
+            }
+        });
 
         ui.label("save config files:");
         ui.horizontal(|ui| {
@@ -1036,28 +1042,58 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
 }
 
 pub fn handle_config_dialogs(editor: &mut Editor) {
-    // Handle load config dialog (works on both native and WASM)
-    if let Some(result) = editor.load_config_dialog.take_result() {
+    // Handle load generation config dialog
+    if let Some(result) = editor.load_gen_config_dialog.take_result() {
         match result {
             FileDialogResult::Loaded(loaded_file) => {
-                // Try to determine config type from content (both configs are JSON)
-                // Try loading as GenerationConfig first, then MapConfig
-                if let Ok(gen_config) = GenerationConfig::from_loaded_file(&loaded_file) {
-                    editor.gen_config = gen_config;
-                    log::info!("Loaded generation config: {}", loaded_file.filename);
-                } else if let Ok(map_config) = MapConfig::from_loaded_file(&loaded_file) {
-                    editor.map_config = map_config;
-                    editor.reset_generation(false, true);
-                    log::info!("Loaded map config: {}", loaded_file.filename);
-                } else {
-                    log::error!("Failed to load config file - not a valid GenerationConfig or MapConfig");
+                match GenerationConfig::from_loaded_file(&loaded_file) {
+                    Ok(gen_config) => {
+                        editor.gen_config = gen_config;
+                        log::info!("Loaded generation config: {}", loaded_file.filename);
+                    }
+                    Err(err) => {
+                        log::error!(
+                            "Failed to load generation config from '{}': {}",
+                            loaded_file.filename,
+                            err
+                        );
+                    }
                 }
             }
             FileDialogResult::Cancelled => {
-                log::info!("Config load cancelled");
+                log::info!("Generation config load cancelled");
             }
             FileDialogResult::Error(err) => {
-                log::error!("Failed to load config: {}", err);
+                log::error!("Failed to load generation config: {}", err);
+            }
+            _ => {}
+        }
+    }
+
+    // Handle load map config dialog
+    if let Some(result) = editor.load_map_config_dialog.take_result() {
+        match result {
+            FileDialogResult::Loaded(loaded_file) => {
+                match MapConfig::from_loaded_file(&loaded_file) {
+                    Ok(map_config) => {
+                        editor.map_config = map_config;
+                        editor.reset_generation(false, true);
+                        log::info!("Loaded map config: {}", loaded_file.filename);
+                    }
+                    Err(err) => {
+                        log::error!(
+                            "Failed to load map config from '{}': {}",
+                            loaded_file.filename,
+                            err
+                        );
+                    }
+                }
+            }
+            FileDialogResult::Cancelled => {
+                log::info!("Map config load cancelled");
+            }
+            FileDialogResult::Error(err) => {
+                log::error!("Failed to load map config: {}", err);
             }
             _ => {}
         }
