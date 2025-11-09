@@ -267,8 +267,8 @@ impl Editor {
 
     pub fn define_egui(&mut self) {
         egui_macroquad::ui(|egui_ctx| {
-            gui::menu(egui_ctx, self);
             gui::sidebar(egui_ctx, self);
+            gui::menu(egui_ctx, self);
 
             if self.show_debug_widget {
                 gui::debug_window(egui_ctx, self);

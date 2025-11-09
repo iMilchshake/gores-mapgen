@@ -1,8 +1,10 @@
-use clap::{crate_version, Parser};
+use clap::Parser;
+
+const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("GIT_HASH"), ")");
 
 #[derive(Parser, Debug)]
 #[command(name = "Random Gores Map Generator - Editor")]
-#[command(version = crate_version!())]
+#[command(version = VERSION)]
 #[command(about = "Visual editor for generating maps and customizing the generators presets", long_about = None)]
 pub struct EditorArgs {
     /// select initial generation config
@@ -45,7 +47,7 @@ pub struct EditorArgs {
 
 #[derive(Parser, Debug)]
 #[command(name = "Random Gores Map Generator - CLI")]
-#[command(version = crate_version!())]
+#[command(version = VERSION)]
 #[command(about = "CLI for generating maps using generators presets", long_about = None)]
 pub struct CLIArgs {
     /// select initial generation config

@@ -261,7 +261,14 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
                 ui.checkbox(&mut editor.verbose_post_process, "verbose post");
                 ui.checkbox(&mut editor.use_chunked_rendering, "chunked render");
             });
-            ui.menu_button("Help", |ui| if ui.button("About").clicked() {});
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(format!(
+                    "v{} ({})",
+                    env!("CARGO_PKG_VERSION"),
+                    env!("GIT_HASH")
+                ));
+            });
         });
     });
 }
@@ -1136,3 +1143,4 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
         }
     }
 }
+
