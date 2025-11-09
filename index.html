@@ -1,0 +1,197 @@
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>TITLE</title>
+    <style>
+        html,
+        body,
+        canvas {
+            margin: 0px;
+            padding: 0px;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: absolute;
+            background: black;
+            z-index: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="glcanvas" tabindex='1'></canvas>
+    <!-- Minified and statically hosted version of https://github.com/not-fl3/macroquad/blob/master/js/mq_js_bundle.js -->
+    <!-- <script src="./mq_js_bundle.js"></script> -->
+    <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
+
+    <!-- File operation helpers for WASM -->
+    <script>
+        // Download a file to the user's browser
+        function wasm_download_file(filename_ptr, filename_len, data_ptr, data_len) {
+            // Read filename from WASM memory
+            const filename_bytes = new Uint8Array(wasm_memory.buffer, filename_ptr, filename_len);
+            const filename = new TextDecoder().decode(filename_bytes);
+
+            // Read data from WASM memory
+            const data = new Uint8Array(wasm_memory.buffer, data_ptr, data_len);
+
+            // Create blob and download
+            const blob = new Blob([data], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Helper function to call Rust error callback
+        function reportError(errorMessage) {
+            if (!wasm_exports || !wasm_exports.wasm_file_error_callback) {
+                console.error('WASM error callback not available:', errorMessage);
+                return;
+            }
+
+            const errorBytes = new TextEncoder().encode(errorMessage);
+            const errorPtr = wasm_exports.wasm_alloc_buffer(errorBytes.length);
+            const errorView = new Uint8Array(wasm_memory.buffer, errorPtr, errorBytes.length);
+            errorView.set(errorBytes);
+
+            wasm_exports.wasm_file_error_callback(errorPtr, errorBytes.length);
+            wasm_exports.wasm_free_buffer(errorPtr, errorBytes.length);
+        }
+
+        // Helper function to call Rust cancellation callback
+        function reportCancellation() {
+            if (wasm_exports && wasm_exports.wasm_file_picker_cancelled) {
+                wasm_exports.wasm_file_picker_cancelled();
+            }
+        }
+
+        // Global file input element for file picking
+        let fileInput = null;
+        let fileInputActive = false;
+
+        // Initialize file input element with event handlers (called once)
+        function initializeFileInput() {
+            fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.style.display = 'none';
+
+            // Set up file selection handler (ONCE!)
+            fileInput.onchange = function(e) {
+                fileInputActive = false;
+
+                const file = e.target.files[0];
+                if (!file) {
+                    reportCancellation();
+                    return;
+                }
+
+                const reader = new FileReader();
+
+                reader.onload = function(event) {
+                    try {
+                        const arrayBuffer = event.target.result;
+                        const uint8Array = new Uint8Array(arrayBuffer);
+
+                        // Allocate memory in WASM for filename
+                        const filename = file.name;
+                        const filenameBytes = new TextEncoder().encode(filename);
+                        const filenameLen = filenameBytes.length;
+                        const filenamePtr = wasm_exports.wasm_alloc_buffer(filenameLen);
+                        const filenameView = new Uint8Array(wasm_memory.buffer, filenamePtr, filenameLen);
+                        filenameView.set(filenameBytes);
+
+                        // Allocate memory in WASM for file data
+                        const dataLen = uint8Array.length;
+                        const dataPtr = wasm_exports.wasm_alloc_buffer(dataLen);
+                        const dataView = new Uint8Array(wasm_memory.buffer, dataPtr, dataLen);
+                        dataView.set(uint8Array);
+
+                        // Call Rust callback with the file data
+                        wasm_exports.wasm_file_loaded_callback(filenamePtr, filenameLen, dataPtr, dataLen);
+
+                        // Free the allocated memory
+                        wasm_exports.wasm_free_buffer(filenamePtr, filenameLen);
+                        wasm_exports.wasm_free_buffer(dataPtr, dataLen);
+                    } catch (error) {
+                        reportError('Failed to process file: ' + error.message);
+                    }
+                };
+
+                reader.onerror = function(event) {
+                    const errorMsg = 'Failed to read file: ' + (reader.error ? reader.error.message : 'unknown error');
+                    reportError(errorMsg);
+                };
+
+                reader.onabort = function() {
+                    reportError('File reading was aborted');
+                };
+
+                reader.readAsArrayBuffer(file);
+
+                // Reset input value to allow selecting the same file again
+                // (browsers don't trigger onchange if the same file is selected twice)
+                fileInput.value = '';
+            };
+
+            document.body.appendChild(fileInput);
+        }
+
+        // Open file picker and load file contents
+        // accept_ptr and accept_len: optional file type filter (e.g., ".json,.txt")
+        function wasm_open_file_picker(accept_ptr, accept_len) {
+            // Create file input if it doesn't exist
+            if (!fileInput) {
+                initializeFileInput();
+            }
+
+            // Set file type filter if provided
+            if (accept_ptr !== 0 && accept_len > 0) {
+                const accept_bytes = new Uint8Array(wasm_memory.buffer, accept_ptr, accept_len);
+                const accept_string = new TextDecoder().decode(accept_bytes);
+                fileInput.accept = accept_string;
+            } else {
+                fileInput.accept = '';
+            }
+
+            // Track that file picker is active
+            fileInputActive = true;
+
+            // Trigger file picker IMMEDIATELY (don't block main thread)
+            fileInput.click();
+
+            // Set up cancellation detection AFTER opening
+            // (user can't close the dialog before it opens anyway)
+            const checkCancellation = function() {
+                // Wait a bit for onchange to fire
+                setTimeout(function() {
+                    if (fileInputActive) {
+                        fileInputActive = false;
+                        reportCancellation();
+                    }
+                }, 200);
+            };
+
+            // Use focus event as a proxy for picker closure
+            window.addEventListener('focus', checkCancellation, { once: true });
+        }
+
+        // Register plugin with miniquad
+        register_plugin = function (importObject) {
+            importObject.env.wasm_download_file = wasm_download_file;
+            importObject.env.wasm_open_file_picker = wasm_open_file_picker;
+        }
+
+        miniquad_add_plugin({ register_plugin });
+    </script>
+
+    <script>load("./editor.wasm");</script> <!-- Your compiled wasm file -->
+
+</body>
+
+</html>
