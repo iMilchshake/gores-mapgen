@@ -1698,70 +1698,64 @@ pub fn set_platform(
     Ok(())
 }
 
-// ===================================[ Pillars ]==========================================
+struct PillarCandidate {
+    corner_position: Position,
+    direction: ShiftDirection,
+}
+
+/// Checks if the blocks at the specified offsets from center form a freeze L-pattern
+fn check_corner_pattern(
+    map: &Map,
+    center_x: usize,
+    center_y: usize,
+    x_offset: i32,
+    y_offset: i32,
+) -> bool {
+    let diag_x = (center_x as i32 + x_offset) as usize;
+    let diag_y = (center_y as i32 + y_offset) as usize;
+
+    map.grid[[diag_x, center_y]].is_freeze()
+        && map.grid[[center_x, diag_y]].is_freeze()
+        && map.grid[[diag_x, diag_y]].is_freeze()
+}
 
 /// Detects hookable blocks with L-shaped freeze patterns in 3×3 neighborhoods
 /// Returns freeze corner positions and pillar directions (corners can generate 2 candidates)
-fn find_pillar_corners(map: &Map) -> Vec<(Position, ShiftDirection)> {
+fn find_pillar_corners(map: &Map) -> Result<Vec<PillarCandidate>, &'static str> {
     let mut candidates = Vec::new();
+
+    const CORNERS: &[(i32, i32, ShiftDirection, ShiftDirection)] = &[
+        (-1, -1, ShiftDirection::Up, ShiftDirection::Left),
+        (1, -1, ShiftDirection::Up, ShiftDirection::Right),
+        (-1, 1, ShiftDirection::Down, ShiftDirection::Left),
+        (1, 1, ShiftDirection::Down, ShiftDirection::Right),
+    ];
 
     for x in 1..(map.width - 1) {
         for y in 1..(map.height - 1) {
             let pos = Position::new(x, y);
 
-            // Must be hookable
             if map.grid[pos.as_index()] != BlockType::Hookable {
                 continue;
             }
 
-            // Check 4 corner patterns
-            // Top-left corner: freeze at left, top, top-left
-            // Pillar starts from the diagonal freeze block (top-left)
-            if map.grid[[x - 1, y]].is_freeze()
-                && map.grid[[x, y - 1]].is_freeze()
-                && map.grid[[x - 1, y - 1]].is_freeze()
-            {
-                let corner_pos = Position::new(x - 1, y - 1);
-                candidates.push((corner_pos.clone(), ShiftDirection::Up));
-                candidates.push((corner_pos, ShiftDirection::Left));
-            }
-
-            // Top-right corner: freeze at right, top, top-right
-            // Pillar starts from the diagonal freeze block (top-right)
-            if map.grid[[x + 1, y]].is_freeze()
-                && map.grid[[x, y - 1]].is_freeze()
-                && map.grid[[x + 1, y - 1]].is_freeze()
-            {
-                let corner_pos = Position::new(x + 1, y - 1);
-                candidates.push((corner_pos.clone(), ShiftDirection::Up));
-                candidates.push((corner_pos, ShiftDirection::Right));
-            }
-
-            // Bottom-left corner: freeze at left, bottom, bottom-left
-            // Pillar starts from the diagonal freeze block (bottom-left)
-            if map.grid[[x - 1, y]].is_freeze()
-                && map.grid[[x, y + 1]].is_freeze()
-                && map.grid[[x - 1, y + 1]].is_freeze()
-            {
-                let corner_pos = Position::new(x - 1, y + 1);
-                candidates.push((corner_pos.clone(), ShiftDirection::Down));
-                candidates.push((corner_pos, ShiftDirection::Left));
-            }
-
-            // Bottom-right corner: freeze at right, bottom, bottom-right
-            // Pillar starts from the diagonal freeze block (bottom-right)
-            if map.grid[[x + 1, y]].is_freeze()
-                && map.grid[[x, y + 1]].is_freeze()
-                && map.grid[[x + 1, y + 1]].is_freeze()
-            {
-                let corner_pos = Position::new(x + 1, y + 1);
-                candidates.push((corner_pos.clone(), ShiftDirection::Down));
-                candidates.push((corner_pos, ShiftDirection::Right));
+            for &(offset_x, offset_y, dir1, dir2) in CORNERS {
+                if check_corner_pattern(map, x, y, offset_x, offset_y) {
+                    let corner_pos = pos.shifted_by(offset_x, offset_y)?;
+                    candidates.push(PillarCandidate {
+                        corner_position: corner_pos.clone(),
+                        direction: dir1,
+                    });
+                    candidates.push(PillarCandidate {
+                        corner_position: corner_pos,
+                        direction: dir2,
+                    });
+                }
             }
         }
     }
 
-    candidates
+    Ok(candidates)
 }
 
 /// Validates pillar path by checking that perpendicular margins are Empty
@@ -1770,53 +1764,51 @@ fn find_pillar_corners(map: &Map) -> Vec<(Position, ShiftDirection)> {
 fn validate_pillar_path(
     map: &Map,
     start: &Position,
-    dir: &ShiftDirection,
+    direction: &ShiftDirection,
     min_length: usize,
     max_length: usize,
     tip_margin: usize,
     side_margin: usize,
 ) -> Option<usize> {
-    let ortho_dirs = dir.get_orthogonal_shifts();
+    let orthogonal_directions = direction.get_orthogonal_shifts();
 
     // Start from the position AFTER the freeze corner block
-    let mut cur = match start.shifted(dir, map) {
+    let mut current_pos = match start.shifted(direction, map) {
         Ok(pos) => pos,
-        Err(_) => return None, // can't even shift once from corner
+        Err(_) => return None,
     };
 
-    let mut valid_length: usize = 0; // length where both center and sides are valid
-    let mut center_only_length: usize = 0; // additional length where only center is valid
-    let mut sides_failed = false; // once sides fail, stop checking them
+    let mut valid_length: usize = 0;
+    let mut center_only_length: usize = 0;
+    let mut sides_failed = false;
 
     loop {
-        // Check center is Empty
-        let center_valid = map.grid[cur.as_index()] == BlockType::Empty;
+        let center_valid = map.grid[current_pos.as_index()] == BlockType::Empty;
 
-        // if center is invalid, stop completely
         if !center_valid {
             break;
         }
 
         let total_length = valid_length + center_only_length;
+        let should_check_sides = !sides_failed && total_length < max_length;
 
-        // Check perpendicular side margins (skip if already failed or past max_length)
-        let mut side_margin_valid = true;
-        if !sides_failed && total_length < max_length {
-            'ortho: for ortho_dir in &ortho_dirs {
-                // Check all blocks up to side_margin distance
-                let mut check_pos = cur.clone();
+        let side_margin_valid = if should_check_sides {
+            let mut valid = true;
+            'ortho: for ortho_dir in &orthogonal_directions {
+                let mut check_pos = current_pos.clone();
                 for _ in 0..side_margin {
                     check_pos = check_pos.shifted(ortho_dir, map).ok()?;
                     if map.grid[check_pos.as_index()] != BlockType::Empty {
-                        side_margin_valid = false;
-                        sides_failed = true; // once failed, stay failed
+                        valid = false;
+                        sides_failed = true;
                         break 'ortho;
                     }
                 }
             }
+            valid
         } else {
-            side_margin_valid = false;
-        }
+            false
+        };
 
         if side_margin_valid {
             valid_length += 1;
@@ -1824,7 +1816,7 @@ fn validate_pillar_path(
             center_only_length += 1;
         }
 
-        if cur.shift_inplace(dir, map).is_err() {
+        if current_pos.shift_inplace(direction, map).is_err() {
             break;
         }
     }
@@ -1833,16 +1825,15 @@ fn validate_pillar_path(
         return None;
     }
 
-    // Calculate usable length, considering side margin, tip margin and max length
-    Some(
-        if center_only_length >= tip_margin {
-            valid_length
-        } else {
-            valid_length.saturating_sub(tip_margin - center_only_length)
-        }
-        .min(max_length)
-        .max(min_length), // ensure we still meet min_length after adjustments
-    )
+    // Calculate usable length: tip margin area must ALSO have clear side margins
+    // So we need valid_length to cover both pillar length AND tip margin
+    let usable_length = valid_length.saturating_sub(tip_margin).min(max_length);
+
+    if usable_length >= min_length {
+        Some(usable_length)
+    } else {
+        None
+    }
 }
 
 /// Generates freeze pillars extending from corners
@@ -1851,45 +1842,45 @@ pub fn generate_all_pillars(
     config: &GenerationConfig,
     rnd: &mut Random,
     debug_layers: &mut Option<DebugLayers>,
-) {
-    let mut corner_candidates = find_pillar_corners(map);
-    rnd.shuffle(&mut corner_candidates); // remove positional bias
+) -> Result<(), &'static str> {
+    let mut corner_candidates = find_pillar_corners(map)?;
+    rnd.shuffle(&mut corner_candidates);
 
     if let Some(debug_layers) = debug_layers {
-        for (corner_pos, _) in &corner_candidates {
-            debug_layers
-                .bool_layers
-                .get_mut("pillar_candidates")
-                .unwrap()
-                .grid[corner_pos.as_index()] = true;
+        for candidate in &corner_candidates {
+            debug_layers.mark_bool_layer("pillar_candidates", &candidate.corner_position);
         }
     }
 
-    for (corner_pos, pillar_dir) in corner_candidates {
+    for candidate in corner_candidates {
         if let Some(length) = validate_pillar_path(
             map,
-            &corner_pos,
-            &pillar_dir,
+            &candidate.corner_position,
+            &candidate.direction,
             config.pillar_min_length,
             config.pillar_max_length,
             config.pillar_tip_margin,
             config.pillar_side_margin,
         ) {
-            let mut cur = corner_pos.shifted(&pillar_dir, map).unwrap();
+            let mut current_pos = candidate
+                .corner_position
+                .shifted(&candidate.direction, map)
+                .unwrap();
             for _ in 0..length {
-                map.set_block(&cur, BlockType::Freeze);
-                if cur.shift_inplace(&pillar_dir, map).is_err() {
+                map.set_block(&current_pos, BlockType::Freeze);
+                if current_pos
+                    .shift_inplace(&candidate.direction, map)
+                    .is_err()
+                {
                     break;
                 }
             }
 
             if let Some(debug_layers) = debug_layers {
-                debug_layers
-                    .bool_layers
-                    .get_mut("pillar_placed")
-                    .unwrap()
-                    .grid[corner_pos.as_index()] = true;
+                debug_layers.mark_bool_layer("pillar_placed", &candidate.corner_position);
             }
         }
     }
+
+    Ok(())
 }

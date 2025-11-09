@@ -59,6 +59,13 @@ impl DebugLayers {
             .grid
     }
 
+    pub fn mark_bool_layer(&mut self, layer_name: &'static str, pos: &crate::position::Position) {
+        self.bool_layers
+            .get_mut(layer_name)
+            .expect("missing bool layer")
+            .grid[pos.as_index()] = true;
+    }
+
     pub fn new(
         shape: (usize, usize),
         default_alpha: f32,

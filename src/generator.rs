@@ -537,7 +537,7 @@ impl Generator {
 
             // pillars
             if gen_config.enable_pillars {
-                post::generate_all_pillars(&mut self.map, gen_config, &mut self.rnd, debug_layers);
+                post::generate_all_pillars(&mut self.map, gen_config, &mut self.rnd, debug_layers)?;
                 print_time(&mut timer, "generate pillars", verbose);
             }
 
