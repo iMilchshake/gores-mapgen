@@ -24,20 +24,11 @@ jobs:
       - name: Build release variant
         run: cargo build --release --target wasm32-unknown-unknown --bin editor
 
-      - name: Build dev variant
-        run: cargo build --target wasm32-unknown-unknown --bin editor
-
       - name: Create dist structure
         run: |
-          mkdir -p dist/dev
-
-          # Copy release build
+          mkdir -p dist
           cp target/wasm32-unknown-unknown/release/editor.wasm dist/editor.wasm
           cp index.html dist/index.html
-
-          # Copy dev build
-          cp target/wasm32-unknown-unknown/debug/editor.wasm dist/dev/editor.wasm
-          cp index.html dist/dev/index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
