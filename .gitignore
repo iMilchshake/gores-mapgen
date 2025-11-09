@@ -16,3 +16,4 @@ Cargo.lock
 # Insta snapshot testing - ignore temporary files, commit .snap files
 *.snap.new
 *.pending-snap
+editor.wasm
