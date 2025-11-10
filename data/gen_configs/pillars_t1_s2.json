@@ -1,6 +1,6 @@
 {
   "description": null,
-  "difficulty": 0.5,
+  "difficulty": 3.0,
   "version": "1.0",
   "inner_rad_mut_prob": 0.75,
   "inner_size_mut_prob": 0.95,
@@ -78,6 +78,6 @@
   "enable_pillars": true,
   "pillar_min_length": 2,
   "pillar_max_length": 10,
-  "pillar_tip_margin": 2,
-  "pillar_side_margin": 1
+  "pillar_tip_margin": 1,
+  "pillar_side_margin": 2
 }
