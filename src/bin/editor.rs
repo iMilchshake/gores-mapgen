@@ -41,6 +41,13 @@ async fn main() {
     // simple_logger::SimpleLogger::new().init().unwrap();
     let mut editor = Editor::new("hard", "small_s_tight", ThemeConfig::default(), &args);
 
+    // Show WASM warning on startup
+    #[cfg(target_arch = "wasm32")]
+    editor
+        .toaster
+        .warning("Experimental WASM build:\nmay crash and lose unsaved configurations")
+        .duration(Some(std::time::Duration::from_secs(7)));
+
     // main loop for gui (and step-wise map generation)
     loop {
         editor.on_frame_start();

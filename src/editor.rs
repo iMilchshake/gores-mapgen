@@ -126,6 +126,9 @@ pub struct Editor {
     pub load_map_config_dialog: FileDialog,
     pub save_gen_config_dialog: FileDialog,
     pub save_map_config_dialog: FileDialog,
+
+    /// Toast notification system
+    pub toaster: egui_notify::Toasts,
 }
 
 impl Editor {
@@ -201,6 +204,9 @@ impl Editor {
                 .with_filter(crate::file_io::FileFilter::json()),
             save_gen_config_dialog: FileDialog::new(FileOperationType::SaveGenerationConfig),
             save_map_config_dialog: FileDialog::new(FileOperationType::SaveMapConfig),
+            toaster: egui_notify::Toasts::default()
+                .with_anchor(egui_notify::Anchor::TopLeft)
+                .with_margin(egui::Vec2::new(8.0, 30.0)),
         };
 
         // initialize debug layers
@@ -293,6 +299,9 @@ impl Editor {
             // Handle file dialog results
             self.handle_save_map();
             gui::handle_config_dialogs(self);
+
+            // Show toast notifications
+            self.toaster.show(egui_ctx);
 
             // store remaining space for macroquad drawing
             self.canvas = Some(egui_ctx.available_rect());
