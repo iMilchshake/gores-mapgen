@@ -226,9 +226,8 @@ impl TwExport {
         // Save using platform-agnostic file_io
         let filename = crate::file_io::extract_filename_or_default(
             path.to_str().unwrap_or("map.map"),
-            "map.map"
+            "map.map",
         );
-        crate::file_io::save_file_bytes(filename, &buffer)
-            .expect("failed to save map file");
+        crate::file_io::save_file_bytes(filename, &buffer).expect("failed to save map file");
     }
 }

@@ -333,8 +333,8 @@ impl FileDialog {
 
 #[cfg(target_arch = "wasm32")]
 mod wasm_impl {
-    use super::{extract_config_name, FileDialogResult, FileOperationType, LoadedFile};
     use super::{error, info, warn};
+    use super::{extract_config_name, FileDialogResult, FileOperationType, LoadedFile};
     use std::sync::Mutex;
 
     // FFI declarations for JavaScript functions
@@ -380,10 +380,8 @@ mod wasm_impl {
     /// Start a save operation (returns immediately on WASM)
     pub fn start_save(op: FileOperationType, default_name: &str) {
         // Immediately transition to Ready with the path
-        *CURRENT_STATE.lock().unwrap() = DialogState::Ready(
-            op,
-            FileDialogResult::SavePath(default_name.to_string()),
-        );
+        *CURRENT_STATE.lock().unwrap() =
+            DialogState::Ready(op, FileDialogResult::SavePath(default_name.to_string()));
     }
 
     /// Take the result if ready and matches the operation type
@@ -469,9 +467,7 @@ mod wasm_impl {
 
             info!(
                 "File loaded: {} ({} bytes) → config: {}",
-                filename,
-                data_len,
-                config_name
+                filename, data_len, config_name
             );
 
             // Store the result with the operation type from the waiting state

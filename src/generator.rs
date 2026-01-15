@@ -444,142 +444,141 @@ impl Generator {
 
         let mut timer = Timer::start();
 
-            self.generate_spawn(thm_config);
-            print_time(&mut timer, "place start room", verbose);
+        self.generate_spawn(thm_config);
+        print_time(&mut timer, "place start room", verbose);
 
-            if gen_config.min_freeze_size > 0 {
-                // TODO: Maybe add some alternative function for the case of min_freeze_size=1
-                post::remove_freeze_blobs(self, gen_config.min_freeze_size, debug_layers);
-                print_time(&mut timer, "detect blobs", verbose);
-            }
+        if gen_config.min_freeze_size > 0 {
+            // TODO: Maybe add some alternative function for the case of min_freeze_size=1
+            post::remove_freeze_blobs(self, gen_config.min_freeze_size, debug_layers);
+            print_time(&mut timer, "detect blobs", verbose);
+        }
 
-            let ff = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
-            print_time(&mut timer, "flood fill", verbose);
+        let ff = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
+        print_time(&mut timer, "flood fill", verbose);
 
-            // we do expanding edge bugs after determining ff, because otherwise it might overlap end
-            // position with new padded freeze.. idk if i like this order tho because many freeze
-            // blocks will now have a ff distance?
-            let edge_bugs = post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
-            print_time(&mut timer, "fix edge bugs", verbose);
+        // we do expanding edge bugs after determining ff, because otherwise it might overlap end
+        // position with new padded freeze.. idk if i like this order tho because many freeze
+        // blocks will now have a ff distance?
+        let edge_bugs = post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
+        print_time(&mut timer, "fix edge bugs", verbose);
 
-            post::generate_finish_room(
-                &self.walker.pos.clone(),
-                &mut self.map,
-                &self.walker.locked_positions,
-                &ff.distance,
-                4,
-            )?;
-            print_time(&mut timer, "place finish room", verbose);
+        post::generate_finish_room(
+            &self.walker.pos.clone(),
+            &mut self.map,
+            &self.walker.locked_positions,
+            &ff.distance,
+            4,
+        )?;
+        print_time(&mut timer, "place finish room", verbose);
 
-            // lock all remaining blocks
-            self.walker
-                .lock_previous_location(&self.map, gen_config, true)?;
-            print_time(&mut timer, "finish walker lock", verbose);
+        // lock all remaining blocks
+        self.walker
+            .lock_previous_location(&self.map, gen_config, true)?;
+        print_time(&mut timer, "finish walker lock", verbose);
 
-            let ff_main_path = flood_fill(self, ff.path.as_ref().unwrap(), None, true)?;
-            print_time(&mut timer, "flood fill (main path dist)", verbose);
+        let ff_main_path = flood_fill(self, ff.path.as_ref().unwrap(), None, true)?;
+        print_time(&mut timer, "flood fill (main path dist)", verbose);
 
-            if let Some(debug_layers) = debug_layers {
-                debug_layers
-                    .float_layers
-                    .get_mut("flood_fill")
-                    .unwrap()
-                    .grid = ff.distance.map(|v| v.map(|v| v as f32));
-                if let Some(path) = ff.path.as_ref() {
-                    let path_grid = &mut debug_layers.bool_layers.get_mut("path").unwrap().grid;
-                    for pos in path {
-                        path_grid[pos.as_index()] = true;
-                    }
+        if let Some(debug_layers) = debug_layers {
+            debug_layers
+                .float_layers
+                .get_mut("flood_fill")
+                .unwrap()
+                .grid = ff.distance.map(|v| v.map(|v| v as f32));
+            if let Some(path) = ff.path.as_ref() {
+                let path_grid = &mut debug_layers.bool_layers.get_mut("path").unwrap().grid;
+                for pos in path {
+                    path_grid[pos.as_index()] = true;
                 }
             }
+        }
 
-            // fill up dead ends
-            if gen_config.use_dead_end_removal {
-                let dead_end_blocks =
-                    post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance)?;
-                print_time(&mut timer, "fill dead ends", verbose);
+        // fill up dead ends
+        if gen_config.use_dead_end_removal {
+            let dead_end_blocks =
+                post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance)?;
+            print_time(&mut timer, "fill dead ends", verbose);
 
-                // fix stair artifacts resulting from dead end filling
-                post::fix_stairs(&mut self.map, dead_end_blocks, &mut self.rnd);
-                print_time(&mut timer, "fix stairs", verbose);
-            }
+            // fix stair artifacts resulting from dead end filling
+            post::fix_stairs(&mut self.map, dead_end_blocks, &mut self.rnd);
+            print_time(&mut timer, "fix stairs", verbose);
+        }
 
-            // TODO: only perform this for updated blocks?
-            post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
-            print_time(&mut timer, "fix edge_bugs #2", verbose);
+        // TODO: only perform this for updated blocks?
+        post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
+        print_time(&mut timer, "fix edge_bugs #2", verbose);
 
-            post::generate_all_skips(
-                self,
-                gen_config.skip_length_bounds,
-                gen_config.skip_min_spacing_sqr,
-                gen_config.max_level_skip,
-                &ff.distance,
-                debug_layers,
-            );
-            print_time(&mut timer, "generate skips", verbose);
+        post::generate_all_skips(
+            self,
+            gen_config.skip_length_bounds,
+            gen_config.skip_min_spacing_sqr,
+            gen_config.max_level_skip,
+            &ff.distance,
+            debug_layers,
+        );
+        print_time(&mut timer, "generate skips", verbose);
 
-            let ff_map_length =
-                ff.distance[self.walker.pos.as_index()].expect("cant determine map length");
+        let ff_map_length =
+            ff.distance[self.walker.pos.as_index()].expect("cant determine map length");
 
-            // platforms
-            let floor_pos = post::generate_platforms(
-                &mut self.map,
-                gen_config,
-                &ff.distance,
-                ff_map_length,
-                debug_layers,
-            )?;
-            print_time(&mut timer, "generate platforms", verbose);
+        // platforms
+        let floor_pos = post::generate_platforms(
+            &mut self.map,
+            gen_config,
+            &ff.distance,
+            ff_map_length,
+            debug_layers,
+        )?;
+        print_time(&mut timer, "generate platforms", verbose);
 
-            // pillars
-            if gen_config.enable_pillars {
-                post::generate_all_pillars(&mut self.map, gen_config, &mut self.rnd, debug_layers)?;
-                print_time(&mut timer, "generate pillars", verbose);
-            }
+        // pillars
+        if gen_config.enable_pillars {
+            post::generate_all_pillars(&mut self.map, gen_config, &mut self.rnd, debug_layers)?;
+            print_time(&mut timer, "generate pillars", verbose);
+        }
 
-            post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
-            print_time(&mut timer, "place obstacles", verbose);
+        post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
+        print_time(&mut timer, "place obstacles", verbose);
 
-            // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
+        // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
-            // do final ff run to ensure there is a playable path to finish
-            let ff_final = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
-            let end_distance = ff_final.distance[self.walker.pos.as_index()];
-            if end_distance.is_none() {
-                return Err("No valid path to finish");
-            }
-            print_time(&mut timer, "map path validation", verbose);
+        // do final ff run to ensure there is a playable path to finish
+        let ff_final = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
+        let end_distance = ff_final.distance[self.walker.pos.as_index()];
+        if end_distance.is_none() {
+            return Err("No valid path to finish");
+        }
+        print_time(&mut timer, "map path validation", verbose);
 
-            if let Some(debug_layers) = debug_layers {
-                debug_layers
-                    .float_layers
-                    .get_mut("main_path_dist")
-                    .unwrap()
-                    .grid = ff_main_path.distance.map(|v| v.map(|v| v as f32));
-                debug_layers.bool_layers.get_mut("lock").unwrap().grid =
-                    self.walker.locked_positions.clone();
-                debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
+        if let Some(debug_layers) = debug_layers {
+            debug_layers
+                .float_layers
+                .get_mut("main_path_dist")
+                .unwrap()
+                .grid = ff_main_path.distance.map(|v| v.map(|v| v as f32));
+            debug_layers.bool_layers.get_mut("lock").unwrap().grid =
+                self.walker.locked_positions.clone();
+            debug_layers.bool_layers.get_mut("edge_bugs").unwrap().grid = edge_bugs;
 
-                if let Some(path) = ff_final.path.as_ref() {
-                    let path_grid =
-                        &mut debug_layers.bool_layers.get_mut("valid_path").unwrap().grid;
-                    for pos in path {
-                        path_grid[pos.as_index()] = true;
-                    }
-                }
-                debug_layers.float_layers.get_mut("ff_final").unwrap().grid =
-                    ff_final.distance.map(|v| v.map(|v| v as f32));
-
-                let grid = &mut debug_layers.bool_layers.get_mut("floor").unwrap().grid;
-
-                // floor
-                for floor_pos in floor_pos {
-                    grid[floor_pos.pos.as_index()] = true;
+            if let Some(path) = ff_final.path.as_ref() {
+                let path_grid = &mut debug_layers.bool_layers.get_mut("valid_path").unwrap().grid;
+                for pos in path {
+                    path_grid[pos.as_index()] = true;
                 }
             }
-            print_time(&mut timer, "set debug layers", verbose);
+            debug_layers.float_layers.get_mut("ff_final").unwrap().grid =
+                ff_final.distance.map(|v| v.map(|v| v as f32));
 
-            // if enabled, perform prepare export steps
+            let grid = &mut debug_layers.bool_layers.get_mut("floor").unwrap().grid;
+
+            // floor
+            for floor_pos in floor_pos {
+                grid[floor_pos.pos.as_index()] = true;
+            }
+        }
+        print_time(&mut timer, "set debug layers", verbose);
+
+        // if enabled, perform prepare export steps
         if prepare_export {
             self.prepare_export(thm_config, debug_layers, verbose);
         }

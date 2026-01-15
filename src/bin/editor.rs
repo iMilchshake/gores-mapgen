@@ -119,8 +119,7 @@ async fn main() {
                     editor.retry_count += 1;
                     info!(
                         "Retrying generation ({}/{})",
-                        editor.retry_count,
-                        editor.max_retries
+                        editor.retry_count, editor.max_retries
                     );
                     editor.reset_generation(true, false);
                 } else {

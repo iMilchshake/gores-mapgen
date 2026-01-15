@@ -80,8 +80,7 @@ impl MapConfig {
     pub fn save(&self, path: &str) {
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
         let filename = file_io::extract_filename_or_default(path, "map_config.json");
-        file_io::save_file_string(filename, &serialized)
-            .expect("failed to save config file");
+        file_io::save_file_string(filename, &serialized).expect("failed to save config file");
     }
 
     /// Load a config from a LoadedFile (handles both native and WASM)
@@ -405,8 +404,7 @@ impl GenerationConfig {
     pub fn save(&self, path: &str) {
         let serialized = serde_json::to_string_pretty(self).expect("failed to serialize config");
         let filename = file_io::extract_filename_or_default(path, "gen_config.json");
-        file_io::save_file_string(filename, &serialized)
-            .expect("failed to save config file");
+        file_io::save_file_string(filename, &serialized).expect("failed to save config file");
     }
 
     /// Get the default filename for this config

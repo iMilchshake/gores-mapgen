@@ -1062,8 +1062,7 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
                     Err(err) => {
                         error!(
                             "Failed to load generation config from '{}': {}",
-                            loaded_file.filename,
-                            err
+                            loaded_file.filename, err
                         );
                     }
                 }
@@ -1091,8 +1090,7 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
                     Err(err) => {
                         error!(
                             "Failed to load map config from '{}': {}",
-                            loaded_file.filename,
-                            err
+                            loaded_file.filename, err
                         );
                     }
                 }
@@ -1143,4 +1141,3 @@ pub fn handle_config_dialogs(editor: &mut Editor) {
         }
     }
 }
-
