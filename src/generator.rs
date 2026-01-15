@@ -11,7 +11,6 @@
 //! - [`Generator::perform_all_post_processing`] - Executes all post-processing steps
 
 use clap::crate_version;
-use std::panic::{self, AssertUnwindSafe};
 
 use crate::{
     config::{GenerationConfig, MapConfig, ThemeConfig},
@@ -26,23 +25,22 @@ use crate::{
 };
 
 pub struct Timer {
-    start: f64,
+    start: std::time::Instant,
 }
 
 impl Timer {
     pub fn start() -> Self {
         Self {
-            start: macroquad::time::get_time(),
+            start: std::time::Instant::now(),
         }
     }
 
     pub fn elapsed(&self) -> std::time::Duration {
-        let now = macroquad::time::get_time();
-        std::time::Duration::from_secs_f64(now - self.start)
+        self.start.elapsed()
     }
 
     pub fn restart(&mut self) {
-        self.start = macroquad::time::get_time();
+        self.start = std::time::Instant::now();
     }
 }
 
@@ -444,9 +442,7 @@ impl Generator {
         // set status to PostProcessing
         self.status = GenerationStatus::PostProcessing;
 
-        // wrap all post-processing logic to catch errors and panics
-        let panic_result = panic::catch_unwind(AssertUnwindSafe(|| -> Result<(), &'static str> {
-            let mut timer = Timer::start();
+        let mut timer = Timer::start();
 
             self.generate_spawn(thm_config);
             print_time(&mut timer, "place start room", verbose);
@@ -584,30 +580,12 @@ impl Generator {
             print_time(&mut timer, "set debug layers", verbose);
 
             // if enabled, perform prepare export steps
-            if prepare_export {
-                self.prepare_export(thm_config, debug_layers, verbose);
-            }
-
-            Ok(())
-        }));
-
-        match panic_result {
-            Ok(result) => match result {
-                Ok(_) => {
-                    self.status = GenerationStatus::Success;
-                    Ok(())
-                }
-                Err(err) => {
-                    self.status =
-                        GenerationStatus::Failed(format!("Post-processing failed: {}", err));
-                    Err(err)
-                }
-            },
-            Err(_) => {
-                self.status = GenerationStatus::Failed("Post-processing panicked".to_string());
-                Err("Post-processing panicked")
-            }
+        if prepare_export {
+            self.prepare_export(thm_config, debug_layers, verbose);
         }
+
+        self.status = GenerationStatus::Success;
+        Ok(())
     }
 
     /// Perform preparation steps for map export, this call can be skipped
