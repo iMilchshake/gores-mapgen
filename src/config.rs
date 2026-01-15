@@ -309,19 +309,15 @@ impl GenerationConfig {
     }
 
     pub fn random(rnd: &mut Random) -> GenerationConfig {
-        let use_locking = rnd.get_bool_with_prob(0.5);
+        // Generate values with constraints
+        let plat_min_width = rnd.get_usize_in_range(1, 7);
+        let plat_max_width = rnd.get_usize_in_range(plat_min_width, 15);
 
-        let (max_subwaypoint_dist, subwaypoint_max_shift_dist) = if use_locking {
-            (
-                rnd.get_f32_in_range(20.0, 50.0), // greatly reduce number of sub-waypoints
-                rnd.get_f32_in_range(0.0, 5.0),   // greatly reduce waypoint shift
-            )
-        } else {
-            (
-                rnd.get_f32_in_range(1.0, 100.0),
-                rnd.get_f32_in_range(0.0, 50.0),
-            )
-        };
+        let fade_max_size = rnd.get_usize_in_range(3, 10);
+        let fade_min_size = rnd.get_usize_in_range(1, fade_max_size);
+
+        let pillar_min_length = rnd.get_usize_in_range(1, 5);
+        let pillar_max_length = rnd.get_usize_in_range(pillar_min_length, 30);
 
         // as shift_weights always requires exactly 4 values, i just generate it like this..
         let mut shift_weights = RandomDistConfig::new(
@@ -357,48 +353,51 @@ impl GenerationConfig {
 
         GenerationConfig {
             name: "Random".to_string(),
+            description: None,
+            difficulty: rnd.get_f32_in_range(0.1, 5.0),
+            version: "1.0".to_string(),
             inner_rad_mut_prob: rnd.get_unit_ratio(),
             inner_size_mut_prob: rnd.get_unit_ratio(),
             outer_rad_mut_prob: rnd.get_unit_ratio(),
             outer_size_mut_prob: rnd.get_unit_ratio(),
-            // plat_max_euclidean_distance: rnd.get_usize_in_range(0, 100),
-            plat_target_distance: rnd.get_usize_in_range(0, 100),
-            plat_max_freeze: rnd.get_usize_in_range(1, 5),
+            shift_weights,
+            plat_target_distance: rnd.get_usize_in_range(0, 200),
+            plat_max_freeze: rnd.get_usize_in_range(1, 10),
             plat_height: rnd.get_usize_in_range(1, 10),
-            plat_min_width: rnd.get_usize_in_range(1, 7),
+            plat_min_width,
+            plat_max_width,
+            plat_part_width: rnd.get_usize_in_range(1, 5),
             momentum_prob: rnd.get_unit_ratio(),
-            max_distance: rnd.get_f32_in_range(1.42, 5.0),
+            max_distance: rnd.get_f32_in_range(0.1, 15.0),
             waypoint_reached_dist: rnd.get_usize_in_range(5, 500),
             inner_size_probs: rnd.get_random_usize_dist_config(6, Some((1, 8))),
-            skip_min_spacing_sqr: rnd.get_usize_in_range(1, 10) * rnd.pick_from_slice(&[1, 10]),
-            skip_length_bounds: rnd.get_bounds(1, 50),
-            max_level_skip: rnd.get_usize_in_range(5, 1000),
-            enable_pulse: rnd.get_bool_with_prob(0.5),
-            pulse_corner_delay: rnd.get_usize_in_range(0, 15),
-            pulse_straight_delay: rnd.get_usize_in_range(0, 15),
-            pulse_max_kernel_size: rnd.get_usize_in_range(0, 5),
-            fade_steps: rnd.get_usize_in_range(0, 200),
-            pos_lock_max_delay: rnd.get_usize_in_range(1, 10_000),
-            pos_lock_max_dist: rnd.get_f32_in_range(1.0, 100.0),
-            shift_weights,
             outer_margin_probs,
             circ_probs,
-            max_subwaypoint_dist,
-            subwaypoint_max_shift_dist,
-            // lock_kernel_size,
-            min_freeze_size: 0, // disable blob removal for now?
-            // waypoint locking can make generation more stable, but for random
-            // configs it mostly screws stuff up, so im just disabling it :)
-            waypoint_lock_distance: 0,
-            // inner_size_probs: RandomDistConfig::new(Some(vec![3, 5]), vec![0.25, 0.75]),
-            // fade_max_size: 6,
-            // fade_min_size: 3,
+            skip_length_bounds: rnd.get_bounds(1, 50),
+            skip_min_spacing_sqr: rnd.get_usize_in_range(1, 100),
+            max_level_skip: rnd.get_usize_in_range(5, 1000),
+            min_freeze_size: rnd.get_usize_in_range(0, 10),
+            enable_pulse: rnd.get_bool_with_prob(0.5),
+            pulse_straight_delay: rnd.get_usize_in_range(0, 15),
+            pulse_corner_delay: rnd.get_usize_in_range(0, 15),
+            pulse_max_kernel_size: rnd.get_usize_in_range(0, 5),
+            fade_steps: rnd.get_usize_in_range(0, 200),
+            fade_max_size,
+            fade_min_size,
+            max_subwaypoint_dist: rnd.get_f32_in_range(0.1, 100.0),
+            subwaypoint_max_shift_dist: rnd.get_f32_in_range(0.0, 300.0),
+            skip_invalid_waypoints: rnd.get_bool_with_prob(0.5),
+            pos_lock_max_dist: rnd.get_f32_in_range(0.0, 150.0),
+            pos_lock_max_delay: rnd.get_usize_in_range(1, 10_000),
+            enable_kernel_lock: rnd.get_bool_with_prob(0.5),
+            waypoint_lock_distance: rnd.get_usize_in_range(0, 20),
+            use_dead_end_removal: rnd.get_bool_with_prob(0.5),
+            dead_end_threshold: rnd.get_usize_in_range(1, 20),
             enable_pillars: rnd.get_bool_with_prob(0.5),
-            pillar_min_length: rnd.get_usize_in_range(1, 5),
-            pillar_max_length: rnd.get_usize_in_range(5, 30),
+            pillar_min_length,
+            pillar_max_length,
             pillar_tip_margin: rnd.get_usize_in_range(1, 5),
             pillar_side_margin: rnd.get_usize_in_range(1, 3),
-            ..Default::default()
         }
     }
 
