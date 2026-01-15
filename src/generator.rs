@@ -11,6 +11,7 @@
 //! - [`Generator::perform_all_post_processing`] - Executes all post-processing steps
 
 use clap::crate_version;
+use std::time::Duration;
 
 use crate::{
     config::{GenerationConfig, MapConfig, ThemeConfig},
@@ -25,22 +26,23 @@ use crate::{
 };
 
 pub struct Timer {
-    start: std::time::Instant,
+    start: f64,
 }
 
 impl Timer {
     pub fn start() -> Self {
         Self {
-            start: std::time::Instant::now(),
+            start: macroquad::time::get_time(),
         }
     }
 
-    pub fn elapsed(&self) -> std::time::Duration {
-        self.start.elapsed()
+    pub fn elapsed(&self) -> Duration {
+        let now = macroquad::time::get_time();
+        Duration::from_secs_f64(now - self.start)
     }
 
     pub fn restart(&mut self) {
-        self.start = std::time::Instant::now();
+        self.start = macroquad::time::get_time();
     }
 }
 
