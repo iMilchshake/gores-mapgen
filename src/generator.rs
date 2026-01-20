@@ -46,10 +46,10 @@ impl Timer {
     }
 }
 
-pub fn print_time(timer: &mut Timer, message: &str, print: bool) {
-    if print {
-        println!("{}: {:?}", message, timer.elapsed());
-        timer.restart()
+pub fn print_time(timer: &mut Option<Timer>, message: &str) {
+    if let Some(t) = timer {
+        println!("{}: {:?}", message, t.elapsed());
+        t.restart()
     }
 }
 
@@ -444,25 +444,25 @@ impl Generator {
         // set status to PostProcessing
         self.status = GenerationStatus::PostProcessing;
 
-        let mut timer = Timer::start();
+        let mut timer = if verbose { Some(Timer::start()) } else { None };
 
         self.generate_spawn(thm_config);
-        print_time(&mut timer, "place start room", verbose);
+        print_time(&mut timer, "place start room");
 
         if gen_config.min_freeze_size > 0 {
             // TODO: Maybe add some alternative function for the case of min_freeze_size=1
             post::remove_freeze_blobs(self, gen_config.min_freeze_size, debug_layers);
-            print_time(&mut timer, "detect blobs", verbose);
+            print_time(&mut timer, "detect blobs");
         }
 
         let ff = flood_fill(self, &[self.spawn.clone()], Some(&self.walker.pos), false)?;
-        print_time(&mut timer, "flood fill", verbose);
+        print_time(&mut timer, "flood fill");
 
         // we do expanding edge bugs after determining ff, because otherwise it might overlap end
         // position with new padded freeze.. idk if i like this order tho because many freeze
         // blocks will now have a ff distance?
         let edge_bugs = post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
-        print_time(&mut timer, "fix edge bugs", verbose);
+        print_time(&mut timer, "fix edge bugs");
 
         post::generate_finish_room(
             &self.walker.pos.clone(),
@@ -471,15 +471,15 @@ impl Generator {
             &ff.distance,
             4,
         )?;
-        print_time(&mut timer, "place finish room", verbose);
+        print_time(&mut timer, "place finish room");
 
         // lock all remaining blocks
         self.walker
             .lock_previous_location(&self.map, gen_config, true)?;
-        print_time(&mut timer, "finish walker lock", verbose);
+        print_time(&mut timer, "finish walker lock");
 
         let ff_main_path = flood_fill(self, ff.path.as_ref().unwrap(), None, true)?;
-        print_time(&mut timer, "flood fill (main path dist)", verbose);
+        print_time(&mut timer, "flood fill (main path dist)");
 
         if let Some(debug_layers) = debug_layers {
             debug_layers
@@ -499,16 +499,16 @@ impl Generator {
         if gen_config.use_dead_end_removal {
             let dead_end_blocks =
                 post::fill_dead_ends(&mut self.map, gen_config, &ff_main_path.distance)?;
-            print_time(&mut timer, "fill dead ends", verbose);
+            print_time(&mut timer, "fill dead ends");
 
             // fix stair artifacts resulting from dead end filling
             post::fix_stairs(&mut self.map, dead_end_blocks, &mut self.rnd);
-            print_time(&mut timer, "fix stairs", verbose);
+            print_time(&mut timer, "fix stairs");
         }
 
         // TODO: only perform this for updated blocks?
         post::fix_edge_bugs_expanding(self).expect("fix edge bugs failed");
-        print_time(&mut timer, "fix edge_bugs #2", verbose);
+        print_time(&mut timer, "fix edge_bugs #2");
 
         post::generate_all_skips(
             self,
@@ -518,7 +518,7 @@ impl Generator {
             &ff.distance,
             debug_layers,
         );
-        print_time(&mut timer, "generate skips", verbose);
+        print_time(&mut timer, "generate skips");
 
         let ff_map_length =
             ff.distance[self.walker.pos.as_index()].expect("cant determine map length");
@@ -531,16 +531,16 @@ impl Generator {
             ff_map_length,
             debug_layers,
         )?;
-        print_time(&mut timer, "generate platforms", verbose);
+        print_time(&mut timer, "generate platforms");
 
         // pillars
         if gen_config.enable_pillars {
             post::generate_all_pillars(&mut self.map, gen_config, &mut self.rnd, debug_layers)?;
-            print_time(&mut timer, "generate pillars", verbose);
+            print_time(&mut timer, "generate pillars");
         }
 
         post::fill_open_areas(self, &gen_config.max_distance, debug_layers);
-        print_time(&mut timer, "place obstacles", verbose);
+        print_time(&mut timer, "place obstacles");
 
         // post::remove_unused_blocks(&mut self.map, &self.walker.locked_positions);
 
@@ -550,7 +550,7 @@ impl Generator {
         if end_distance.is_none() {
             return Err("No valid path to finish");
         }
-        print_time(&mut timer, "map path validation", verbose);
+        print_time(&mut timer, "map path validation");
 
         if let Some(debug_layers) = debug_layers {
             debug_layers
@@ -578,7 +578,7 @@ impl Generator {
                 grid[floor_pos.pos.as_index()] = true;
             }
         }
-        print_time(&mut timer, "set debug layers", verbose);
+        print_time(&mut timer, "set debug layers");
 
         // if enabled, perform prepare export steps
         if prepare_export {
@@ -597,16 +597,16 @@ impl Generator {
         debug_layers: &mut Option<DebugLayers>,
         verbose: bool,
     ) {
-        let mut timer = Timer::start();
+        let mut timer = if verbose { Some(Timer::start()) } else { None };
 
         // flip before generating noise, as overlay noise depends on it
         if self.rnd.get_bool_with_prob(0.5) {
             self.map.flip_x_axis();
-            print_time(&mut timer, "flip map", verbose);
+            print_time(&mut timer, "flip map");
         }
 
         post::generate_noise_layers(&mut self.map, &mut self.rnd, thm_config, debug_layers);
-        print_time(&mut timer, "generate noise layers", verbose);
+        print_time(&mut timer, "generate noise layers");
     }
 
     /// Generates an entire map with a single function call. This function is used by the CLI.

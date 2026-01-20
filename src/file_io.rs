@@ -518,7 +518,9 @@ mod wasm_impl {
     }
 
     /// Save a file (downloads it in the browser)
-    pub fn save_file_impl(filename: &str, data: &[u8]) -> Result<(), String> {
+    pub fn save_file_impl(path: &str, data: &[u8]) -> Result<(), String> {
+        // Extract just the filename for browser downloads (ignore directory path)
+        let filename = super::extract_filename_or_default(path, "map.map");
         unsafe {
             wasm_download_file(filename.as_ptr(), filename.len(), data.as_ptr(), data.len());
         }

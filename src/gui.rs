@@ -5,6 +5,7 @@ use crate::{
     generator::GenerationStatus,
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
+    utils::get_default_file_name,
 };
 use egui::Context;
 use egui::{Align2, RichText};
@@ -229,12 +230,10 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("Save Map").clicked() {
-                    // Generate default filename: <gen_config>-<map_config>-<seed>.map
-                    let filename = format!(
-                        "{}-{}-{}.map",
-                        editor.gen_config.name,
-                        editor.map_config.name,
-                        editor.user_seed.to_base64()
+                    let filename = get_default_file_name(
+                        &editor.gen_config,
+                        &editor.map_config,
+                        &editor.user_seed,
                     );
                     editor.save_map_dialog.set_default_name(filename);
                     editor.save_map_dialog.save_file();
