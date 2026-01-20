@@ -12,6 +12,10 @@ name = "config_points"
 
 [[bin]]
 name = "benchmark"
+required-features = ["benchmark"]
+
+[features]
+benchmark = ["indicatif"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 indicatif = { version = "0.17.8", optional = true }

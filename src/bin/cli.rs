@@ -3,7 +3,7 @@ use gores_mapgen::{
     args::CLIArgs,
     config::{GenerationConfig, MapConfig, ThemeConfig},
     generator::Generator,
-    random::{Random, Seed},
+    random::Seed,
 };
 use log::{info, warn};
 use simple_logger::SimpleLogger;
@@ -26,15 +26,10 @@ fn main() {
         .find(|c| c.name == args.gen_config_name)
         .unwrap_or_else(|| panic!("gen config '{}' not found", args.map_config_name));
 
-    let seed = args.fixed_seed.unwrap_or(Random::get_u64_from_entropy());
-
-    // disable panic hook so they no longer get printed
-    // panic::set_hook(Box::new(|_info| {}));
-
     let generation_result = panic::catch_unwind(|| {
         Generator::generate_map(
             args.max_gen_steps,
-            &Seed::from_u64(seed),
+            &Seed::from_u64(42),
             gen_config,
             map_config,
             &ThemeConfig::default(),
