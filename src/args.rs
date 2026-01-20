@@ -74,7 +74,7 @@ pub struct CLIArgs {
     #[arg(long = "seed_u64", conflicts_with = "seed")]
     pub seed_u64: Option<u64>,
 
-    /// number of of maps to generate // TODO: implement
+    /// number of of maps to generate
     #[arg(short = 'n', default_value_t = 1)]
     pub n_maps: usize,
 
