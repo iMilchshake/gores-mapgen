@@ -93,7 +93,18 @@ impl MapCamera {
             (-self.offset.y / cam.zoom.y) + (cam_height / 2.),
         );
         cam.zoom *= self.zoom;
-        cam.viewport = Some((0, 0, viewport.x as i32, viewport.y as i32));
+        cam.zoom.y *= -1.0; // Flip Y axis for macroquad 0.4 camera consistency
+
+        // Set viewport position accounting for top menu bar
+        let viewport_y_offset = self
+            .viewport_y_offset
+            .expect("viewport y offset not defined");
+        cam.viewport = Some((
+            0,
+            viewport_y_offset as i32,
+            viewport.x as i32,
+            viewport.y as i32,
+        ));
 
         macroquad::camera::set_camera(&cam);
         self.cam = Some(cam);
@@ -104,23 +115,18 @@ impl MapCamera {
     }
 
     pub fn get_map_mouse_pos(&self) -> Vec2 {
-        let viewport_ratio = self.viewport_ratio.expect("viewport not defined");
-        let cam = self.cam.expect("macroquad cam not defined");
-        let viewport_y_offset = self
-            .viewport_y_offset
-            .expect("viewport y offset not defined");
+        let cam = self.cam.as_ref().expect("macroquad cam not defined");
+        let (mouse_x, mouse_y) = mouse_position();
 
-        let (mouse_x, mut mouse_y) = mouse_position();
-        mouse_y -= viewport_y_offset;
-        let mouse_viewport_pos = (Vec2::new(mouse_x, mouse_y)) / viewport_ratio;
-
-        cam.screen_to_world(mouse_viewport_pos)
+        // cam.viewport already accounts for the top bar offset, so we pass screen coords directly
+        // screen_to_world() considers the Y flip via cam.zoom.y *= -1.0
+        cam.screen_to_world(Vec2::new(mouse_x, mouse_y))
     }
 
     /// debug draws
     pub fn draw_cam_debug(&self) {
         let map_size = self.map_size.expect("map size not defined!");
-        let cam = self.cam.expect("macroquad cam not defined");
+        let cam = self.cam.as_ref().expect("macroquad cam not defined");
         let mouse_pos = self.get_map_mouse_pos();
 
         draw_circle(mouse_pos.x, mouse_pos.y, 1.0, BLUE);

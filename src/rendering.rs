@@ -204,7 +204,7 @@ pub fn draw_font_layer(font_layer: &Array2<Option<char>>) {
                 &ch.to_string(),
                 x as f32 + 0.25,
                 y as f32 + 0.75,
-                text_params,
+                text_params.clone(),
             );
         }
     }

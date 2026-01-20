@@ -1,17 +1,18 @@
-use std::{collections::BTreeMap, env, process::exit};
-
-use egui::{Align2, RichText};
-use tinyfiledialogs;
-
 use crate::{
+    config::{GenerationConfig, MapConfig},
     editor::{window_frame, Editor, PlaybackMode, SeedType},
+    file_io::FileDialogResult,
     generator::GenerationStatus,
     position::{Position, ShiftDirection},
     random::{RandomDistConfig, Seed},
+    utils::get_default_file_name,
 };
 use egui::Context;
+use egui::{Align2, RichText};
 use egui::{CollapsingHeader, Label, Ui};
+use macroquad::prelude::{error, info};
 use macroquad::time::get_fps;
+use std::{collections::BTreeMap, process::exit};
 
 pub fn vec_edit_widget<T, F>(
     ui: &mut Ui,
@@ -152,7 +153,7 @@ pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
 }
 
 pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
-    ui.add(egui::DragValue::new(value).clamp_range(0..=isize::MAX));
+    ui.add(egui::DragValue::new(value).range(0..=isize::MAX));
 }
 
 pub fn edit_f32_slider_bounded(min: f32, max: f32) -> impl Fn(&mut Ui, &mut f32) {
@@ -214,9 +215,9 @@ pub fn edit_position(ui: &mut Ui, position: &mut Position) {
 pub fn edit_range_usize(ui: &mut Ui, values: &mut (usize, usize)) {
     ui.horizontal(|ui| {
         ui.label("min:");
-        ui.add(egui::widgets::DragValue::new(&mut values.0).clamp_range(0..=values.1));
+        ui.add(egui::widgets::DragValue::new(&mut values.0).range(0..=values.1));
         ui.label("max:");
-        ui.add(egui::widgets::DragValue::new(&mut values.1).clamp_range(values.0..=usize::MAX));
+        ui.add(egui::widgets::DragValue::new(&mut values.1).range(values.0..=usize::MAX));
     });
 }
 
@@ -229,7 +230,14 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("Save Map").clicked() {
-                    editor.save_map_dialog();
+                    let filename = get_default_file_name(
+                        &editor.gen_config,
+                        &editor.map_config,
+                        &editor.user_seed,
+                    );
+                    editor.save_map_dialog.set_default_name(filename);
+                    editor.save_map_dialog.save_file();
+                    ui.close_menu();
                 }
                 if ui.button("Exit").clicked() {
                     exit(0)
@@ -252,7 +260,14 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
                 ui.checkbox(&mut editor.verbose_post_process, "verbose post");
                 ui.checkbox(&mut editor.use_chunked_rendering, "chunked render");
             });
-            ui.menu_button("Help", |ui| if ui.button("About").clicked() {});
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(format!(
+                    "v{} ({})",
+                    env!("CARGO_PKG_VERSION"),
+                    env!("GIT_HASH")
+                ));
+            });
         });
     });
 }
@@ -350,7 +365,6 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
         });
 
         // =======================================[ SEED CONTROL ]===================================
-        // if editor.gen.status == GenerationStatus::Initialized {
         ui.separator();
 
         ui.vertical(|ui| {
@@ -359,7 +373,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     RichText::new(format!("seed: {}", editor.user_seed.to_base64())).monospace(),
                 );
                 if ui.button("📋").clicked() {
-                    ui.output_mut(|o| o.copied_text = editor.user_seed.to_base64());
+                    ctx.copy_text(editor.user_seed.to_base64());
                 }
             });
 
@@ -406,45 +420,30 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             ui.separator();
         }
         // =======================================[ CONFIG STORAGE ]===================================
-        ui.label("save config files:");
+        ui.label("load config files:");
         ui.horizontal(|ui| {
-            // if ui.button("load file").clicked() {
-            //     let cwd = env::current_dir().unwrap();
-            //     if let Some(path_in) =
-            //         tinyfiledialogs::open_file_dialog("load config", &cwd.to_string_lossy(), None)
-            //     {
-            //         editor.gen_config = GenerationConfig::load(&path_in);
-            //     }
-            // }
             if ui.button("gen config").clicked() {
-                let cwd = env::current_dir().unwrap();
-
-                let initial_path = cwd
-                    .join(editor.gen_config.name.clone() + ".json")
-                    .to_string_lossy()
-                    .to_string();
-
-                if let Some(path_out) =
-                    tinyfiledialogs::save_file_dialog("save gen config", &initial_path)
-                {
-                    editor.gen_config.save(&path_out);
-                }
-            };
+                editor.load_gen_config_dialog.pick_file();
+            }
 
             if ui.button("map config").clicked() {
-                let cwd = env::current_dir().unwrap();
+                editor.load_map_config_dialog.pick_file();
+            }
+        });
 
-                let initial_path = cwd
-                    .join(editor.gen_config.name.clone() + ".json")
-                    .to_string_lossy()
-                    .to_string();
+        ui.label("save config files:");
+        ui.horizontal(|ui| {
+            if ui.button("gen config").clicked() {
+                let filename = format!("{}.json", editor.gen_config.name);
+                editor.save_gen_config_dialog.set_default_name(filename);
+                editor.save_gen_config_dialog.save_file();
+            }
 
-                if let Some(path_out) =
-                    tinyfiledialogs::save_file_dialog("save map config", &initial_path)
-                {
-                    editor.map_config.save(&path_out);
-                }
-            };
+            if ui.button("map config").clicked() {
+                let filename = format!("{}.json", editor.map_config.name);
+                editor.save_map_config_dialog.set_default_name(filename);
+                editor.save_map_config_dialog.save_file();
+            }
         });
 
         ui.label("load generation config:");
@@ -1047,4 +1046,97 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
                 map_mouse_pos_cell.0, map_mouse_pos_cell.1, block_type
             ));
         });
+}
+
+pub fn handle_config_dialogs(editor: &mut Editor) {
+    // Handle load generation config dialog
+    if let Some(result) = editor.load_gen_config_dialog.take_result() {
+        match result {
+            FileDialogResult::Loaded(loaded_file) => {
+                match GenerationConfig::from_loaded_file(&loaded_file) {
+                    Ok(gen_config) => {
+                        editor.gen_config = gen_config;
+                        info!("Loaded generation config: {}", loaded_file.filename);
+                    }
+                    Err(err) => {
+                        error!(
+                            "Failed to load generation config from '{}': {}",
+                            loaded_file.filename, err
+                        );
+                    }
+                }
+            }
+            FileDialogResult::Cancelled => {
+                info!("Generation config load cancelled");
+            }
+            FileDialogResult::Error(err) => {
+                error!("Failed to load generation config: {}", err);
+            }
+            _ => {}
+        }
+    }
+
+    // Handle load map config dialog
+    if let Some(result) = editor.load_map_config_dialog.take_result() {
+        match result {
+            FileDialogResult::Loaded(loaded_file) => {
+                match MapConfig::from_loaded_file(&loaded_file) {
+                    Ok(map_config) => {
+                        editor.map_config = map_config;
+                        editor.reset_generation(false, true);
+                        info!("Loaded map config: {}", loaded_file.filename);
+                    }
+                    Err(err) => {
+                        error!(
+                            "Failed to load map config from '{}': {}",
+                            loaded_file.filename, err
+                        );
+                    }
+                }
+            }
+            FileDialogResult::Cancelled => {
+                info!("Map config load cancelled");
+            }
+            FileDialogResult::Error(err) => {
+                error!("Failed to load map config: {}", err);
+            }
+            _ => {}
+        }
+    }
+
+    // Handle save gen config dialog
+    if let Some(result) = editor.save_gen_config_dialog.take_result() {
+        match result {
+            FileDialogResult::SavePath(path) => {
+                editor.gen_config.save(&path);
+                #[cfg(not(target_arch = "wasm32"))]
+                info!("Saved generation config to: {}", path);
+            }
+            FileDialogResult::Cancelled => {
+                info!("Generation config save cancelled");
+            }
+            FileDialogResult::Error(err) => {
+                error!("Failed to save generation config: {}", err);
+            }
+            _ => {}
+        }
+    }
+
+    // Handle save map config dialog
+    if let Some(result) = editor.save_map_config_dialog.take_result() {
+        match result {
+            FileDialogResult::SavePath(path) => {
+                editor.map_config.save(&path);
+                #[cfg(not(target_arch = "wasm32"))]
+                info!("Saved map config to: {}", path);
+            }
+            FileDialogResult::Cancelled => {
+                info!("Map config save cancelled");
+            }
+            FileDialogResult::Error(err) => {
+                error!("Failed to save map config: {}", err);
+            }
+            _ => {}
+        }
+    }
 }

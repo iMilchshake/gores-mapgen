@@ -1586,12 +1586,14 @@ pub fn generate_platforms(
     // check that no platform gap is too large
     // TODO: this doesnt yet consider multi-path maps
     final_platforms.sort_unstable_by(|a, b| a.flood_fill_dist.cmp(&b.flood_fill_dist));
-    let ff_gaps: Vec<usize> = final_platforms
-        .windows(2)
-        .map(|a| a[1].flood_fill_dist - a[0].flood_fill_dist)
-        .collect();
+
+    // Get gaps between platforms, including gap to spawn and finish
+    let mut positions = vec![0];
+    positions.extend(final_platforms.iter().map(|p| p.flood_fill_dist));
+    positions.push(ff_map_length);
+    let ff_gaps: Vec<usize> = positions.windows(2).map(|w| w[1] - w[0]).collect();
+
     // TODO: introduce these as a parameter?
-    // dbg!(&ff_gaps);
     let max_valid_gap = (gen_config.plat_target_distance as f32 * 1.50) as usize;
     let min_valid_gap = (gen_config.plat_target_distance as f32 / 2.00) as usize;
     let max_gap = *ff_gaps.iter().max().unwrap();

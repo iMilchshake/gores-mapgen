@@ -1,5 +1,7 @@
-use crate::map::Map;
+use crate::config::MapConfig;
 use crate::position::Position;
+use crate::random::Seed;
+use crate::{config::GenerationConfig, map::Map};
 use ndarray::{s, Array2, ArrayView2, ArrayViewMut2};
 
 pub fn safe_slice_mut<'a, T>(
@@ -30,4 +32,19 @@ pub fn safe_slice<'a, T>(
     let area = grid.slice(s![top_left.x..=bot_right.x, top_left.y..=bot_right.y]);
 
     Ok(area)
+}
+
+/// Generate default filename
+/// `<gen_config>-<map_config>-<seed>.map`
+pub fn get_default_file_name(
+    gen_config: &GenerationConfig,
+    map_config: &MapConfig,
+    seed: &Seed,
+) -> String {
+    format!(
+        "{}-{}-{}.map",
+        gen_config.name,
+        map_config.name,
+        seed.to_base64()
+    )
 }

@@ -2,12 +2,12 @@
 
 use clap::Parser;
 use gores_mapgen::{
-    args::EditorArgs, config::ThemeConfig, editor::*, fps_control::*, generator::GenerationStatus,
-    map::*, rendering::*,
+    args::EditorArgs, config::ThemeConfig, editor::*, generator::GenerationStatus, map::*,
+    rendering::*,
 };
+use macroquad::prelude::{error, info, warn};
 use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
-use simple_logger::SimpleLogger;
 
 const DISABLE_VSYNC: bool = true;
 
@@ -27,15 +27,29 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    std::panic::set_hook(Box::new(|info| {
+        if let Some(loc) = info.location() {
+            error!("PANIC at {}:{}: {}", loc.file(), loc.line(), info);
+        } else {
+            error!("PANIC: {}", info);
+        }
+    }));
+
     // initialization
     let args = EditorArgs::parse();
-    SimpleLogger::new().init().unwrap();
+
+    // simple_logger::SimpleLogger::new().init().unwrap();
     let mut editor = Editor::new("hard", "small_s_tight", ThemeConfig::default(), &args);
-    let mut fps_ctrl = FPSControl::new().with_max_fps(60);
+
+    // Show WASM warning on startup
+    #[cfg(target_arch = "wasm32")]
+    editor
+        .toaster
+        .warning("Experimental WASM build:\nmay crash and lose unsaved configurations")
+        .duration(Some(std::time::Duration::from_secs(7)));
 
     // main loop for gui (and step-wise map generation)
     loop {
-        fps_ctrl.on_frame_start();
         editor.on_frame_start();
 
         // "auto generate": start generating next map right away
@@ -60,7 +74,7 @@ async fn main() {
                 .gen
                 .step(&editor.gen_config, true, &mut editor.debug_layers)
                 .unwrap_or_else(|err| {
-                    log::error!("Walker Step Failed: {:}", err);
+                    error!("Walker Step Failed: {:}", err);
                     editor.playback_mode = PlaybackMode::Paused;
                     editor.gen.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
                 });
@@ -87,7 +101,7 @@ async fn main() {
                         editor.playback_mode = PlaybackMode::Paused;
                         editor.auto_generate = false;
                     }
-                    log::error!("Post Processing Failed: {:}", err);
+                    error!("Post Processing Failed: {:}", err);
                 });
 
             // check status to handle success/failure
@@ -103,14 +117,13 @@ async fn main() {
             if let GenerationStatus::Failed(_) = editor.gen.status {
                 if editor.retry_count < editor.max_retries {
                     editor.retry_count += 1;
-                    log::info!(
+                    info!(
                         "Retrying generation ({}/{})",
-                        editor.retry_count,
-                        editor.max_retries
+                        editor.retry_count, editor.max_retries
                     );
                     editor.reset_generation(true, false);
                 } else {
-                    log::warn!(
+                    warn!(
                         "Max retries ({}) reached, stopping automatic retries",
                         editor.max_retries
                     );
@@ -179,6 +192,6 @@ async fn main() {
         // editor.map_cam.draw_cam_debug();
 
         egui_macroquad::draw();
-        fps_ctrl.wait_for_next_frame().await;
+        next_frame().await; // submit our render calls to our screen
     }
 }

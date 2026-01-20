@@ -1,8 +1,12 @@
-use clap::{crate_version, Parser};
+use std::path::PathBuf;
+
+use clap::Parser;
+
+const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("GIT_HASH"), ")");
 
 #[derive(Parser, Debug)]
-#[command(name = "Random Gores Map Generator - Editor")]
-#[command(version = crate_version!())]
+#[command(name = "gores-mapgen: Editor")]
+#[command(version = VERSION)]
 #[command(about = "Visual editor for generating maps and customizing the generators presets", long_about = None)]
 pub struct EditorArgs {
     /// select initial generation config
@@ -44,9 +48,9 @@ pub struct EditorArgs {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "Random Gores Map Generator - CLI")]
-#[command(version = crate_version!())]
-#[command(about = "CLI for generating maps using generators presets", long_about = None)]
+#[command(name = "gores-mapgen: CLI")]
+#[command(version = VERSION)]
+#[command(about = "CLI for procedual random map generator for the gores gamemode in DDNet.", long_about = None)]
 pub struct CLIArgs {
     /// select initial generation config
     pub gen_config_name: String,
@@ -54,11 +58,27 @@ pub struct CLIArgs {
     /// select initial map config
     pub map_config_name: String,
 
-    /// enable fixed seed
-    #[arg(short = 's', long = "seed")]
-    pub fixed_seed: Option<u64>,
+    /// output path (can be file path for single map generation, otherwise use folder path)
+    #[arg(short = 'o', long = "out", default_value = ".")]
+    pub out_path: PathBuf,
+
+    /// overwrite existing map files
+    #[arg(short = 'd')]
+    pub dry_run: bool,
+
+    /// set base64 fixed seed
+    #[arg(short = 's', long = "seed", conflicts_with = "seed_u64")]
+    pub seed: Option<String>,
+
+    /// set u64 fixed seed
+    #[arg(long = "seed_u64", conflicts_with = "seed")]
+    pub seed_u64: Option<u64>,
+
+    /// number of of maps to generate // TODO: implement
+    #[arg(short = 'n', default_value_t = 1)]
+    pub n_maps: usize,
 
     /// The maximum amount of generation steps before generation stops
     #[arg(long, default_value = "200000")]
-    pub max_gen_steps: usize,
+    pub max_steps: usize,
 }

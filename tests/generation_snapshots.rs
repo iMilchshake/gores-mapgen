@@ -120,7 +120,11 @@ fn compact_rle_to_grid(compact: &str) -> Array2<BlockType> {
             }
         }
 
-        assert_eq!(x, width, "Row {} has incorrect length: {} vs {}", y, x, width);
+        assert_eq!(
+            x, width,
+            "Row {} has incorrect length: {} vs {}",
+            y, x, width
+        );
     }
 
     grid
@@ -225,10 +229,8 @@ fn test_all_config_permutations() {
             let snapshot = format!("seed: {}\n{}", seed_used, compact_grid);
 
             // Try to compare with existing snapshot for detailed diff
-            let snapshot_path = format!(
-                "tests/snapshots/generation_snapshots__{}.snap",
-                config_name
-            );
+            let snapshot_path =
+                format!("tests/snapshots/generation_snapshots__{}.snap", config_name);
             if let Ok(existing_content) = std::fs::read_to_string(&snapshot_path) {
                 // Extract grid data (skip YAML header lines)
                 let lines: Vec<&str> = existing_content.lines().collect();

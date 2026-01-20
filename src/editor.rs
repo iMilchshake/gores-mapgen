@@ -1,20 +1,18 @@
-use std::{path::PathBuf, str::FromStr};
-
 const STEPS_PER_FRAME: usize = 50;
 
 use crate::{
     args::EditorArgs,
     config::{GenerationConfig, MapConfig, ThemeConfig},
     debug::DebugLayers,
+    file_io::{FileDialog, FileDialogResult, FileOperationType},
     generator::Generator,
     gui,
     map_camera::MapCamera,
     random::Seed,
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
-use log::warn;
-use std::env;
 
+use macroquad::prelude::{error, info, warn};
 use macroquad::time::get_fps;
 use macroquad::{camera::Camera2D, input::is_mouse_button_pressed};
 use macroquad::{
@@ -30,7 +28,7 @@ const AVG_FPS_FACTOR: f32 = 0.025; // how much current fps is weighted into the 
 pub fn window_frame() -> Frame {
     Frame {
         fill: Color32::from_gray(0),
-        inner_margin: Margin::same(5.0),
+        inner_margin: Margin::same(5),
         shadow: Shadow::NONE,
         ..Default::default()
     }
@@ -121,6 +119,16 @@ pub struct Editor {
 
     /// Whether to flip maps after generation
     pub use_map_flip: bool,
+
+    /// File dialogs (platform-agnostic)
+    pub save_map_dialog: FileDialog,
+    pub load_gen_config_dialog: FileDialog,
+    pub load_map_config_dialog: FileDialog,
+    pub save_gen_config_dialog: FileDialog,
+    pub save_map_config_dialog: FileDialog,
+
+    /// Toast notification system
+    pub toaster: egui_notify::Toasts,
 }
 
 impl Editor {
@@ -189,6 +197,16 @@ impl Editor {
             verbose_post_process: false,
             use_chunked_rendering: true,
             use_map_flip: false,
+            save_map_dialog: FileDialog::new(FileOperationType::SaveMap),
+            load_gen_config_dialog: FileDialog::new(FileOperationType::LoadGenerationConfig)
+                .with_filter(crate::file_io::FileFilter::json()),
+            load_map_config_dialog: FileDialog::new(FileOperationType::LoadMapConfig)
+                .with_filter(crate::file_io::FileFilter::json()),
+            save_gen_config_dialog: FileDialog::new(FileOperationType::SaveGenerationConfig),
+            save_map_config_dialog: FileDialog::new(FileOperationType::SaveMapConfig),
+            toaster: egui_notify::Toasts::default()
+                .with_anchor(egui_notify::Anchor::TopLeft)
+                .with_margin(egui::Vec2::new(8.0, 30.0)),
         };
 
         // initialize debug layers
@@ -255,8 +273,8 @@ impl Editor {
 
     pub fn define_egui(&mut self) {
         egui_macroquad::ui(|egui_ctx| {
-            gui::menu(egui_ctx, self);
             gui::sidebar(egui_ctx, self);
+            gui::menu(egui_ctx, self);
 
             if self.show_debug_widget {
                 gui::debug_window(egui_ctx, self);
@@ -270,6 +288,20 @@ impl Editor {
             if self.show_theme_widget {
                 gui::theme_widget(egui_ctx, self);
             }
+
+            // Update file dialogs
+            self.save_map_dialog.update(egui_ctx);
+            self.load_gen_config_dialog.update(egui_ctx);
+            self.load_map_config_dialog.update(egui_ctx);
+            self.save_gen_config_dialog.update(egui_ctx);
+            self.save_map_config_dialog.update(egui_ctx);
+
+            // Handle file dialog results
+            self.handle_save_map();
+            gui::handle_config_dialogs(self);
+
+            // Show toast notifications
+            self.toaster.show(egui_ctx);
 
             // store remaining space for macroquad drawing
             self.canvas = Some(egui_ctx.available_rect());
@@ -316,16 +348,26 @@ impl Editor {
         self.map_cam.update_macroquad_cam();
     }
 
-    pub fn save_map_dialog(&mut self) {
-        let cwd = env::current_dir().unwrap();
-        let initial_path = cwd.join("name.map").to_string_lossy().to_string();
-        if let Some(path_out) = tinyfiledialogs::save_file_dialog("save map", &initial_path) {
-            // perform export preparation, if not enabled in editor
-            if !self.prepare_export {
-                self.gen
-                    .prepare_export(&self.thm_config, &mut self.debug_layers, false);
+    pub fn handle_save_map(&mut self) {
+        if let Some(result) = self.save_map_dialog.take_result() {
+            match result {
+                FileDialogResult::SavePath(path) => {
+                    // perform export preparation, if not enabled in editor
+                    if !self.prepare_export {
+                        self.gen
+                            .prepare_export(&self.thm_config, &mut self.debug_layers, false);
+                    }
+                    let path_buf = std::path::PathBuf::from(&path);
+                    self.gen.map.export(&path_buf);
+                }
+                FileDialogResult::Cancelled => {
+                    info!("Map save cancelled");
+                }
+                FileDialogResult::Error(err) => {
+                    error!("Failed to save map: {}", err);
+                }
+                _ => {}
             }
-            self.gen.map.export(&PathBuf::from_str(&path_out).unwrap());
         }
     }
 

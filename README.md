@@ -16,6 +16,10 @@ For documentation on all the possible settings check out the docstrings for the 
 - `r`: Refocus camera
 - `d`: View debug layer hover
 
+## WASM / Web Editor
+
+The editor can run in your browser via WebAssembly! Try it at: **[Live Demo](https://iMilchshake.github.io/gores-mapgen/)**
+
 ## Snapshot Testing
 Snapshot tests ensure code changes don't unintentionally alter map generation. For comfortable interactive usage `cargo install cargo-insta`.
 
