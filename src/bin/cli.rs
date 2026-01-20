@@ -7,6 +7,7 @@ use gores_mapgen::{
     twmap_export::TwExport,
     utils::get_default_file_name,
 };
+use indicatif::{ProgressBar, ProgressStyle};
 use std::panic;
 
 fn main() {
@@ -38,12 +39,22 @@ fn main() {
         Seed::from_u64(3777777777) // thanks Tater for the epic **random** seed
     };
 
-    // initialize random generator using same init seed, to generate more seeds for n_maps > 1
-    let mut rnd = Random::new(seed.clone(), &gen_config);
+    let mut rnd = Random::new(seed.clone(), &gen_config); // used to generate new seeds (n_maps>1)
     let mut n_finished_maps = 0;
+    let mut n_attempts = 0;
+
+    let progress_bar = ProgressBar::new(args.n_maps as u64);
+    progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} maps (eta: {eta})")
+            .unwrap()
+            .progress_chars("#>-"),
+    );
 
     while n_finished_maps < args.n_maps {
-        // generate map
+        n_attempts += 1;
+        progress_bar.set_message(format!("attempt {}", n_attempts));
+
         let generation_result = panic::catch_unwind(|| {
             Generator::generate_map(
                 args.max_steps,
@@ -72,22 +83,28 @@ fn main() {
 
                 // export
                 if args.dry_run {
-                    println!("Would have saved map to {:?}", export_path);
+                    progress_bar.println(format!("Would have saved map to {:?}", export_path));
                 } else {
                     TwExport::export(&map, export_path);
-                    println!("Saved map to {:?}", export_path);
+                    progress_bar.println(format!("Saved map to {:?}", export_path));
                 }
 
                 n_finished_maps += 1;
+                progress_bar.inc(1);
             }
             Ok(Err(generation_error)) => {
-                println!("generation failed: {}", generation_error)
+                progress_bar.println(format!("generation failed: {}", generation_error));
             }
             Err(panic_info) => {
-                println!("generation panicked: {:?}", panic_info)
+                progress_bar.println(format!("generation panicked: {:?}", panic_info));
             }
         }
 
-        seed.seed_u64 = rnd.get_u64();
+        seed.seed_u64 = rnd.get_u64(); // update seed
     }
+
+    progress_bar.finish_with_message(format!(
+        "completed {} maps in {} attempts",
+        n_finished_maps, n_attempts
+    ));
 }
