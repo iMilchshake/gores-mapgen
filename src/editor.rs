@@ -338,7 +338,8 @@ impl Editor {
     }
 
     pub fn update_cam(&mut self) {
-        // self.map_cam.update_map_size(self.gen.map.width, self.gen.map.height);
+        self.vp_cam
+            .set_plane(self.gen.map.width as f32, self.gen.map.height as f32);
 
         let canvas = self.canvas.unwrap();
         self.vp_cam.set_viewport(
