@@ -100,8 +100,8 @@ pub fn dt<T: num::Float>(a: &Array<T, IxDyn>) -> Array<T, IxDyn> {
     }
 
     //l2 distance
-    let mut it = ret.iter_mut();
-    while let Some(x) = it.next() {
+    let it = ret.iter_mut();
+    for x in it {
         *x = x.sqrt();
     }
     ret

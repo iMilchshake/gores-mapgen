@@ -53,10 +53,11 @@ async fn main() {
         editor.on_frame_start();
 
         // "auto generate": start generating next map right away
-        if editor.playback_mode == PlaybackMode::Paused && editor.auto_generate {
-            if editor.gen.status.is_finished() {
-                editor.reset_generation(true, true);
-            }
+        if editor.playback_mode == PlaybackMode::Paused
+            && editor.auto_generate
+            && editor.gen.status.is_finished()
+        {
+            editor.reset_generation(true, true);
         }
 
         // "instant": perform maximum possible amount of generation steps
@@ -76,7 +77,7 @@ async fn main() {
                 .unwrap_or_else(|err| {
                     error!("Walker Step Failed: {:}", err);
                     editor.playback_mode = PlaybackMode::Paused;
-                    editor.gen.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
+                    editor.gen.status = GenerationStatus::Failed(format!("Walker failed: {err}"));
                 });
 
             // walker did a step using SingleStep -> now pause

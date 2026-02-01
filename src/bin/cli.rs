@@ -29,10 +29,7 @@ fn main() {
 
     let mut seed = if let Some(seed_base64) = args.seed {
         Seed::from_base64(&seed_base64).unwrap_or_else(|| {
-            panic!(
-                "{} is not a valid base64 seed (valid example: 'smNMEGR4lAg=')",
-                seed_base64
-            )
+            panic!("{seed_base64} is not a valid base64 seed (valid example: 'smNMEGR4lAg=')")
         })
     } else if let Some(seed_u64) = args.seed_u64 {
         Seed::from_u64(seed_u64)
@@ -40,7 +37,7 @@ fn main() {
         Seed::from_u64(3777777777) // default seed when none provided via CLI
     };
 
-    let mut seed_generator = Random::new(seed.clone(), &gen_config); // used to generate new seeds (n_maps>1)
+    let mut seed_generator = Random::new(seed.clone(), gen_config); // used to generate new seeds (n_maps>1)
     let mut completed_count = 0;
 
     let progress_bar = ProgressBar::new(args.n_maps as u64);
@@ -66,11 +63,11 @@ fn main() {
         let map = match generation_result {
             Ok(Ok(map)) => map,
             Ok(Err(err)) => {
-                progress_bar.println(format!("generation failed: {}", err));
+                progress_bar.println(format!("generation failed: {err}"));
                 continue;
             }
             Err(panic_info) => {
-                progress_bar.println(format!("generation panicked: {:?}", panic_info));
+                progress_bar.println(format!("generation panicked: {panic_info:?}"));
                 continue;
             }
         };
@@ -87,10 +84,10 @@ fn main() {
         };
 
         if args.dry_run {
-            progress_bar.println(format!("Would have saved map to {:?}", export_path));
+            progress_bar.println(format!("Would have saved map to {export_path:?}"));
         } else {
             TwExport::export(&map, &export_path);
-            progress_bar.println(format!("Saved map to {:?}", export_path));
+            progress_bar.println(format!("Saved map to {export_path:?}"));
         }
 
         completed_count += 1;

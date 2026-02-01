@@ -38,7 +38,7 @@ fn digit_to_block(digit: char) -> BlockType {
         '7' => BlockType::Spawn,
         '8' => BlockType::Start,
         '9' => BlockType::Finish,
-        _ => panic!("Invalid digit in snapshot: {}", digit),
+        _ => panic!("Invalid digit in snapshot: {digit}"),
     }
 }
 
@@ -47,7 +47,7 @@ fn grid_to_compact_rle(grid: &Array2<BlockType>) -> String {
     let height = grid.shape()[1];
 
     let mut result = String::new();
-    result.push_str(&format!("{}x{}:\n", width, height));
+    result.push_str(&format!("{width}x{height}:\n"));
 
     for y in 0..height {
         let mut row_encoded = String::new();
@@ -62,7 +62,7 @@ fn grid_to_compact_rle(grid: &Array2<BlockType>) -> String {
                 if !row_encoded.is_empty() {
                     row_encoded.push('|');
                 }
-                row_encoded.push_str(&format!("{},{}", count, current_digit));
+                row_encoded.push_str(&format!("{count},{current_digit}"));
                 current_digit = digit;
                 count = 1;
             }
@@ -72,7 +72,7 @@ fn grid_to_compact_rle(grid: &Array2<BlockType>) -> String {
         if !row_encoded.is_empty() {
             row_encoded.push('|');
         }
-        row_encoded.push_str(&format!("{},{}", count, current_digit));
+        row_encoded.push_str(&format!("{count},{current_digit}"));
 
         result.push_str(&row_encoded);
         result.push('\n');
@@ -107,24 +107,20 @@ fn compact_rle_to_grid(compact: &str) -> Array2<BlockType> {
 
         for run in runs {
             let parts: Vec<&str> = run.split(',').collect();
-            assert_eq!(parts.len(), 2, "Invalid run format: {}", run);
+            assert_eq!(parts.len(), 2, "Invalid run format: {run}");
 
             let count: usize = parts[0].parse().expect("Invalid count");
             let digit = parts[1].chars().next().expect("Empty digit");
             let block = digit_to_block(digit);
 
             for _ in 0..count {
-                assert!(x < width, "Row {} exceeds width", y);
+                assert!(x < width, "Row {y} exceeds width");
                 grid[(x, y)] = block.clone();
                 x += 1;
             }
         }
 
-        assert_eq!(
-            x, width,
-            "Row {} has incorrect length: {} vs {}",
-            y, x, width
-        );
+        assert_eq!(x, width, "Row {y} has incorrect length: {x} vs {width}");
     }
 
     grid
@@ -155,8 +151,7 @@ fn compare_grids(expected: &str, actual: &Array2<BlockType>) -> Result<(), Strin
 
             if expected_block != actual_block {
                 differences.push(format!(
-                    "  x={}, y={}: expected={:?}, actual={:?}",
-                    x, y, expected_block, actual_block
+                    "  x={x}, y={y}: expected={expected_block:?}, actual={actual_block:?}"
                 ));
 
                 if differences.len() >= MAX_DIFF_LINES {
@@ -209,8 +204,8 @@ fn test_all_config_permutations() {
                 if let Ok(generated_map) = Generator::generate_map(
                     MAX_STEPS,
                     &seed,
-                    &gen_config,
-                    &map_config,
+                    gen_config,
+                    map_config,
                     &thm_config,
                     false, // no prepare export for tests
                 ) {
@@ -220,17 +215,15 @@ fn test_all_config_permutations() {
                 }
             }
 
-            let map = map.expect(&format!(
-                "Failed to generate map for {} after {} retries",
-                config_name, MAX_RETRIES
-            ));
+            let map = map.unwrap_or_else(|| {
+                panic!("Failed to generate map for {config_name} after {MAX_RETRIES} retries")
+            });
 
             let compact_grid = grid_to_compact_rle(&map.grid);
-            let snapshot = format!("seed: {}\n{}", seed_used, compact_grid);
+            let snapshot = format!("seed: {seed_used}\n{compact_grid}");
 
             // Try to compare with existing snapshot for detailed diff
-            let snapshot_path =
-                format!("tests/snapshots/generation_snapshots__{}.snap", config_name);
+            let snapshot_path = format!("tests/snapshots/generation_snapshots__{config_name}.snap");
             if let Ok(existing_content) = std::fs::read_to_string(&snapshot_path) {
                 // Extract grid data (skip YAML header lines)
                 let lines: Vec<&str> = existing_content.lines().collect();
@@ -240,7 +233,7 @@ fn test_all_config_permutations() {
 
                     // Compare grids and collect diffs instead of panicking immediately
                     if let Err(diff_msg) = compare_grids(&existing_grid, &map.grid) {
-                        all_diffs.push(format!("'{}': {}", config_name, diff_msg));
+                        all_diffs.push(format!("'{config_name}': {diff_msg}"));
                     }
                 }
             }

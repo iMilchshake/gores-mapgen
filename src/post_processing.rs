@@ -864,10 +864,7 @@ pub fn dijkstra(
             }
 
             let new_cost = g + 1;
-            if best_dist
-                .get(&neighbor)
-                .map_or(true, |&cost| new_cost < cost)
-            {
+            if best_dist.get(&neighbor).is_none_or(|&cost| new_cost < cost) {
                 best_dist.insert(neighbor.clone(), new_cost);
                 open_cells.push(Reverse((new_cost, neighbor)));
             }
@@ -1040,7 +1037,7 @@ pub fn generate_finish_room(
     let bot_right = pos.shifted_by(room_size, room_size)?;
 
     // check if area already locked
-    let area_locked = safe_slice(locked_positions, &top_left, &bot_right, &map)?;
+    let area_locked = safe_slice(locked_positions, &top_left, &bot_right, map)?;
     let locked = area_locked.iter().any(|v| *v);
     if locked {
         // if its locked, we ensure that we actually overlap with playable parts
@@ -1049,7 +1046,7 @@ pub fn generate_finish_room(
             ff_dist,
             &top_left.shifted_by(-1, -1)?,
             &bot_right.shifted_by(1, 1)?,
-            &map,
+            map,
         )?;
         let min_ff_dist = flood_fill_area.iter().filter_map(|v| *v).min().unwrap();
         let goal_ff_dist = ff_dist[pos.as_index()].unwrap();
@@ -1178,7 +1175,7 @@ impl PlatformCandidate {
         }
 
         let shrink_by = total_width - shrink_to;
-        let shrink_left = (shrink_by + 1) / 2; // ceiling division
+        let shrink_left = shrink_by.div_ceil(2); // ceiling division
         let shrink_right = shrink_by / 2; // floor division
 
         self.offset_left = self.offset_left.saturating_sub(shrink_left);
@@ -1245,7 +1242,7 @@ pub fn find_floor_positions(
             }
         }
     }
-    return Ok(floor_pos);
+    Ok(floor_pos)
 }
 
 pub fn generate_platform_candidates(
@@ -1358,7 +1355,7 @@ pub fn generate_platform_candidates(
         }
     }
 
-    return Ok(platforms);
+    Ok(platforms)
 }
 
 /// Greedily selects platforms that dont violate the minimum gap constraint.

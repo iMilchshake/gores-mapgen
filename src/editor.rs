@@ -11,14 +11,11 @@ use crate::{
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
 
+use macroquad::camera::Camera2D;
 use macroquad::prelude::{error, info, warn};
 use macroquad::time::get_fps;
-use macroquad::{camera::Camera2D, input::is_mouse_button_pressed};
 use macroquad::{
-    input::{
-        is_key_down, is_key_pressed, is_mouse_button_down, mouse_delta_position, mouse_position,
-        mouse_wheel, KeyCode, MouseButton,
-    },
+    input::{is_key_down, is_key_pressed, mouse_position, KeyCode},
     window::screen_height,
 };
 use macroquad_viewplane_camera::ViewplaneCamera;
@@ -221,7 +218,7 @@ impl Editor {
                         .active_layers
                         .get_mut(layer_name.as_str());
 
-                    *layer.unwrap_or_else(|| panic!("layer name '{}' doesnt exist", layer_name)) =
+                    *layer.unwrap_or_else(|| panic!("layer name '{layer_name}' doesnt exist")) =
                         true;
                 }
             }

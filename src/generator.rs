@@ -268,14 +268,13 @@ impl Generator {
             prefix_short
         };
         let available_space = char_per_line - prefix.len();
-        let version_str = format!("{:>width$}", crate_version, width = available_space);
-        let version_line = format!("{}{}", prefix, version_str);
+        let version_str = format!("{crate_version:>available_space$}");
+        let version_line = format!("{prefix}{version_str}");
 
         let info_text = format!(
             "RANDOM   GORES\n\
             BY IMILCHSHAKE\n\
-            {}\n",
-            version_line
+            {version_line}\n"
         );
 
         let text_width = info_text.lines().map(str::len).max().unwrap_or(0) as i32;
@@ -351,7 +350,7 @@ impl Generator {
                     &self.map,
                     debug_layers,
                 ) {
-                    self.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
+                    self.status = GenerationStatus::Failed(format!("Walker failed: {err}"));
                     return Err(err);
                 }
             }
@@ -364,7 +363,7 @@ impl Generator {
 
         if validate {
             if let Err(err) = gen_config.validate() {
-                self.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
+                self.status = GenerationStatus::Failed(format!("Walker failed: {err}"));
                 return Err(err);
             }
         }
@@ -386,7 +385,7 @@ impl Generator {
             self.walker
                 .probabilistic_step(&mut self.map, gen_config, &mut self.rnd, debug_layers)
         {
-            self.status = GenerationStatus::Failed(format!("Walker failed: {}", err));
+            self.status = GenerationStatus::Failed(format!("Walker failed: {err}"));
             return Err(err);
         }
 

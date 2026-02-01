@@ -150,7 +150,7 @@ impl FileFilter {
     pub fn to_accept_string(&self) -> String {
         self.extensions
             .iter()
-            .map(|ext| format!(".{}", ext))
+            .map(|ext| format!(".{ext}"))
             .collect::<Vec<_>>()
             .join(",")
     }
@@ -304,10 +304,9 @@ impl FileDialog {
                             Ok(data) => Some(FileDialogResult::Loaded(
                                 native_impl::create_loaded_file_from_path(&path_str, data),
                             )),
-                            Err(e) => Some(FileDialogResult::Error(format!(
-                                "Failed to read file: {}",
-                                e
-                            ))),
+                            Err(e) => {
+                                Some(FileDialogResult::Error(format!("Failed to read file: {e}")))
+                            }
                         }
                     }
                     _ => {
@@ -542,9 +541,9 @@ mod native_impl {
     /// Save a file using native filesystem
     pub fn save_file_impl(filename: &str, data: &[u8]) -> Result<(), String> {
         let path = PathBuf::from(filename);
-        let mut file = File::create(&path).map_err(|e| format!("Failed to create file: {}", e))?;
+        let mut file = File::create(&path).map_err(|e| format!("Failed to create file: {e}"))?;
         file.write_all(data)
-            .map_err(|e| format!("Failed to write file: {}", e))?;
+            .map_err(|e| format!("Failed to write file: {e}"))?;
         Ok(())
     }
 

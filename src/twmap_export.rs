@@ -69,7 +69,7 @@ pub fn set_char_id(_: usize, _: usize, character: &Option<char>) -> u8 {
             }
         }
 
-        _ => panic!("unsupported character: {:}", character),
+        _ => panic!("unsupported character: {character:}"),
     }
 }
 

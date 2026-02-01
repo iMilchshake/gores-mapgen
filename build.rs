@@ -16,5 +16,5 @@ fn main() {
         .unwrap_or_else(|| "unknown".to_string());
 
     println!("cargo:rerun-if-changed=.git/HEAD");
-    println!("cargo:rustc-env=GIT_HASH={}", git_hash);
+    println!("cargo:rustc-env=GIT_HASH={git_hash}");
 }

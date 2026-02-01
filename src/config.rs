@@ -86,10 +86,10 @@ impl MapConfig {
     /// Load a config from a LoadedFile (handles both native and WASM)
     pub fn from_loaded_file(loaded: &LoadedFile) -> Result<Self, String> {
         let json_str = String::from_utf8(loaded.data.clone())
-            .map_err(|e| format!("Failed to decode map config as UTF-8: {}", e))?;
+            .map_err(|e| format!("Failed to decode map config as UTF-8: {e}"))?;
 
         let mut config: MapConfig = serde_json::from_str(&json_str)
-            .map_err(|e| format!("Failed to parse map config: {}", e))?;
+            .map_err(|e| format!("Failed to parse map config: {e}"))?;
 
         // Use the config name from the filename
         config.name = loaded.config_name.clone();
@@ -415,10 +415,10 @@ impl GenerationConfig {
     /// Load a config from a LoadedFile (handles both native and WASM)
     pub fn from_loaded_file(loaded: &LoadedFile) -> Result<Self, String> {
         let json_str = String::from_utf8(loaded.data.clone())
-            .map_err(|e| format!("Failed to decode generation config as UTF-8: {}", e))?;
+            .map_err(|e| format!("Failed to decode generation config as UTF-8: {e}"))?;
 
         let mut config: GenerationConfig = serde_json::from_str(&json_str)
-            .map_err(|e| format!("Failed to parse generation config: {}", e))?;
+            .map_err(|e| format!("Failed to parse generation config: {e}"))?;
 
         // Use the config name from the filename
         config.name = loaded.config_name.clone();
@@ -614,10 +614,7 @@ where
         .collect();
 
     if filtered_configs.is_empty() {
-        panic!(
-            "no configs left after filtering, preset_names={:?}",
-            preset_names
-        );
+        panic!("no configs left after filtering, preset_names={preset_names:?}");
     }
 
     filtered_configs
