@@ -7,7 +7,6 @@ use crate::{
     file_io::{FileDialog, FileDialogResult, FileOperationType},
     generator::Generator,
     gui,
-    map_camera::MapCamera,
     random::Seed,
 };
 use egui::{epaint::Shadow, Color32, Frame, Margin};
@@ -22,6 +21,7 @@ use macroquad::{
     },
     window::screen_height,
 };
+use macroquad_viewplane_camera::ViewplaneCamera;
 
 const AVG_FPS_FACTOR: f32 = 0.025; // how much current fps is weighted into the rolling average
 
@@ -69,7 +69,7 @@ pub struct Editor {
     pub seed_input_type: SeedType,
 
     /// keeps track of camera for map visualization
-    pub map_cam: MapCamera,
+    pub vp_cam: ViewplaneCamera,
     pub canvas: Option<egui::Rect>,
     pub egui_wants_mouse: Option<bool>,
     pub show_debug_layers: bool,
@@ -175,7 +175,7 @@ impl Editor {
             canvas: None,
             egui_wants_mouse: None,
             average_fps: 0.0,
-            map_cam: MapCamera::default(),
+            vp_cam: ViewplaneCamera::new(gen.map.width as f32, gen.map.height as f32),
             thm_config: ThemeConfig::default(),
             steps_per_frame: STEPS_PER_FRAME,
             gen,
@@ -341,11 +341,21 @@ impl Editor {
     }
 
     pub fn update_cam(&mut self) {
-        self.map_cam
-            .update_map_size(self.gen.map.width, self.gen.map.height);
-        self.map_cam
-            .update_viewport_from_egui_rect(&self.canvas.unwrap());
-        self.map_cam.update_macroquad_cam();
+        // self.map_cam.update_map_size(self.gen.map.width, self.gen.map.height);
+
+        let canvas = self.canvas.unwrap();
+        self.vp_cam.set_viewport(
+            canvas.min.x as i32,
+            canvas.min.y as i32,
+            (canvas.max.x - canvas.min.x) as i32,
+            (canvas.max.y - canvas.min.y) as i32,
+        );
+
+        if !self.egui_wants_mouse.unwrap_or(false) {
+            self.vp_cam.handle_inputs();
+        }
+
+        self.vp_cam.apply();
     }
 
     pub fn handle_save_map(&mut self) {
@@ -381,26 +391,6 @@ impl Editor {
             } else {
                 self.playback_mode = PlaybackMode::Playing; // just resume
             }
-        }
-
-        if is_key_pressed(KeyCode::R) {
-            self.map_cam.reset();
-        }
-
-        if mouse_wheel().1.abs() > 0.0 {
-            self.map_cam.zoom(mouse_wheel().1.is_sign_positive());
-        }
-
-        let egui_wants_mouse = self.egui_wants_mouse.unwrap();
-
-        // handle panning
-        let delta = mouse_delta_position();
-        if !egui_wants_mouse
-            && is_mouse_button_down(MouseButton::Left)
-            && Editor::mouse_in_viewport(self.map_cam.get_macroquad_cam())
-            && !is_mouse_button_pressed(MouseButton::Left)
-        {
-            self.map_cam.shift(delta);
         }
     }
 

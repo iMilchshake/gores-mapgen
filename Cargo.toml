@@ -44,6 +44,7 @@ base64 = "0.22.1"
 seed_gen = "1.1.0"
 noise = "0.9.0"
 rand_xoshiro = { version = "0.6", default-features = false }
+macroquad-viewplane-camera = { path = "../macroquad-viewplane-camera" }
 
 [dev-dependencies]
 insta = "1.40"

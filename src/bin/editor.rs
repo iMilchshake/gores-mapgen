@@ -186,7 +186,7 @@ async fn main() {
 
         // TODO: move to key input function!
         if macroquad::input::is_key_down(miniquad::KeyCode::D) {
-            draw_mouse_map_cell_pos(&editor.map_cam);
+            draw_mouse_map_cell_pos(&editor.vp_cam);
         }
 
         // editor.map_cam.draw_cam_debug();

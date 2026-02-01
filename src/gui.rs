@@ -252,7 +252,7 @@ pub fn menu(ctx: &Context, editor: &mut Editor) {
 
             ui.menu_button("View", |ui| {
                 if ui.button("Reset Zoom").clicked() {
-                    editor.map_cam.reset();
+                    editor.vp_cam.reset();
                 }
             });
             ui.menu_button("Settings", |ui| {
@@ -1002,7 +1002,7 @@ pub fn debug_layers_widget(ctx: &Context, editor: &mut Editor) {
         return;
     }
     let debug_layers = editor.debug_layers.as_ref().unwrap();
-    let map_mouse_pos = editor.map_cam.get_map_mouse_pos();
+    let map_mouse_pos = editor.vp_cam.mouse_plane_pos();
     let map_mouse_pos_cell = (
         map_mouse_pos.x.floor() as usize,
         map_mouse_pos.y.floor() as usize,

@@ -62,7 +62,7 @@ pub struct CLIArgs {
     #[arg(short = 'o', long = "out", default_value = ".")]
     pub out_path: PathBuf,
 
-    /// overwrite existing map files
+    /// dry run, dont save generated maps
     #[arg(short = 'd')]
     pub dry_run: bool,
 

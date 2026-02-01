@@ -1,9 +1,9 @@
-use crate::map_camera::MapCamera;
 use crate::{map::BlockType, map::KernelType, walker::CuteWalker};
 use macroquad::color::colors;
 use macroquad::color::Color;
 use macroquad::shapes::*;
 use macroquad::text::{draw_text_ex, TextParams};
+use macroquad_viewplane_camera::ViewplaneCamera;
 use ndarray::Array2;
 
 pub fn blocktype_to_color(value: &BlockType) -> Color {
@@ -178,8 +178,8 @@ pub fn draw_waypoints(walker: &CuteWalker, color: Color, color_next: Color) {
     }
 }
 
-pub fn draw_mouse_map_cell_pos(map_cam: &MapCamera) {
-    let mouse_map_pos = map_cam.get_map_mouse_pos();
+pub fn draw_mouse_map_cell_pos(vp_cam: &ViewplaneCamera) {
+    let mouse_map_pos = vp_cam.mouse_plane_pos();
     draw_rectangle_lines(
         mouse_map_pos.x.floor(),
         mouse_map_pos.y.floor(),
