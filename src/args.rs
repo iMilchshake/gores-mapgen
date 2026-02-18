@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
+use crate::config::{GenerationConfig, MapConfig};
+
 const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("GIT_HASH"), ")");
 
 #[derive(Parser, Debug)]
@@ -47,15 +49,49 @@ pub struct EditorArgs {
     pub max_retries: usize,
 }
 
+fn validate_gen_config(val: &str) -> Result<String, String> {
+    let valid: Vec<String> = GenerationConfig::get_all_configs()
+        .into_iter()
+        .map(|c| c.name)
+        .collect();
+    if valid.contains(&val.to_string()) {
+        Ok(val.to_string())
+    } else {
+        Err(format!(
+            "Invalid generation config '{}'. Available options: {}",
+            val,
+            valid.join(", ")
+        ))
+    }
+}
+
+fn validate_map_config(val: &str) -> Result<String, String> {
+    let valid: Vec<String> = MapConfig::get_all_configs()
+        .into_iter()
+        .map(|c| c.name)
+        .collect();
+    if valid.contains(&val.to_string()) {
+        Ok(val.to_string())
+    } else {
+        Err(format!(
+            "Invalid map config '{}'. Available options: {}",
+            val,
+            valid.join(", ")
+        ))
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(name = "gores-mapgen: CLI")]
 #[command(version = VERSION)]
 #[command(about = "CLI for procedual random map generator for the gores gamemode in DDNet.", long_about = None)]
 pub struct CLIArgs {
     /// select initial generation config
+    #[arg(value_parser = validate_gen_config)]
     pub gen_config_name: String,
 
     /// select initial map config
+    #[arg(value_parser = validate_map_config)]
     pub map_config_name: String,
 
     /// output path (can be file path for single map generation, otherwise use folder path)

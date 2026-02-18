@@ -1,4 +1,5 @@
-use clap::Parser;
+use clap::CommandFactory;
+use clap::FromArgMatches;
 use gores_mapgen::{
     args::CLIArgs,
     config::{GenerationConfig, MapConfig, ThemeConfig},
@@ -11,17 +12,28 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::panic;
 
 // TODO: Add support for custom gen/map configs (via paths)
-
+// TODO: Add random seed via OS
 fn main() {
-    let args = CLIArgs::parse();
-
     let all_gen_configs = GenerationConfig::get_all_configs();
+    let all_map_configs = MapConfig::get_all_configs();
+
+    let gen_config_names: Vec<String> = all_gen_configs.iter().map(|c| c.name.to_owned()).collect();
+    let map_config_names: Vec<String> = all_map_configs.iter().map(|c| c.name.to_owned()).collect();
+
+    let mut cmd = CLIArgs::command();
+    cmd = cmd.about(format!(
+        "CLI for procedural random map generator for the gores gamemode in DDNet.\n\n\
+         Available gen configs: {}\n\
+         Available map configs: {}",
+        gen_config_names.join(", "),
+        map_config_names.join(", "),
+    ));
+    let args = CLIArgs::from_arg_matches(&cmd.get_matches()).unwrap();
+
     let gen_config = all_gen_configs
         .iter()
         .find(|c| c.name == args.gen_config_name)
         .unwrap_or_else(|| panic!("gen config '{}' not found", args.gen_config_name));
-
-    let all_map_configs = MapConfig::get_all_configs();
     let map_config = all_map_configs
         .iter()
         .find(|c| c.name == args.map_config_name)
