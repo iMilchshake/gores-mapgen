@@ -86,12 +86,12 @@ fn validate_map_config(val: &str) -> Result<String, String> {
 #[command(version = VERSION)]
 #[command(about = "CLI for procedual random map generator for the gores gamemode in DDNet.", long_about = None)]
 pub struct CLIArgs {
-    /// select initial generation config
-    #[arg(value_parser = validate_gen_config)]
+    /// generation config
+    #[arg(short = 'g', long = "gen-config", value_parser = validate_gen_config, default_value = "hard")]
     pub gen_config_name: String,
 
-    /// select initial map config
-    #[arg(value_parser = validate_map_config)]
+    /// map config
+    #[arg(short = 'm', long = "map-config", value_parser = validate_map_config, default_value = "small_s_tight")]
     pub map_config_name: String,
 
     /// output path (can be file path for single map generation, otherwise use folder path)
@@ -99,22 +99,22 @@ pub struct CLIArgs {
     pub out_path: PathBuf,
 
     /// dry run, dont save generated maps
-    #[arg(short = 'd')]
+    #[arg(short = 'd', long = "dry-run")]
     pub dry_run: bool,
 
-    /// set base64 fixed seed
+    /// fixed base64 seed
     #[arg(short = 's', long = "seed", conflicts_with = "seed_u64")]
     pub seed: Option<String>,
 
-    /// set u64 fixed seed
+    /// fixed u64 seed
     #[arg(long = "seed_u64", conflicts_with = "seed")]
     pub seed_u64: Option<u64>,
 
     /// number of of maps to generate
-    #[arg(short = 'n', default_value_t = 1)]
+    #[arg(short = 'n', long = "num-maps", default_value_t = 1)]
     pub n_maps: usize,
 
-    /// The maximum amount of generation steps before generation stops
+    /// maximum amount of generation steps before generation stops
     #[arg(long, default_value = "200000")]
     pub max_steps: usize,
 }

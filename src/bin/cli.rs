@@ -12,7 +12,6 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::panic;
 
 // TODO: Add support for custom gen/map configs (via paths)
-// TODO: Add random seed via OS
 fn main() {
     let all_gen_configs = GenerationConfig::get_all_configs();
     let all_map_configs = MapConfig::get_all_configs();
@@ -46,10 +45,10 @@ fn main() {
     } else if let Some(seed_u64) = args.seed_u64 {
         Seed::from_u64(seed_u64)
     } else {
-        Seed::from_u64(3777777777) // default seed when none provided via CLI
+        Seed::from_u64(rand::random())
     };
 
-    let mut seed_generator = Random::new(seed.clone(), gen_config); // used to generate new seeds (n_maps>1)
+    let mut seed_generator = Random::new(seed.clone(), gen_config); // used to generate new seeds
     let mut completed_count = 0;
 
     let progress_bar = ProgressBar::new(args.n_maps as u64);
@@ -76,10 +75,12 @@ fn main() {
             Ok(Ok(map)) => map,
             Ok(Err(err)) => {
                 progress_bar.println(format!("generation failed: {err}"));
+                seed = Seed::from_random(&mut seed_generator);
                 continue;
             }
             Err(panic_info) => {
                 progress_bar.println(format!("generation panicked: {panic_info:?}"));
+                seed = Seed::from_random(&mut seed_generator);
                 continue;
             }
         };
