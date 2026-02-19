@@ -1,6 +1,5 @@
 use crate::map::Map;
 use crate::position::Position;
-use clap::crate_version;
 use ndarray::Array2;
 use rust_embed::RustEmbed;
 use std::char;
@@ -145,7 +144,7 @@ impl TwExport {
 
         // add map generator information
         tw_map.info.author = "iMilchshake".to_string();
-        tw_map.info.version = crate_version!().to_string();
+        tw_map.info.version = env!("GIT_HASH").chars().take(16).collect();
         tw_map.info.credits = "https://github.com/iMilchshake/gores-mapgen".to_string();
 
         if let Some(ref noise_background) = map.noise_background {
