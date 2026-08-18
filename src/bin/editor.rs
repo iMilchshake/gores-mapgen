@@ -1,6 +1,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use clap::Parser;
+use gores_mapgen::config::GenerationConfig;
 use gores_mapgen::{
     args::EditorArgs, config::ThemeConfig, editor::*, generator::GenerationStatus, map::*,
     rendering::*,
@@ -123,11 +124,11 @@ async fn main() {
             editor.playback_mode = PlaybackMode::Paused;
         }
 
-        // handle retry on failure: in [0, N-1] -> retry | == N warn | > N dont do anything.
-        if editor.retry_on_failure && editor.retry_count <= editor.max_retries {
-            if let GenerationStatus::Failed(_) = editor.gen.status {
+        // handle retry on failure and random on failure
+        if let GenerationStatus::Failed(_) = editor.gen.status {
+            if editor.retry_on_failure && editor.retry_count <= editor.max_retries {
+                editor.retry_count += 1;
                 if editor.retry_count < editor.max_retries {
-                    editor.retry_count += 1;
                     info!(
                         "Retrying generation ({}/{})",
                         editor.retry_count, editor.max_retries
@@ -138,7 +139,21 @@ async fn main() {
                         "Max retries ({}) reached, stopping automatic retries",
                         editor.max_retries
                     );
-                    editor.retry_count += 1;
+                }
+            } else {
+            }
+        }
+
+        // if random config generation is enabled, on failure we roll a new random config and
+        // retry right away. on success we leave the generator untouched so the user can look
+        // at the result; nothing here should touch the map until the user moves on.
+        if editor.use_random_config {
+            if matches!(editor.gen.status, GenerationStatus::Failed(_)) {
+                if let Ok(cfg) = GenerationConfig::random(&mut editor.gen.rnd, 100) {
+                    editor.gen_config = cfg;
+                    editor.reset_generation(true, true);
+                    dbg!(&editor.gen_config);
+                    info!("testing new random config");
                 }
             }
         }

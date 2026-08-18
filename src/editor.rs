@@ -95,8 +95,11 @@ pub struct Editor {
     /// whether to keep using the same seed for next generations
     pub fixed_seed: bool,
 
-    /// whether to keep using the same seed for next generations
+    /// whether to start next generation on failure (do not combine this with fixed seed)
     pub retry_on_failure: bool,
+
+    /// whether to roll a new random generation config for each new run
+    pub use_random_config: bool,
 
     /// maximum number of retries when generation fails
     pub max_retries: usize,
@@ -181,6 +184,7 @@ impl Editor {
             seed_input_type: SeedType::BASE64,
             instant: args.instant,
             auto_generate: args.auto_generation,
+            use_random_config: false,
             fixed_seed: args.fixed_seed,
             edit_gen_config: false,
             edit_map_config: false,
@@ -385,9 +389,19 @@ impl Editor {
         if is_key_pressed(KeyCode::Space) {
             if self.gen.status.is_finished() {
                 self.retry_on_failure = is_key_down(KeyCode::LeftShift);
+                self.reroll_random_config();
                 self.reset_generation(true, true);
             } else {
                 self.playback_mode = PlaybackMode::Playing; // just resume
+            }
+        }
+    }
+
+    /// if random config generation is enabled, roll a fresh random config before starting a new run.
+    pub fn reroll_random_config(&mut self) {
+        if self.use_random_config {
+            if let Ok(cfg) = GenerationConfig::random(&mut self.gen.rnd, 100) {
+                self.gen_config = cfg;
             }
         }
     }

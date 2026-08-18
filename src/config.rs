@@ -150,6 +150,8 @@ pub struct GenerationConfig {
     /// TODO: Add a second platform selection algorithm specifically for chaotic presets (e.g. maze)
     // pub plat_max_euclidean_distance: usize,
     pub plat_target_distance: usize,
+    pub plat_max_dist_factor: f32,
+    pub plat_min_dist_factor: f32,
     pub plat_max_freeze: usize,
     pub plat_height: usize,
     pub plat_min_width: usize,
@@ -307,97 +309,107 @@ impl GenerationConfig {
         Ok(())
     }
 
-    pub fn random(rnd: &mut Random) -> GenerationConfig {
-        // Generate values with constraints
-        let plat_min_width = rnd.get_usize_in_range(1, 7);
-        let plat_max_width = rnd.get_usize_in_range(plat_min_width, 15);
+    pub fn random(rnd: &mut Random, n_tries: usize) -> Result<GenerationConfig, &'static str> {
+        for _ in 0..n_tries {
+            // Generate values with constraints
+            let plat_min_width = rnd.get_usize_in_range(1, 3);
+            let plat_max_width = rnd.get_usize_in_range(plat_min_width, 7);
 
-        let fade_max_size = rnd.get_usize_in_range(3, 10);
-        let fade_min_size = rnd.get_usize_in_range(1, fade_max_size);
+            let fade_max_size = rnd.get_usize_in_range(5, 10);
+            let fade_min_size = rnd.get_usize_in_range(3, fade_max_size);
 
-        let pillar_min_length = rnd.get_usize_in_range(1, 5);
-        let pillar_max_length = rnd.get_usize_in_range(pillar_min_length, 30);
+            let pillar_min_length = rnd.get_usize_in_range(1, 5);
+            let pillar_max_length = rnd.get_usize_in_range(pillar_min_length, 30);
 
-        // as shift_weights always requires exactly 4 values, i just generate it like this..
-        let mut shift_weights = RandomDistConfig::new(
-            None,
-            vec![
-                rnd.get_unit_ratio(),
-                rnd.get_unit_ratio(),
-                rnd.get_unit_ratio(),
-                rnd.get_unit_ratio(),
-            ],
-        );
-        shift_weights.normalize_probs();
+            // as shift_weights always requires exactly 4 values, i just generate it like this..
+            let mut shift_weights = RandomDistConfig::new(
+                None,
+                vec![
+                    rnd.get_unit_ratio(),
+                    rnd.get_unit_ratio(),
+                    rnd.get_unit_ratio(),
+                    rnd.get_unit_ratio(),
+                ],
+            );
+            shift_weights.normalize_probs();
 
-        let mut circ_probs = RandomDistConfig::new(
-            Some(vec![0.0, 0.6, 0.8]),
-            vec![
-                rnd.get_unit_ratio(),
-                rnd.get_unit_ratio(),
-                rnd.get_unit_ratio(),
-            ],
-        );
-        circ_probs.normalize_probs();
+            let mut circ_probs = RandomDistConfig::new(
+                Some(vec![0.0, 0.6, 0.8]),
+                vec![
+                    rnd.get_unit_ratio(),
+                    rnd.get_unit_ratio(),
+                    rnd.get_unit_ratio(),
+                ],
+            );
+            circ_probs.normalize_probs();
 
-        let outer_margin_ratio = rnd.get_unit_ratio();
-        let outer_margin_probs = RandomDistConfig::new(
-            Some(vec![0, 2, 4]),
-            vec![
-                1. - outer_margin_ratio,
-                outer_margin_ratio,
-                (outer_margin_ratio * outer_margin_ratio),
-            ],
-        );
+            let outer_margin_ratio = rnd.get_unit_ratio();
+            let outer_margin_probs = RandomDistConfig::new(
+                Some(vec![0, 2, 4]),
+                vec![
+                    1. - outer_margin_ratio,
+                    outer_margin_ratio,
+                    (outer_margin_ratio * outer_margin_ratio),
+                ],
+            );
 
-        GenerationConfig {
-            name: "Random".to_string(),
-            description: None,
-            difficulty: rnd.get_f32_in_range(0.1, 5.0),
-            version: "1.0".to_string(),
-            inner_rad_mut_prob: rnd.get_unit_ratio(),
-            inner_size_mut_prob: rnd.get_unit_ratio(),
-            outer_rad_mut_prob: rnd.get_unit_ratio(),
-            outer_size_mut_prob: rnd.get_unit_ratio(),
-            shift_weights,
-            plat_target_distance: rnd.get_usize_in_range(0, 200),
-            plat_max_freeze: rnd.get_usize_in_range(1, 10),
-            plat_height: rnd.get_usize_in_range(1, 10),
-            plat_min_width,
-            plat_max_width,
-            plat_part_width: rnd.get_usize_in_range(1, 5),
-            momentum_prob: rnd.get_unit_ratio(),
-            max_distance: rnd.get_f32_in_range(0.1, 15.0),
-            waypoint_reached_dist: rnd.get_usize_in_range(5, 500),
-            inner_size_probs: rnd.get_random_usize_dist_config(6, Some((1, 8))),
-            outer_margin_probs,
-            circ_probs,
-            skip_length_bounds: rnd.get_bounds(1, 50),
-            skip_min_spacing_sqr: rnd.get_usize_in_range(1, 100),
-            max_level_skip: rnd.get_usize_in_range(5, 1000),
-            min_freeze_size: rnd.get_usize_in_range(0, 10),
-            enable_pulse: rnd.get_bool_with_prob(0.5),
-            pulse_straight_delay: rnd.get_usize_in_range(0, 15),
-            pulse_corner_delay: rnd.get_usize_in_range(0, 15),
-            pulse_max_kernel_size: rnd.get_usize_in_range(0, 5),
-            fade_steps: rnd.get_usize_in_range(0, 200),
-            fade_max_size,
-            fade_min_size,
-            max_subwaypoint_dist: rnd.get_f32_in_range(0.1, 100.0),
-            subwaypoint_max_shift_dist: rnd.get_f32_in_range(0.0, 300.0),
-            skip_invalid_waypoints: rnd.get_bool_with_prob(0.5),
-            pos_lock_max_dist: rnd.get_f32_in_range(0.0, 150.0),
-            pos_lock_max_delay: rnd.get_usize_in_range(1, 10_000),
-            enable_kernel_lock: rnd.get_bool_with_prob(0.5),
-            waypoint_lock_distance: rnd.get_usize_in_range(0, 20),
-            use_dead_end_removal: rnd.get_bool_with_prob(0.5),
-            dead_end_threshold: rnd.get_usize_in_range(1, 20),
-            enable_pillars: rnd.get_bool_with_prob(0.5),
-            pillar_min_length,
-            pillar_max_length,
-            pillar_tip_margin: rnd.get_usize_in_range(1, 5),
-            pillar_side_margin: rnd.get_usize_in_range(1, 3),
+            let gen_config_candidate = GenerationConfig {
+                name: "Random".to_string(),
+                description: None,
+                difficulty: rnd.get_f32_in_range(0.1, 5.0),
+                version: "1.0".to_string(),
+                inner_rad_mut_prob: rnd.get_unit_ratio(),
+                inner_size_mut_prob: rnd.get_unit_ratio(),
+                outer_rad_mut_prob: rnd.get_unit_ratio(),
+                outer_size_mut_prob: rnd.get_unit_ratio(),
+                shift_weights,
+                plat_target_distance: rnd.get_usize_in_range(0, 200),
+                plat_max_dist_factor: 100., // relax platform constraints a lot
+                plat_min_dist_factor: 0.1,  // relax platform constraints a lot
+                plat_max_freeze: rnd.get_usize_in_range(1, 3),
+                plat_height: rnd.get_usize_in_range(1, 6),
+                plat_min_width,
+                plat_max_width,
+                plat_part_width: rnd.get_usize_in_range(1, 5),
+                momentum_prob: rnd.get_unit_ratio(),
+                max_distance: rnd.get_f32_in_range(0.1, 15.0),
+                waypoint_reached_dist: rnd.get_usize_in_range(5, 500),
+                inner_size_probs: rnd.get_random_usize_dist_config(6, Some((1, 8))),
+                outer_margin_probs,
+                circ_probs,
+                skip_length_bounds: rnd.get_bounds(1, 50),
+                skip_min_spacing_sqr: rnd.get_usize_in_range(1, 100),
+                max_level_skip: rnd.get_usize_in_range(5, 1000),
+                min_freeze_size: rnd.get_usize_in_range(0, 10),
+                enable_pulse: rnd.get_bool_with_prob(0.5),
+                pulse_straight_delay: rnd.get_usize_in_range(0, 15),
+                pulse_corner_delay: rnd.get_usize_in_range(0, 15),
+                pulse_max_kernel_size: rnd.get_usize_in_range(0, 5),
+                fade_steps: rnd.get_usize_in_range(0, 200),
+                fade_max_size,
+                fade_min_size,
+                max_subwaypoint_dist: rnd.get_f32_in_range(0.1, 100.0),
+                subwaypoint_max_shift_dist: rnd.get_f32_in_range(0.0, 300.0),
+                skip_invalid_waypoints: rnd.get_bool_with_prob(0.5),
+                pos_lock_max_dist: rnd.get_f32_in_range(0.0, 150.0),
+                pos_lock_max_delay: rnd.get_usize_in_range(1, 10_000),
+                enable_kernel_lock: rnd.get_bool_with_prob(0.5),
+                waypoint_lock_distance: rnd.get_usize_in_range(0, 20),
+                use_dead_end_removal: rnd.get_bool_with_prob(0.5),
+                dead_end_threshold: rnd.get_usize_in_range(3, 20),
+                enable_pillars: rnd.get_bool_with_prob(0.5),
+                pillar_min_length,
+                pillar_max_length,
+                pillar_tip_margin: rnd.get_usize_in_range(1, 5),
+                pillar_side_margin: rnd.get_usize_in_range(1, 3),
+            };
+
+            if gen_config_candidate.validate().is_ok() {
+                return Ok(gen_config_candidate);
+            }
         }
+
+        return Err("Failed to generate valid random config");
     }
 
     /// Save the config to a file (platform-agnostic)
@@ -471,8 +483,9 @@ impl Default for GenerationConfig {
             outer_rad_mut_prob: 0.25,
             outer_size_mut_prob: 0.5,
             shift_weights: RandomDistConfig::new(None, vec![0.4, 0.22, 0.2, 0.18]),
-            // plat_max_euclidean_distance: 150,
             plat_target_distance: 150,
+            plat_max_dist_factor: 1.5,
+            plat_min_dist_factor: 2.0,
             plat_max_freeze: 2,
             plat_height: 4,
             plat_min_width: 3,

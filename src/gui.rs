@@ -333,6 +333,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                     }
                 } else if editor.gen.status.is_finished() {
                     if ui.button("start").clicked() {
+                        editor.reroll_random_config();
                         editor.reset_generation(true, true);
                     }
                 } else if editor.playback_mode == PlaybackMode::Paused {
@@ -471,6 +472,14 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
             })
             .inner
             .unwrap_or(false);
+
+        ui.label("Random Gen Config:");
+        ui.checkbox(&mut editor.use_random_config, "use random config");
+        // if ui.button("asd").clicked() {
+        //     if let Ok(cfg) = GenerationConfig::random(&mut editor.gen.rnd, 100) {
+        //         editor.gen_config = cfg;
+        //     }
+        // }
 
         // automatically reset generator so change to its map config is immediately visualized
         if map_config_changed {
