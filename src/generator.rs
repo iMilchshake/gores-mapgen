@@ -632,6 +632,11 @@ impl Generator {
             gen.step(gen_config, false, &mut None)?;
         }
 
+        if !gen.walker.finished {
+            gen.status = GenerationStatus::Failed(format!("max_steps reached"));
+            return Err("max_steps reached");
+        }
+
         // perform all post processing steps (including prepare export if enabled)
         gen.perform_all_post_processing(gen_config, thm_config, &mut None, false, prepare_export)?;
 

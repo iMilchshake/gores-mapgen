@@ -10,6 +10,7 @@ use macroquad::{color::*, miniquad, window::*};
 use miniquad::conf::{Conf, Platform};
 
 const DISABLE_VSYNC: bool = true;
+const MAX_WALKER_STEPS: usize = 100_000; // TODO: make this configurable?
 
 fn window_conf() -> Conf {
     Conf {
@@ -84,10 +85,17 @@ async fn main() {
             if editor.playback_mode == PlaybackMode::SingleStep {
                 editor.playback_mode = PlaybackMode::Paused;
             }
+
+            if editor.gen.walker.steps > MAX_WALKER_STEPS {
+                editor.playback_mode = PlaybackMode::Paused;
+                editor.gen.status = GenerationStatus::Failed(format!("max_steps reached"));
+                break;
+            }
         }
 
         // this is called ONCE when walker just finished (status still Walking)
         if editor.gen.walker.finished && editor.gen.status == GenerationStatus::Walking {
+            dbg!(editor.gen.walker.steps);
             editor
                 .gen
                 .perform_all_post_processing(
@@ -102,6 +110,8 @@ async fn main() {
                         editor.playback_mode = PlaybackMode::Paused;
                         editor.auto_generate = false;
                     }
+                    editor.gen.status =
+                        GenerationStatus::Failed(format!("Post processing failed: {err}"));
                     error!("Post Processing Failed: {:}", err);
                 });
 
@@ -128,7 +138,7 @@ async fn main() {
                         "Max retries ({}) reached, stopping automatic retries",
                         editor.max_retries
                     );
-                    editor.retry_count += 1; // we further increment by one signaling to stop
+                    editor.retry_count += 1;
                 }
             }
         }
