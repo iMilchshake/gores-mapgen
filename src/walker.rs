@@ -488,6 +488,13 @@ impl CuteWalker {
         max_size: usize,
         fade_steps: usize,
     ) {
+        // if fade is disabled (0 steps) just use max size
+        if fade_steps == 0 {
+            self.inner_kernel = Kernel::new(max_size, 0.0);
+            self.outer_kernel = Kernel::new(max_size + 2, 0.0);
+            return;
+        }
+
         let slope = (min_size as f32 - max_size as f32) / fade_steps as f32;
         let kernel_size_f = (step as f32) * slope + max_size as f32;
         let kernel_size = kernel_size_f.floor() as usize;
