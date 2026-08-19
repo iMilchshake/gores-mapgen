@@ -291,9 +291,8 @@ impl GenerationConfig {
             return Err("kernel inner+outer must be at least 3");
         }
 
-        // check that shift_prob[0] > shift_prob[3], otherwise walker will diverge
         if self.shift_weights.probs[0] < self.shift_weights.probs[3] {
-            return Err("shift_prob[0] must be larger than shift_prob[4], walker will diverge");
+            return Err("shift_prob[0] < shift_prob[3]");
         }
 
         // check fade config
@@ -322,15 +321,26 @@ impl GenerationConfig {
             let pillar_max_length = rnd.get_usize_in_range(pillar_min_length, 30);
 
             // as shift_weights always requires exactly 4 values, i just generate it like this..
-            let mut shift_weights = RandomDistConfig::new(
-                None,
-                vec![
-                    rnd.get_unit_ratio(),
-                    rnd.get_unit_ratio(),
-                    rnd.get_unit_ratio(),
-                    rnd.get_unit_ratio(),
-                ],
-            );
+            let mut shift_probs = vec![
+                rnd.get_unit_ratio(),
+                rnd.get_unit_ratio(),
+                rnd.get_unit_ratio(),
+                rnd.get_unit_ratio(),
+            ];
+
+            // weight[0] must be larger than [3] and [2] for walker to reach goal
+            if shift_probs[2] > shift_probs[0] {
+                shift_probs.swap(0, 2);
+            }
+            if shift_probs[3] > shift_probs[0] {
+                shift_probs.swap(0, 3);
+            }
+            // weight[1] should be larger than weight[2] too, but we give it some slack
+            if shift_probs[2] > shift_probs[1] + 0.05 {
+                shift_probs.swap(1, 2);
+            }
+
+            let mut shift_weights = RandomDistConfig::new(None, shift_probs);
             shift_weights.normalize_probs();
 
             let mut circ_probs = RandomDistConfig::new(
@@ -342,6 +352,13 @@ impl GenerationConfig {
                 ],
             );
             circ_probs.normalize_probs();
+
+            // we sample subwaypoint shift from 3 possible ranges, as we dont want to give each
+            // value the same weight. think of it as low/medium/high levels of random shifting.
+            let subwaypoint_shift_range: (f32, f32) =
+                *rnd.pick_from_slice(&[(0.0, 5.0), (5.0, 20.0), (20.0, 100.0)]);
+            let subwaypoint_max_shift_dist =
+                rnd.get_f32_in_range(subwaypoint_shift_range.0, subwaypoint_shift_range.1);
 
             let outer_margin_ratio = rnd.get_unit_ratio();
             let outer_margin_probs = RandomDistConfig::new(
@@ -363,7 +380,7 @@ impl GenerationConfig {
                 outer_rad_mut_prob: rnd.get_unit_ratio(),
                 outer_size_mut_prob: rnd.get_unit_ratio(),
                 shift_weights,
-                plat_target_distance: rnd.get_usize_in_range(0, 200),
+                plat_target_distance: rnd.get_usize_in_range(50, 150),
                 plat_max_dist_factor: 100., // relax platform constraints a lot
                 plat_min_dist_factor: 0.1,  // relax platform constraints a lot
                 plat_max_freeze: rnd.get_usize_in_range(1, 3),
@@ -389,10 +406,11 @@ impl GenerationConfig {
                 fade_max_size,
                 fade_min_size,
                 max_subwaypoint_dist: rnd.get_f32_in_range(0.1, 100.0),
-                subwaypoint_max_shift_dist: rnd.get_f32_in_range(0.0, 300.0),
-                skip_invalid_waypoints: rnd.get_bool_with_prob(0.5),
+                subwaypoint_max_shift_dist,
+                skip_invalid_waypoints: true, // for stability we enforce this, has no real downside
                 pos_lock_max_dist: rnd.get_f32_in_range(0.0, 150.0),
-                pos_lock_max_delay: rnd.get_usize_in_range(1, 10_000),
+                // for stability we lock this to a very high delay, so it works with any lock dist.
+                pos_lock_max_delay: 10_000,
                 enable_kernel_lock: rnd.get_bool_with_prob(0.5),
                 waypoint_lock_distance: rnd.get_usize_in_range(0, 20),
                 use_dead_end_removal: rnd.get_bool_with_prob(0.5),

@@ -74,8 +74,8 @@ use crate::{
 #[derive(PartialEq)]
 pub enum WalkerState {
     Default,
-    /// (direction, amount of steps left)
-    UnParking(ShiftDirection, usize),
+    /// (direction, amount of steps left, direction to resume once unparked)
+    UnParking(ShiftDirection, usize, ShiftDirection),
 }
 
 // this walker is indeed very cute
@@ -180,21 +180,34 @@ impl CuteWalker {
         lock_distance: usize,
         map: &Map,
         debug_layers: &mut Option<DebugLayers>,
-    ) -> Result<(), &'static str> {
+    ) {
         self.locked_waypoint_positions.fill(false); // unlock all blocks
 
-        let lock_distance: i32 = lock_distance as i32;
+        let lock_distance = lock_distance as i32;
 
         // lock all following waypoints
         for waypoint_index in (self.goal_index + 1)..self.waypoints.len() {
             let waypoint = self.waypoints.get(waypoint_index).unwrap();
 
+            // only lock waypoints in bounds (regardless of config.skip_invalid_waypoints)
+            if !map.pos_in_bounds(waypoint) {
+                continue;
+            }
+
+            let top_left = waypoint
+                .shifted_by_safe(-lock_distance, -lock_distance)
+                .clamp_to_map(map);
+            let bot_right = waypoint
+                .shifted_by_safe(lock_distance, lock_distance)
+                .clamp_to_map(map);
+
             let mut lock_area = safe_slice_mut(
                 &mut self.locked_waypoint_positions,
-                &waypoint.shifted_by(-lock_distance, -lock_distance)?,
-                &waypoint.shifted_by(lock_distance, lock_distance)?,
+                &top_left,
+                &bot_right,
                 map,
-            )?;
+            )
+            .expect("top_left/bot_right are clamped to map bounds");
             lock_area.fill(true);
         }
 
@@ -205,8 +218,6 @@ impl CuteWalker {
                 .unwrap()
                 .grid = self.locked_waypoint_positions.clone();
         }
-
-        Ok(())
     }
 
     pub fn is_goal_reached(&self, waypoint_reached_dist: &usize) -> Option<bool> {
@@ -355,7 +366,7 @@ impl CuteWalker {
                     if current_shift == shifts[0] || self.is_shift_locked(&shifts[0], map) {
                         // if current and greedy shift (can be the same) are locked -> unpark the walker
                         let (unpark_shift, unpark_steps) = self.unpark(25, shifts[0], goal, map)?; // unpark using greedy as target direction
-                        self.state = WalkerState::UnParking(unpark_shift, unpark_steps);
+                        self.state = WalkerState::UnParking(unpark_shift, unpark_steps, shifts[0]);
                         return Ok(());
                     } else {
                         // if the current shift is locked but the greedy direction is not -> use greedy shift instead
@@ -363,15 +374,15 @@ impl CuteWalker {
                     }
                 }
             }
-            WalkerState::UnParking(unpark_shift, ref mut steps_left) => {
+            WalkerState::UnParking(unpark_shift, ref mut steps_left, target_shift) => {
                 if *steps_left > 0 {
                     current_shift = unpark_shift;
                     *steps_left -= 1;
                 } else {
-                    if self.is_shift_locked(&shifts[0], map) {
+                    if self.is_shift_locked(&target_shift, map) {
                         return Err("greedy shift after unparking is locked??");
                     }
-                    current_shift = shifts[0]; // unparked, perform greedy to get around obstacle
+                    current_shift = target_shift; // unparked, perform greedy to get around obstacle
                     self.state = WalkerState::Default;
                 }
             }

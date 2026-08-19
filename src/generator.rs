@@ -345,14 +345,11 @@ impl Generator {
 
             // lock all other waypoints
             if gen_config.waypoint_lock_distance > 0 {
-                if let Err(err) = self.walker.update_waypoint_locks(
+                self.walker.update_waypoint_locks(
                     gen_config.waypoint_lock_distance,
                     &self.map,
                     debug_layers,
-                ) {
-                    self.status = GenerationStatus::Failed(format!("Walker failed: {err}"));
-                    return Err(err);
-                }
+                );
             }
         }
 

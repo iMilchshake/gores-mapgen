@@ -61,6 +61,15 @@ impl Position {
         [self.x, self.y]
     }
 
+    // TODO: this is inconsistent. Error on underflow, but no check for overflow with respect to map
+    // boundaries. Also error-ing is not always what we want. we should rework this into functions
+    // that automatically clamp to map after shift or error while considering map bounds, and have
+    // one function that explicitly ignores map bounds, and does the check below just for usize type
+    // safety. we could call it unchecked or smth but need to make sure clear that this is about map
+    // bounds and not type safety.
+    // When re-working this we should also consider whether to switch to signed integer based
+    // positions, but then Teero would have been right all along...
+
     /// returns a new position shifted by some x and y value
     pub fn shifted_by(&self, x_shift: i32, y_shift: i32) -> Result<Position, &'static str> {
         let new_x = match x_shift >= 0 {
@@ -80,6 +89,26 @@ impl Position {
         };
 
         Ok(Position::new(new_x, new_y))
+    }
+
+    /// clamp x and y to map grid
+    pub fn clamp_to_map(&self, map: &Map) -> Position {
+        Position::new(self.x.min(map.width - 1), self.y.min(map.height - 1))
+    }
+
+    /// like `shifted_by`, but saturates at 0 on underflow instead of erroring
+    pub fn shifted_by_safe(&self, x_shift: i32, y_shift: i32) -> Position {
+        let new_x = match x_shift >= 0 {
+            true => self.x.saturating_add(x_shift as usize),
+            false => self.x.saturating_sub((-x_shift) as usize),
+        };
+
+        let new_y = match y_shift >= 0 {
+            true => self.y.saturating_add(y_shift as usize),
+            false => self.y.saturating_sub((-y_shift) as usize),
+        };
+
+        Position::new(new_x, new_y)
     }
 
     pub fn shift_inplace(&mut self, shift: &ShiftDirection, map: &Map) -> Result<(), &'static str> {
