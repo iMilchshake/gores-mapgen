@@ -373,7 +373,7 @@ impl GenerationConfig {
             let gen_config_candidate = GenerationConfig {
                 name: "Random".to_string(),
                 description: None,
-                difficulty: rnd.get_f32_in_range(0.1, 5.0),
+                difficulty: 0.5,
                 version: "1.0".to_string(),
                 inner_rad_mut_prob: rnd.get_unit_ratio(),
                 inner_size_mut_prob: rnd.get_unit_ratio(),
