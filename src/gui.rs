@@ -152,6 +152,12 @@ pub fn edit_usize(ui: &mut Ui, value: &mut usize) {
     ui.add(egui::DragValue::new(value));
 }
 
+pub fn edit_usize_min(min: usize) -> impl Fn(&mut Ui, &mut usize) {
+    move |ui: &mut Ui, value: &mut usize| {
+        ui.add(egui::DragValue::new(value).range(min..=usize::MAX));
+    }
+}
+
 pub fn edit_pos_i32(ui: &mut Ui, value: &mut i32) {
     ui.add(egui::DragValue::new(value).range(0..=isize::MAX));
 }
@@ -798,7 +804,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                         field_edit_widget(
                             ui,
                             &mut editor.gen_config.fade_max_size,
-                            edit_usize,
+                            edit_usize_min(1),
                             "fade max size",
                             false,
                         );
@@ -806,7 +812,7 @@ pub fn sidebar(ctx: &Context, editor: &mut Editor) {
                         field_edit_widget(
                             ui,
                             &mut editor.gen_config.fade_min_size,
-                            edit_usize,
+                            edit_usize_min(1),
                             "fade min size",
                             false,
                         );
