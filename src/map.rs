@@ -115,7 +115,10 @@ impl Overwrite {
                 matches!(&btype, BlockType::EmptyRoom | BlockType::Freeze)
             }
             Overwrite::ReplaceNonSolidFade => {
-                matches!(&btype, BlockType::EmptyFade | BlockType::Freeze)
+                matches!(
+                    &btype,
+                    BlockType::EmptyFade | BlockType::Freeze | BlockType::Empty
+                )
             }
         }
     }
